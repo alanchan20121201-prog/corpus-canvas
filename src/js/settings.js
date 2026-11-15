@@ -110,6 +110,8 @@
           '<div class="kv-row"><span class="kv-key">' + U.esc(t('settings.dataPath')) + '</span>' +
             '<code class="kv-val">' + U.esc(info.corpusPath || '') + '</code>' +
             '<button class="mini-btn" id="reveal">' + U.icon('external', 12) + U.esc(t('settings.dataReveal')) + '</button></div>' +
+          '<div class="kv-row"><span class="kv-key">' + U.esc(t('settings.storage')) + '</span>' +
+            '<span class="kv-val" id="storage-mode">' + U.esc(t('common.loading')) + '</span></div>' +
           '<div class="kv-row"><span class="kv-key">' + U.esc(t('settings.format')) + '</span>' +
             '<span class="kv-val">' + U.esc(t('settings.formatBody', { version: S.FORMAT_VERSION })) + '</span></div>' +
           '<div class="backup-row">' +
@@ -128,7 +130,7 @@
 
         section('set-keys', 'keyboard', t('settings.shortcuts'),
           '<div class="shortcut-grid">' +
-            ['newCard', 'search', 'save', 'undo', 'delete', 'escape', 'focus', 'fit', 'edit', 'nav', 'quickAdd'].map(function (k) {
+            ['search', 'save', 'undo', 'delete', 'escape', 'focus', 'fit', 'edit', 'nav'].map(function (k) {
               return '<div class="sc-row"><kbd>' + U.esc(t('shortcut.' + k).split(' ')[0]) + '</kbd><span>' + U.esc(t('shortcut.' + k).split(' ').slice(1).join(' ')) + '</span></div>';
             }).join('') +
           '</div>') +
@@ -245,6 +247,15 @@
 
     var reveal = root.querySelector('#reveal');
     if (reveal) reveal.onclick = function () { window.api.revealCorpus(); };
+
+    var sm = root.querySelector('#storage-mode');
+    if (sm && window.api.corpusStats) {
+      window.api.corpusStats().then(function (r) {
+        if (!r || !r.ok) { sm.textContent = t('settings.storageSingle'); return; }
+        var mode = r.sharded ? t('settings.storageSharded', { n: r.shards }) : t('settings.storageSingle');
+        sm.textContent = mode + ' · ' + t('settings.storageCards', { n: r.cards });
+      }).catch(function () { sm.textContent = t('settings.storageSingle'); });
+    }
 
     var be = root.querySelector('#backup-export');
     if (be) be.onclick = function () { exportBackup(); };

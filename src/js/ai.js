@@ -14,14 +14,35 @@
   function chat(messages, opts) {
     opts = opts || {};
     var a = ai();
+    var reqId = U.uid('req');
+    if (state) {
+      state.requestId = reqId;
+      state.stream = '';
+      state.streamOn = !!window.api.onChatChunk;
+      state.cancelled = false;
+    }
+    var unbind = null;
+    if (state && state.streamOn) {
+      unbind = window.api.onChatChunk(function (d) {
+        if (!state || !d || d.id !== reqId) return;
+        state.stream += d.delta;
+        if (state.renderStream) state.renderStream();
+      });
+    }
+    var done = function (r) { if (unbind) unbind(); return r; };
+    var fail = function (e) { if (unbind) unbind(); throw e; };
     return window.api.chat({
       baseUrl: a.baseUrl,
       apiKey: key(),
       model: a.model,
       messages: messages,
       temperature: opts.temperature,
-      maxTokens: opts.maxTokens
-    });
+      maxTokens: opts.maxTokens,
+      stream: !!(state && state.streamOn),
+      requestId: reqId,
+      kind: state ? state.kind : '',
+      scope: state ? state.scope : ''
+    }).then(done, fail);
   }
 
   /* ------------------------------------------------------------------ */
@@ -189,8 +210,12 @@
         '</div>' +
         '<div class="ai-run-row">' +
           '<button class="btn primary" id="ai-run">' + U.icon('sparkles', 15) + '<span>' + U.esc(t('ai.run')) + '</span></button>' +
+          '<button class="btn ghost sm" id="ai-cancel" hidden>' + U.icon('close', 13) + '<span>' + U.esc(t('ai.cancel')) + '</span></button>' +
           '<span class="ai-run-status" id="ai-status"></span>' +
+          '<button class="mini-btn ai-ledger-btn" id="ai-ledger">' + U.icon('history', 12) + U.esc(t('ai.ledger')) + '</button>' +
         '</div>' +
+        '<div class="ai-stream" id="ai-stream" hidden></div>' +
+        '<p class="ai-stream-hint" id="ai-stream-hint" hidden>' + U.esc(t('ai.streamHint')) + '</p>' +
         '<div class="ai-result" id="ai-result"></div>';
 
       el.querySelectorAll('[data-scope]').forEach(function (b) {
@@ -227,6 +252,10 @@
         });
       };
       el.querySelector('#ai-run').onclick = run;
+      var cancelBtn = el.querySelector('#ai-cancel');
+      if (cancelBtn) cancelBtn.onclick = cancelRun;
+      var ledgerBtn = el.querySelector('#ai-ledger');
+      if (ledgerBtn) ledgerBtn.onclick = openLedger;
       if (state.result) renderResult();
       else if (state.error) renderError();
     }
@@ -235,8 +264,85 @@
       state.busy = b;
       var st = body.querySelector('#ai-status');
       var btn = body.querySelector('#ai-run');
+      var cancelBtn = body.querySelector('#ai-cancel');
+      var streamEl = body.querySelector('#ai-stream');
+      var hintEl = body.querySelector('#ai-stream-hint');
       if (st) st.innerHTML = b ? '<span class="spinner"></span>' + U.esc(t('ai.running')) : (state.elapsed ? U.esc(t('ai.usage', { tokens: state.usage ? (state.usage.total_tokens || 0) : '?', ms: state.elapsed })) : '');
       if (btn) btn.disabled = b;
+      if (cancelBtn) cancelBtn.hidden = !b;
+      if (b) {
+        if (streamEl) { streamEl.hidden = false; streamEl.innerHTML = '<div class="ai-stream-head"><span class="spinner"></span>' + U.esc(t('ai.streaming')) + '</div><pre class="ai-stream-text"></pre>'; }
+        if (hintEl) hintEl.hidden = false;
+      } else {
+        if (streamEl) streamEl.hidden = true;
+        if (hintEl) hintEl.hidden = true;
+      }
+    }
+
+    /* Live preview fed by the main-process SSE chunks. */
+    function renderStream() {
+      var el = body.querySelector('#ai-stream');
+      if (!el || !state) return;
+      var pre = el.querySelector('.ai-stream-text');
+      if (pre) {
+        pre.textContent = state.stream.slice(-1600);
+        el.scrollTop = el.scrollHeight;
+      }
+    }
+    state.renderStream = renderStream;
+
+    /* A real cancel: the main process aborts the in-flight HTTP request. */
+    function cancelRun() {
+      if (!state || !state.busy || !state.requestId) return;
+      state.cancelled = true;
+      if (window.api.cancelChat) window.api.cancelChat(state.requestId);
+      var st = body.querySelector('#ai-status');
+      if (st) st.textContent = t('ai.cancelled');
+    }
+
+    function openLedger() {
+      var box = document.createElement('div');
+      box.className = 'ledger-panel';
+      box.innerHTML = '<p class="dialog-text">' + U.esc(t('common.loading')) + '</p>';
+      U.openModal({
+        title: t('ai.ledger'),
+        wide: true,
+        body: box,
+        actions: [
+          { id: 'clear', label: t('ai.ledgerClear'), ghost: true, value: 'clear' },
+          { id: 'close', label: t('common.close'), primary: true }
+        ]
+      }).then(function (r) {
+        if (r === 'clear' && window.api.ledgerClear) window.api.ledgerClear();
+      });
+      var draw = function (items) {
+        if (!items.length) {
+          box.innerHTML = '<p class="dialog-text">' + U.esc(t('ai.ledgerEmpty')) + '</p>';
+          return;
+        }
+        var statusKey = { ok: 'ai.ledgerOk', error: 'ai.ledgerError', aborted: 'ai.ledgerAborted' };
+        var rows = items.map(function (e) {
+          var label = statusKey[e.status] || 'ai.ledgerError';
+          return '<tr class="ledger-row ledger-' + U.esc(e.status || '') + '">' +
+            '<td>' + U.esc(U.fmtDate(e.at, true)) + '</td>' +
+            '<td>' + U.esc(t('ai.' + (e.kind || 'draft'))) + '</td>' +
+            '<td>' + U.esc(e.model || '—') + '</td>' +
+            '<td><span class="ledger-status">' + U.esc(t(label)) + '</span></td>' +
+            '<td>' + (e.tokens || 0) + '</td>' +
+            '<td>' + (e.ms || 0) + ' ms</td>' +
+            (e.error ? '<td class="ledger-err">' + U.esc(String(e.error).slice(0, 90)) + '</td>' : '<td>—</td>') +
+            '</tr>';
+        }).join('');
+        box.innerHTML = '<div class="ledger-count">' + U.esc(t('ai.ledgerRows', { n: items.length })) + '</div>' +
+          '<div class="ledger-wrap"><table class="ledger-table"><thead><tr>' +
+          ['ai.ledgerTime', 'ai.ledgerAction', 'ai.ledgerModel', 'ai.ledgerStatus', 'ai.ledgerTokens', 'ai.ledgerMs']
+            .map(function (k) { return '<th>' + U.esc(t(k)) + '</th>'; }).join('') +
+          '<th>' + U.esc(t('ai.failed')) + '</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+      };
+      if (!window.api.ledgerList) { draw([]); return; }
+      window.api.ledgerList().then(function (res) {
+        draw((res && res.items) || []);
+      }).catch(function () { draw([]); });
     }
 
     function run() {
@@ -265,6 +371,13 @@
         setBusy(false);
         state.elapsed = r.ms || 0;
         if (!r.ok) {
+          if (r.code === 'aborted' || state.cancelled) {
+            state.error = t('ai.cancelled');
+            state.errorCode = 'aborted';
+            state.usage = null;
+            renderError();
+            return;
+          }
           state.error = r.error || '';
           state.errorCode = r.code || '';
           state.usage = null;

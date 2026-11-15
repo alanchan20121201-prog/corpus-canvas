@@ -238,7 +238,7 @@
         '<span class="ctx-label">' + esc(item.label) + '</span>' +
         (item.hint ? '<span class="ctx-hint">' + esc(item.hint) + '</span>' : '');
       if (!item.disabled) {
-        b.onclick = function () { closeMenus(); item.onClick && item.onClick(); };
+        b.onclick = function () { closeMenus(); item.onClick && item.onClick(b); };
       }
       menu.appendChild(b);
     });

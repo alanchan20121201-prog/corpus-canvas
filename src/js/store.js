@@ -68,6 +68,8 @@
       if (typeof c.title !== 'string') c.title = '';
       if (typeof c.body !== 'string') c.body = '';
       if (typeof c.note !== 'string') c.note = '';
+      if (typeof c.summary !== 'string') c.summary = '';
+      if (!Array.isArray(c.attachments)) c.attachments = [];
       c.deletedAt = c.deletedAt || null;
     });
     out.maps.forEach(function (m) {
@@ -304,6 +306,8 @@
       color: '',
       style: {},
       link: '',
+      summary: '',
+      attachments: [],
       sources: [],
       createdAt: now(),
       updatedAt: now(),

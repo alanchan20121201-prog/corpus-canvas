@@ -1,0 +1,89 @@
+# Batch 4 shared contract (Corpus Canvas)
+
+New i18n keys are listed at the bottom. Every language must translate ALL of them
+by hand (no machine translation). A single screen must never mix languages.
+
+## New public API on CC.graph (already implemented by the lead, use these only)
+
+```js
+CC.graph.presentItems() -> [{ id, title, body, note, tags: [], kind }]
+  // ordered like the outline (roots first, depth-first); kind is '' | 'summary'
+
+CC.graph.sceneForPrint() -> {
+  bounds: { minX, minY, maxX, maxY, w, h },
+  nodes: [{ id, x, y, w, h, title, fs, fill, accent, shape, bold, tags: [], kind }],
+  edges: [{ id, type, label, color, uncertain, curved, d, arrow, mx, my }]
+}
+  // x/y are the node CENTER in world coordinates; d/arrow/mx/my are already
+  // computed SVG path data in world coordinates.
+
+CC.graph.currentMapId() -> string | null
+```
+
+## New i18n keys (zh-CN / en / ja already exist in src/js/i18n.js)
+
+### link line style
+- map.edgeLineStyle      连线样式 / Link line style / リンクの線スタイル
+- map.edgeSolid          实线 / Solid / 実線
+- map.edgeDashed         虚线 / Dashed / 破線
+- map.edgeDotted         点线 / Dotted / 点線
+- map.edgeArrowStyle     箭头样式 / Arrow style / 矢印スタイル
+- map.edgeArrowNone      无箭头 / No arrow / 矢印なし
+- map.edgeArrowOpen      开口箭头 / Open arrow / 開いた矢印
+- map.edgeArrowSolid     实心箭头 / Filled arrow / 塗りつぶし矢印
+- map.edgeWidth          线宽 / Width / 太さ
+- map.edgeThin           细 / Thin / 細
+- map.edgeMedium         中 / Medium / 中
+- map.edgeThick          粗 / Thick / 太
+
+### summary node
+- cards.summary          摘要 / Summary / 概要
+- cards.summaryPlaceholder 一句话摘要 / One-line summary / 一行の要約
+- map.summaryNode        摘要节点 / Summary node / 概要ノード
+- map.summaryStyle       摘要样式 / Summary style / 概要スタイル
+- map.summaryPlain       摘要 / Summary / 概要
+- map.summaryCallout     强调块 / Callout / コールアウト
+- map.summaryBadge       角标 / Badge / バッジ
+
+### theme library
+- theme.title            主题库 / Theme library / テーマ集
+- theme.default          默认 / Default / 標準
+- theme.paper            纸感 / Paper / 和紙
+- theme.ink              墨色 / Ink / 墨
+- theme.night            夜行 / Night / 夜
+- theme.forest           林间 / Forest / 森
+- theme.dusk             暮紫 / Dusk / 夕暮
+- theme.apply            应用主题 / Apply theme / テーマを適用
+- theme.current          当前主题 / Current theme / 現在のテーマ
+
+### presentation mode
+- present.start          开始演示 / Start presentation / 発表を開始
+- present.exit           退出演示 / Exit presentation / 発表を終了
+- present.next           下一个 / Next / 次へ
+- present.prev           上一个 / Previous / へ前へ
+- present.hint           演示模式 / Presentation / 発表モード
+- present.progress       第 {n} / {total} 张 / Slide {n} of {total} / {total} 枚中 {n} 枚目
+- present.empty          没有可演示的内容 / Nothing to present / 発表する内容がありません
+- present.exitHint       按 Esc 退出演示 / Press Esc to exit / Esc で終了
+
+### A4 print
+- print.title            打印 / Print / 印刷
+- print.a4               A4 横向 / A4 landscape / A4 横
+- print.hint             打印当前视野 / Print the current view / 現在の表示を印刷
+- print.pages            共 {n} 页 / {n} pages / 全 {n} ページ
+- print.noMap            没有可打印的图 / Nothing to print / 印刷する図がありません
+
+### attachments
+- cards.attachments      附件 / Attachments / 添付
+- cards.addAttachment    添加附件 / Add attachment / 添付を追加
+- cards.removeAttachment 移除附件 / Remove attachment / 添付を削除
+- attach.open            打开 / Open / 開く
+- attach.reveal          在文件夹中显示 / Show in folder / フォルダーに表示
+- attach.tooLarge        文件过大（上限 {max}） / File is too large (max {max}) / ファイルが大きすぎます（上限 {max}）
+- attach.image           图片 / Image / 画像
+- attach.file            文件 / File / ファイル
+- attach.count           {n} 个附件 / {n} attachments / 添付 {n} 件
+- attach.pickImage       选择图片 / Choose image / 画像を選ぶ
+- attach.pickFile        选择文件 / Choose file / ファイルを選ぶ
+- attach.addImage        添加图片 / Add image / 画像を追加
+- attach.addFile         添加文件 / Add file / ファイルを追加

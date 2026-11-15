@@ -54,6 +54,14 @@ window.api = {
   saveImage: () => Promise.resolve({ ok: true, path: 'C:/tmp/map.png' }),
   parseXmind: () => Promise.resolve({ ok: false, error: 'x' }),
   chat: (payload) => { chats.push(payload); return Promise.resolve({ ok: true, status: 200, content: '{"nodes":[]}', usage: { total_tokens: 12 }, ms: 40 }); },
+  cancelChat: () => Promise.resolve({ ok: true }),
+  onChatChunk: () => () => {},
+  ledgerList: () => Promise.resolve({ ok: true, items: [
+    { id: 'l1', at: Date.now() - 60000, kind: 'draft', model: 'gpt-4o-mini', status: 'ok', tokens: 88, ms: 120, streamed: true, bytes: 240 },
+    { id: 'l2', at: Date.now() - 120000, kind: 'review', model: 'gpt-4o-mini', status: 'aborted', tokens: 0, ms: 40, streamed: true, bytes: 0 }
+  ] }),
+  ledgerClear: () => Promise.resolve({ ok: true }),
+  corpusStats: () => Promise.resolve({ ok: true, sharded: true, shards: 3, cards: 4201 }),
   smokeDone: () => Promise.resolve({ ok: true }),
   quit: () => Promise.resolve()
 };
@@ -720,6 +728,185 @@ function step(name, fn) {
     await sleep(40);
     if (document.querySelector('#minimap').hidden) throw new Error('minimap not shown again');
     return cells + ' cells';
+  });
+
+  await step('batch4-theme-library', async () => {
+    CC.app.nav('map');
+    await sleep(80);
+    if (!CC.themes) throw new Error('no themes module');
+    const list = CC.themes.list();
+    if (!list || list.length < 6) throw new Error('themes=' + (list && list.length));
+    const ids = list.map((x) => x.id);
+    ['default', 'paper', 'ink', 'night', 'forest', 'dusk'].forEach((id) => {
+      if (ids.indexOf(id) < 0) throw new Error('missing theme ' + id);
+    });
+    const stage = document.querySelector('#map-stage');
+    if (!stage) throw new Error('no map stage');
+    CC.themes.apply(stage, 'night');
+    await sleep(30);
+    const bg = stage.style.getPropertyValue('--map-bg');
+    if (!bg) throw new Error('theme did not set --map-bg');
+    const accent = stage.style.getPropertyValue('--accent');
+    if (!accent) throw new Error('theme did not set --accent');
+    const night = CC.themes.get('night');
+    if (night.fills.length < 4) throw new Error('theme has no fill palette');
+    CC.themes.clear(stage);
+    await sleep(20);
+    if (stage.style.getPropertyValue('--map-bg')) throw new Error('theme not cleared');
+    return list.length + ' themes';
+  });
+
+  await step('batch4-theme-on-map', async () => {
+    const m = S.currentMap();
+    S.commit('edit', 'test theme', () => {
+      m.style = m.style || {};
+      m.style.theme = 'forest';
+    });
+    await sleep(400);
+    const stage = document.querySelector('#map-stage');
+    const bg = stage.style.getPropertyValue('--map-bg');
+    if (!bg) throw new Error('map theme not applied to stage');
+    if (CC.graph.mapTheme().id !== 'forest') throw new Error('mapTheme wrong');
+    S.commit('edit', 'test theme off', () => { m.style.theme = 'default'; });
+    await sleep(400);
+    if (stage.style.getPropertyValue('--map-bg')) throw new Error('default theme still applied');
+    return 'forest applied';
+  });
+
+  await step('batch4-summary-node', async () => {
+    CC.app.nav('map');
+    await sleep(80);
+    const m0 = S.currentMap();
+    const card = S.mapCards(m0)[0];
+    if (!card) throw new Error('no mapped cards');
+    S.commit('edit', 'test summary', () => {
+      card.summary = 'A one-line summary for the test.';
+      card.style = card.style || {};
+      card.style.summaryKind = 'callout';
+    });
+    await sleep(400);
+    if (!document.querySelector('#g-nodes .node-summary-callout')) throw new Error('summary callout not rendered');
+    S.commit('edit', 'test summary badge', () => { card.style.summaryKind = 'badge'; });
+    await sleep(400);
+    if (!document.querySelector('#g-nodes .node-summary-badge')) throw new Error('summary badge not rendered');
+    S.commit('edit', 'test summary clear', () => {
+      card.style.summaryKind = 'plain';
+      card.summary = '';
+    });
+    await sleep(400);
+    if (document.querySelector('#g-nodes .node-summary')) throw new Error('summary not cleared');
+    return 'plain/callout/badge ok';
+  });
+
+  await step('batch4-edge-style', async () => {
+    CC.app.nav('map');
+    await sleep(80);
+    const m = S.currentMap();
+    if (!m.edges.length) throw new Error('no edges');
+    const e = m.edges.filter((x) => x.type !== 'hierarchy')[0] || m.edges[0];
+    S.commit('edit', 'test edge style', () => {
+      e.style = { dash: 'dashed', arrow: 'open', width: 'thick' };
+    });
+    await sleep(400);
+    if (!document.querySelector('#g-edges .edge-dash-dashed')) throw new Error('dashed edge class missing');
+    if (!document.querySelector('#g-edges .edge-a-open')) throw new Error('open arrow style missing');
+    if (!document.querySelector('#g-edges .edge-w-thick')) throw new Error('thick edge missing');
+    S.commit('edit', 'test edge style off', () => {
+      e.style = { dash: 'solid', arrow: 'solid', width: 'medium' };
+    });
+    await sleep(400);
+    if (document.querySelector('#g-edges .edge-dash-dashed')) throw new Error('dash style not restored');
+    return 'dash/arrow/width ok';
+  });
+
+  await step('batch4-attachments', async () => {
+    if (!CC.attach) throw new Error('no attachments module');
+    CC.app.nav('map');
+    await sleep(80);
+    const card = S.cards()[0];
+    S.commit('edit', 'test attachment', () => {
+      card.attachments = [{ id: 'att-test', name: 'note.txt', ext: '.txt', mime: 'text/plain', size: 12 }];
+    });
+    CC.graph.selectCard(card.id);
+    await sleep(180);
+    const block = document.querySelector('#insp-attachments') || document.querySelector('.attach-list');
+    if (!block) throw new Error('attachment block not rendered');
+    if ((block.textContent || '').indexOf('note.txt') < 0) throw new Error('attachment name missing');
+    if (!document.querySelector('[data-act="attach-open"]')) throw new Error('attach-open missing');
+    if (!document.querySelector('[data-act="attach-reveal"]')) throw new Error('attach-reveal missing');
+    if (!document.querySelector('[data-act="attach-del"]')) throw new Error('attach-del missing');
+    S.commit('edit', 'test attachment off', () => { card.attachments = []; });
+    CC.graph.selectCard(card.id);
+    await sleep(120);
+    return 'attachment block ok';
+  });
+
+  await step('batch4-present-mode', async () => {
+    CC.app.nav('map');
+    await sleep(80);
+    const items = CC.graph.presentItems();
+    if (!items || !items.length) throw new Error('no present items');
+    if (!items[0].title) throw new Error('first item has no title');
+    if (!CC.present.start()) throw new Error('present did not start');
+    await sleep(80);
+    if (!document.querySelector('.present-view')) throw new Error('no present view');
+    if (!document.querySelector('.present-title')) throw new Error('no present title');
+    if (!(document.querySelector('.present-count').textContent || '').trim()) throw new Error('no progress counter');
+    if (items.length > 1) {
+      CC.present.go(1);
+      await sleep(60);
+      if (CC.present.index() !== 1) throw new Error('present next failed');
+      CC.present.go(-1);
+      await sleep(60);
+      if (CC.present.index() !== 0) throw new Error('present prev failed');
+    }
+    CC.present.exit();
+    await sleep(60);
+    if (document.querySelector('.present-view')) throw new Error('present not closed');
+    if (document.body.classList.contains('presenting')) throw new Error('presenting class left behind');
+    return items.length + ' slides';
+  });
+
+  await step('batch4-a4-print', async () => {
+    CC.app.nav('map');
+    await sleep(80);
+    const scene = CC.graph.sceneForPrint();
+    if (!scene || !scene.nodes.length) throw new Error('no scene');
+    if (!scene.bounds || !isFinite(scene.bounds.w)) throw new Error('bad bounds');
+    if (!scene.nodes[0].lines || !scene.nodes[0].lines.length) throw new Error('scene has no node lines');
+    const origPrint = window.print;
+    window.print = function () {};
+    CC.print.print();
+    await sleep(160);
+    window.print = origPrint;
+    const made = document.querySelectorAll('.print-root .print-page');
+    if (!made.length) throw new Error('no print pages');
+    const svg = made[0].querySelector('svg');
+    if (!svg) throw new Error('print page has no svg');
+    if (!svg.getAttribute('viewBox')) throw new Error('print svg has no viewBox');
+    if ((made[0].style.width || '').indexOf('mm') < 0) throw new Error('page width not in mm');
+    if (!made[0].querySelector('rect')) throw new Error('print page has no node rect');
+    CC.print.close();
+    await sleep(60);
+    if (document.querySelector('.print-root')) throw new Error('print root not closed');
+    return made.length + ' A4 pages';
+  });
+
+  await step('batch4-help-style-section', async () => {
+    const langs = ['zh-CN', 'zh-TW', 'en', 'ja', 'es', 'fr', 'ko'];
+    const missing = [];
+    for (const lang of langs) {
+      CC.app.setLang(lang);
+      CC.app.nav('help');
+      const el = document.querySelector('#h-style');
+      if (!el) { missing.push(lang); continue; }
+      const body = el.textContent || '';
+      if (body.length < 200) missing.push(lang + ':thin');
+      if (['es', 'fr', 'ko'].indexOf(lang) >= 0 && /[一-龥]/.test(body)) missing.push(lang + ':han');
+    }
+    CC.app.setLang('zh-CN');
+    if (missing.length) throw new Error('style section missing: ' + missing.join(','));
+    return 'style section in ' + langs.length + ' languages';
   });
 
   await step('no-uncaught', () => {

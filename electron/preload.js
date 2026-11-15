@@ -22,7 +22,21 @@ contextBridge.exposeInMainWorld('api', {
   parseXmind: (buffer) => ipcRenderer.invoke('file:parse-xmind', buffer),
   saveText: (payload) => ipcRenderer.invoke('file:save-text', payload),
   openExternal: (url) => ipcRenderer.invoke('shell:open', url),
+  pickAttachments: (kind) => ipcRenderer.invoke('file:pick-attachments', kind),
+  readAttachment: (id) => ipcRenderer.invoke('file:read-attachment', id),
+  openAttachment: (id) => ipcRenderer.invoke('file:open-attachment', id),
+  revealAttachment: (id) => ipcRenderer.invoke('file:reveal-attachment', id),
+  deleteAttachment: (id) => ipcRenderer.invoke('file:delete-attachment', id),
   chat: (payload) => ipcRenderer.invoke('ai:chat', payload),
+  cancelChat: (id) => ipcRenderer.invoke('ai:cancel', id),
+  onChatChunk: (fn) => {
+    const h = (_e, data) => { try { fn(data); } catch (err) { console.error(err); } };
+    ipcRenderer.on('ai:chunk', h);
+    return () => ipcRenderer.removeListener('ai:chunk', h);
+  },
+  ledgerList: () => ipcRenderer.invoke('ai:ledger-list'),
+  ledgerClear: () => ipcRenderer.invoke('ai:ledger-clear'),
+  corpusStats: () => ipcRenderer.invoke('corpus:stats'),
   listModels: (payload) => ipcRenderer.invoke('ai:models', payload),
   quit: () => ipcRenderer.invoke('app:quit'),
   toggleFullScreen: () => ipcRenderer.invoke('win:toggle-full'),

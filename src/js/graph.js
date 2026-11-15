@@ -21,11 +21,49 @@
 
   function activeMap() { return S.currentMap(); }
 
+  /* the palette a map borrows; falls back to the default library entry */
+  function mapTheme() {
+    var m = activeMap();
+    var id = m && m.style && m.style.theme ? m.style.theme : 'default';
+    return CC.themes ? CC.themes.get(id) : null;
+  }
+
+  function applyTheme() {
+    if (!stage) return;
+    var m = activeMap();
+    var id = m && m.style && m.style.theme ? m.style.theme : 'default';
+    if (!CC.themes) return;
+    if (id === 'default') CC.themes.clear(stage);
+    else CC.themes.apply(stage, id);
+  }
+
+  function themeMenu(btn) {
+    var r = btn.getBoundingClientRect();
+    var m = activeMap();
+    var cur = (m && m.style && m.style.theme) || 'default';
+    var items = CC.themes.list().map(function (th) {
+      return {
+        label: t(th.nameKey), hint: th.id === cur ? '•' : '',
+        onClick: function () {
+          S.commit('map', t('theme.apply'), function () {
+            m.style = m.style || {};
+            m.style.theme = th.id === 'default' ? '' : th.id;
+          });
+          refresh();
+        }
+      };
+    });
+    U.showMenu(r.left - 170, r.bottom + 6, items);
+  }
+
   var TAGS = ['#8a9a5b', '#c08552', '#7d8fa9', '#a9738f', '#6f9c8f', '#b08a5a', '#8b84b8', '#a67c6b'];
   function tagColor(tag) {
     var h = 0, s = String(tag || '');
     for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 997;
-    return TAGS[h % TAGS.length];
+    var palette = TAGS;
+    var th = CC.themes && CC.themes.get((activeMap() && activeMap().style && activeMap().style.theme) || 'default');
+    if (th && th.tags && th.tags.length) palette = th.tags;
+    return palette[h % palette.length];
   }
 
   function textOn(fill) {
@@ -56,6 +94,8 @@
             '<button class="tool-btn ghost" data-act="structure"></button>' +
             '<button class="tool-btn ghost" data-act="marquee" title="' + U.esc(t('map.marqueeTitle')) + '">' + U.icon('marquee', 15) + '</button>' +
             '<button class="tool-btn ghost" data-act="minimap" title="' + U.esc(t('map.minimapTitle')) + '">' + U.icon('minimap', 15) + '</button>' +
+            '<button class="tool-btn ghost" data-act="present" title="' + U.esc(t('present.hint')) + '">' + U.icon('play', 15) + '</button>' +
+            '<button class="tool-btn ghost" data-act="print" title="' + U.esc(t('print.title')) + '">' + U.icon('print', 15) + '</button>' +
             '<button class="tool-btn ghost" data-act="ai">' + U.icon('sparkles', 15) + '</button>' +
             '<button class="tool-btn ghost" data-act="more">' + U.icon('more', 16) + '</button>' +
           '</div>' +
@@ -136,9 +176,11 @@
     }
     if (st.focus && !S.card(st.focus)) st.focus = null;
 
+    applyTheme();
     model = L.get(m);
     applyView();
     paint();
+    scheduleWarm();
 
     host.querySelector('#zoom-val').textContent = Math.round(view.k * 100) + '%';
     structBtn.innerHTML = m.structure === 'org'
@@ -163,6 +205,16 @@
       requestAnimationFrame(function () { setTimeout(zoomFit, 0); });
     }
     markSelection();
+  }
+
+  /* Progressive pre-warm: the coarse overview is computed off the main
+     thread after the visible frame has been painted. */
+  var warmTimer = null;
+  function scheduleWarm() {
+    if (!model || !L.warm) return;
+    clearTimeout(warmTimer);
+    var snapshot = model;
+    warmTimer = setTimeout(function () { L.warm(snapshot); }, 160);
   }
 
   function worldRect() {
@@ -330,8 +382,26 @@
       ty += n.lineH;
     });
 
+    /* an optional one-line summary, in one of three readings */
+    if (lod === 'full' && n.summaryLines && n.summaryLines.length) {
+      var sumKind = n.summaryKind || 'plain';
+      var sumTop = ty + 3;
+      var sumH = n.summaryLines.length * n.summaryLH + 2;
+      if (sumKind === 'callout') {
+        html += '<rect class="node-summary-callout" x="14" y="' + sumTop + '" width="3" height="' + sumH + '" rx="1.5"/>';
+      } else if (sumKind === 'badge') {
+        html += '<rect class="node-summary-badge" x="14" y="' + (sumTop - 1) + '" width="' + Math.min(n.w - 28, 6 + String(n.summaryLines[0]).length * 5.6) + '" height="' + (sumH - 2) + '" rx="7"/>';
+      }
+      var sy = sumTop + n.summaryFs;
+      n.summaryLines.forEach(function (line) {
+        html += '<text class="node-summary' + (sumKind === 'badge' ? ' badge' : '') + '" x="' + (sumKind === 'callout' ? 23 : 19) + '" y="' + sy + '" style="font-size:' + n.summaryFs + 'px">' + U.esc(line) + '</text>';
+        sy += n.summaryLH;
+      });
+      ty = sy;
+    }
+
     if (lod === 'full') {
-      var metaY = n.h - 16;
+      var metaY = ty + 4 + 12;
       var mx = 15;
       (c.tags || []).slice(0, 2).forEach(function (tg) {
         var w = String(tg).length * 7.4 + 12;
@@ -343,6 +413,18 @@
         html += '<text class="node-more" x="' + mx + '" y="' + (metaY + 2) + '">+' + (c.tags.length - 2) + '</text>';
       }
       if (c.note) html += '<circle class="note-dot" cx="' + (n.w - 14) + '" cy="' + (metaY - 2) + '" r="3.4"/>';
+    }
+
+    /* the first picture of the card, drawn as a thumbnail at the bottom */
+    if (lod === 'full' && n.pic && n.picH) {
+      var picSrc = CC.attach ? CC.attach.dataUrl(n.pic.id) : '';
+      if (picSrc) {
+        var pw = n.w - 28, ph = n.picH;
+        var py = n.h - ph - 10;
+        html += '<image class="node-pic" x="14" y="' + py + '" width="' + pw + '" height="' + ph +
+          '" preserveAspectRatio="xMidYMid slice" href="' + U.esc(picSrc) + '"/>';
+        html += '<rect class="node-pic-frame" x="14" y="' + py + '" width="' + pw + '" height="' + ph + '" rx="6"/>';
+      }
     }
 
     if (n.hiddenCount) {
@@ -361,10 +443,21 @@
     var hier = e.type === 'hierarchy';
     var geo = edgeGeometry(a, b, hier, e);
     var cls = 'edge' + (hier ? ' hierarchy' : ' relation') + (e.uncertain ? ' uncertain' : '') + (st.edgeSel === e.id ? ' selected' : '');
-    var html = '<g class="' + cls + '" data-edge="' + e.id + '">';
+    var ls = e.style || {};
+    var dash = ls.dash || 'solid';
+    var width = ls.width || 'medium';
+    var arrow = ls.arrow || 'solid';
+    var cls2 = ' edge-dash-' + dash + ' edge-w-' + width + ' edge-a-' + arrow;
+    var html = '<g class="' + cls + cls2 + '" data-edge="' + e.id + '">';
     html += '<path class="edge-hit" d="' + geo.d + '"/>';
     html += '<path class="edge-line" d="' + geo.d + '"' + (e.color ? ' style="stroke:' + U.esc(e.color) + '"' : '') + '/>';
-    if (!hier) html += '<path class="edge-arrow" d="' + geo.arrow + '"' + (e.color ? ' style="fill:' + U.esc(e.color) + '"' : '') + '/>';
+    if (!hier && arrow !== 'none') {
+      if (arrow === 'open') {
+        html += '<path class="edge-arrow edge-arrow-open" d="' + geo.arrow + '"' + (e.color ? ' style="stroke:' + U.esc(e.color) + '"' : '') + '/>';
+      } else {
+        html += '<path class="edge-arrow" d="' + geo.arrow + '"' + (e.color ? ' style="fill:' + U.esc(e.color) + '"' : '') + '/>';
+      }
+    }
     if (lod === 'full' && showLabels && e.label) {
       var lw = Math.min(200, String(e.label).length * 7 + 16);
       html += '<g class="edge-label">' +
@@ -1226,6 +1319,7 @@
     var m = activeMap();
     if (!m) return;
     var edge = eid ? m.edges.find(function (e) { return e.id === eid; }) : null;
+    var ls = (edge && edge.style) || {};
     var from = edge ? edge.from : pair.from;
     var to = edge ? edge.to : pair.to;
     var wrap = document.createElement('div');
@@ -1246,9 +1340,32 @@
             return '<button type="button" class="swatch' + ((edge && edge.color === c) || (!edge && c === '') ? ' active' : '') + '" data-color="' + U.esc(c) + '" style="background:' + (c || 'transparent') + '"></button>';
           }).join('') +
         '</div></div>' +
+      '<div class="field"><span>' + U.esc(t('map.edgeLineStyle')) + '</span>' +
+        '<div class="segmented tiny" id="edge-dash">' +
+          ['solid', 'dashed', 'dotted'].map(function (k) {
+            return '<button type="button" class="seg' + ((ls.dash || 'solid') === k ? ' active' : '') + '" data-dash="' + k + '">' + U.esc(t('map.edge' + k.charAt(0).toUpperCase() + k.slice(1))) + '</button>';
+          }).join('') +
+        '</div></div>' +
+      '<div class="field"><span>' + U.esc(t('map.edgeArrowStyle')) + '</span>' +
+        '<div class="segmented tiny" id="edge-arrow">' +
+          ['solid', 'open', 'none'].map(function (k) {
+            return '<button type="button" class="seg' + ((ls.arrow || 'solid') === k ? ' active' : '') + '" data-arrow="' + k + '">' + U.esc(t('map.edgeArrow' + k.charAt(0).toUpperCase() + k.slice(1))) + '</button>';
+          }).join('') +
+        '</div></div>' +
+      '<div class="field"><span>' + U.esc(t('map.edgeWidth')) + '</span>' +
+        '<div class="segmented tiny" id="edge-width">' +
+          ['thin', 'medium', 'thick'].map(function (k) {
+            return '<button type="button" class="seg' + ((ls.width || 'medium') === k ? ' active' : '') + '" data-width="' + k + '">' + U.esc(t('map.edge' + k.charAt(0).toUpperCase() + k.slice(1))) + '</button>';
+          }).join('') +
+        '</div></div>' +
       '<label class="check"><input type="checkbox" id="edge-uncertain"' + (edge && edge.uncertain ? ' checked' : '') + '><span>' + U.esc(t('map.edgeUncertain')) + '</span></label>';
 
     var color = edge ? edge.color || '' : '';
+    var style = {
+      dash: (edge && edge.style && edge.style.dash) || 'solid',
+      arrow: (edge && edge.style && edge.style.arrow) || 'solid',
+      width: (edge && edge.style && edge.style.width) || 'medium'
+    };
     setTimeout(function () {
       wrap.querySelectorAll('.swatch').forEach(function (b) {
         b.onclick = function () {
@@ -1257,6 +1374,9 @@
           color = b.getAttribute('data-color');
         };
       });
+      bindSeg(wrap, '#edge-dash', 'dash', style);
+      bindSeg(wrap, '#edge-arrow', 'arrow', style);
+      bindSeg(wrap, '#edge-width', 'width', style);
     }, 0);
 
     U.openModal({
@@ -1274,10 +1394,14 @@
             if (edge) {
               S.commit('edit', t('map.edgeEdit'), function () {
                 edge.type = type; edge.label = label; edge.color = color; edge.uncertain = unc;
+                edge.style = { dash: style.dash, arrow: style.arrow, width: style.width };
               });
             } else {
               S.commit('edit', t('map.connect'), function () {
-                m.edges.push({ id: U.uid('e'), from: from, to: to, type: type, color: color, label: label, uncertain: unc });
+                m.edges.push({
+                  id: U.uid('e'), from: from, to: to, type: type, color: color, label: label, uncertain: unc,
+                  style: { dash: style.dash, arrow: style.arrow, width: style.width }
+                });
                 m.updatedAt = Date.now();
               });
             }
@@ -1287,6 +1411,18 @@
           }
         }
       ].filter(Boolean)
+    });
+  }
+
+  function bindSeg(wrap, sel, key, target) {
+    var group = wrap.querySelector(sel);
+    if (!group) return;
+    group.querySelectorAll('.seg').forEach(function (b) {
+      b.onclick = function () {
+        group.querySelectorAll('.seg').forEach(function (x) { x.classList.remove('active'); });
+        b.classList.add('active');
+        target[key] = b.getAttribute('data-' + key);
+      };
     });
   }
 
@@ -1478,6 +1614,8 @@
         if (act === 'arrange') return autoArrange();
         if (act === 'marquee') return toggleMarquee();
         if (act === 'minimap') return toggleMinimap();
+        if (act === 'present') return CC.present.start();
+        if (act === 'print') return CC.print.print();
         if (act === 'focus') return toggleFocus();
         if (act === 'structure') return structureMenu(btn);
         if (act === 'ai') return CC.app.openAI('draft');
@@ -1515,6 +1653,7 @@
       { label: t('map.duplicate'), icon: '⧉', onClick: function () { CC.app.duplicateMap(m); } },
       { label: t('map.template'), icon: '▤', onClick: function () { CC.app.saveTemplate(m); } },
       { sep: true },
+      { label: t('theme.title') + ' · ' + t(mapTheme().nameKey), onClick: function (btn) { themeMenu(btn); } },
       { label: t('map.addBoundary'), onClick: function () { addBoundary(); } },
       { label: (m.style && m.style.showLabels === false) ? t('map.showLabels') : t('map.hideLabels'), onClick: toggleLabels },
       { label: (m.style && m.style.minimap === false) ? t('map.showMinimap') : t('map.hideMinimap'), onClick: toggleMinimap },
@@ -1525,6 +1664,9 @@
       { label: t('map.exportImage'), icon: '⇩', onClick: exportPNG },
       { label: t('map.exportSvg'), onClick: exportSVG },
       { label: t('map.exportMd'), onClick: exportMarkdown },
+      { sep: true },
+      { label: t('present.start'), icon: '▶', onClick: function () { CC.present.start(); } },
+      { label: t('print.title') + ' · ' + t('print.a4'), icon: '⎙', onClick: function () { CC.print.print(); } },
       { sep: true },
       { label: t('map.delete'), icon: '🗑', danger: true, onClick: function () { CC.app.deleteMapFlow(m); } }
     ];
@@ -1558,6 +1700,74 @@
       '<rect x="82" y="58" width="30" height="18" rx="6" stroke="currentColor" stroke-width="1.2" opacity=".35"/>' +
       '<path d="M34 20c8 4 10 8 8 12M86 24c-9 4-11 8-9 10M40 66c8-3 10-6 8-10M82 64c-9-3-11-6-9-9" stroke="currentColor" stroke-width="1.2" opacity=".4"/>' +
       '</svg>';
+  }
+
+  /* The presentation order follows the map structure: roots first, depth
+     first, then any card that never made it into the tree. */
+  function presentItems() {
+    if (!model) return [];
+    var out = [];
+    var seen = {};
+    var walk = function (id, depth) {
+      if (seen[id]) return;
+      seen[id] = 1;
+      var n = model.nodes[id];
+      if (!n) return;
+      var c = n.card || {};
+      out.push({
+        id: id,
+        title: c.title || '',
+        body: c.body || '',
+        note: c.note || '',
+        summary: c.summary || '',
+        tags: c.tags || [],
+        kind: (c.style && c.style.summaryKind) || ''
+      });
+      (n.kids || []).forEach(function (k) { walk(k, depth + 1); });
+    };
+    (model.roots || []).forEach(function (r) { walk(r, 0); });
+    Object.keys(model.nodes).forEach(function (id) { if (!seen[id]) walk(id, 0); });
+    return out;
+  }
+
+  /* A plain description of the drawn scene, used by the A4 printer. */
+  function sceneForPrint() {
+    if (!model) return null;
+    var ids = Object.keys(model.nodes);
+    var nodes = [];
+    var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    ids.forEach(function (id) {
+      var n = model.nodes[id];
+      var c = n.card || {};
+      var s = c.style || {};
+      nodes.push({
+        id: id, x: n.x, y: n.y, w: n.w, h: n.h,
+        title: c.title || '', lines: n.lines || [], fs: n.fs, lineH: n.lineH,
+        fill: s.fill || '#ffffff', shape: s.shape || 'rounded',
+        summary: c.summary || ''
+      });
+      minX = Math.min(minX, n.x - n.w / 2); maxX = Math.max(maxX, n.x + n.w / 2);
+      minY = Math.min(minY, n.y - n.h / 2); maxY = Math.max(maxY, n.y + n.h / 2);
+    });
+    if (!ids.length) { minX = 0; minY = 0; maxX = 200; maxY = 120; }
+    var vis = {};
+    ids.forEach(function (id) { vis[id] = 1; });
+    var edges = [];
+    model.edges.forEach(function (e) {
+      if (!vis[e.from] || !vis[e.to]) return;
+      var a = model.nodes[e.from], b = model.nodes[e.to];
+      var g = edgeGeometry(a, b, e.type === 'hierarchy', e);
+      edges.push({
+        id: e.id, type: e.type, label: e.label || '', color: e.color || '',
+        uncertain: !!e.uncertain, style: e.style || {},
+        d: g.d, arrow: e.type === 'hierarchy' ? '' : g.arrow, mx: g.mx, my: g.my
+      });
+    });
+    return {
+      mapName: model.map ? model.map.name : '',
+      bounds: { minX: minX, minY: minY, maxX: maxX, maxY: maxY, w: maxX - minX, h: maxY - minY },
+      nodes: nodes, edges: edges
+    };
   }
 
   function selectCard(id) {
@@ -1606,6 +1816,9 @@
     beginInlineEdit: beginInlineEdit,
     endInlineEdit: function () { commitInlineEdit(); },
     minimapWorldAt: minimapWorldAt,
+    presentItems: presentItems, sceneForPrint: sceneForPrint,
+    currentMapId: function () { var m = activeMap(); return m ? m.id : null; },
+    mapTheme: mapTheme,
     viewInfo: function () { return { x: view.x, y: view.y, k: view.k }; },
     nodeScreenPos: function (id) {
       var n = model && model.nodes[id];

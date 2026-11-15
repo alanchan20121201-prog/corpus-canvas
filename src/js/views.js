@@ -78,7 +78,6 @@
             '<p class="hero-sub">' + U.esc(t('home.sub')) + '</p>' +
             '<div class="hero-actions">' +
               '<button class="btn primary lg" data-act="new-map">' + U.icon('plus', 16) + '<span>' + U.esc(t('home.quickNewMap')) + '</span></button>' +
-              '<button class="btn lg" data-act="new-card">' + U.icon('cards', 16) + '<span>' + U.esc(t('home.quickNewCard')) + '</span></button>' +
               '<button class="btn ghost lg" data-act="import">' + U.icon('upload', 16) + '<span>' + U.esc(t('home.quickImport')) + '</span></button>' +
             '</div>' +
             (offline ? '<p class="hero-note">' + U.icon('info', 13) + '<span>' + U.esc(t('home.offline')) + '</span></p>' : '') +
@@ -125,7 +124,6 @@
       '</div>';
 
     root.querySelectorAll('[data-act="new-map"]').forEach(function (b) { b.onclick = function () { CC.app.newMapFlow(); }; });
-    root.querySelectorAll('[data-act="new-card"]').forEach(function (b) { b.onclick = function () { CC.app.quickNewCard(); }; });
     root.querySelectorAll('[data-act="import"]').forEach(function (b) { b.onclick = function () { CC.importer.open(); }; });
     root.querySelectorAll('[data-act="settings"]').forEach(function (b) { b.onclick = function () { CC.app.nav('settings'); }; });
     root.querySelectorAll('[data-act="all-maps"]').forEach(function (b) { b.onclick = function () { CC.app.nav('map'); }; });
@@ -393,8 +391,7 @@
     var selCount = Object.keys(cardSel).length;
 
     root.innerHTML = head(t('cards.title'), t('cards.hint'),
-      '<button class="btn sm" data-act="batch">' + U.icon('check', 14) + U.esc(t('common.selectAll')) + '</button>' +
-      '<button class="btn primary sm" data-act="new">' + U.icon('plus', 14) + U.esc(t('cards.new')) + '</button>', 'cards') +
+      '<button class="btn sm" data-act="batch">' + U.icon('check', 14) + U.esc(t('common.selectAll')) + '</button>', 'cards') +
       '<div class="cards-toolbar panel">' +
         '<div class="segmented">' +
           ['all', 'unmapped', 'mapped'].map(function (k) {
@@ -441,9 +438,8 @@
         '<button class="bb-btn danger" data-bact="delete">' + U.icon('trash', 14) + U.esc(t('cards.batchDelete')) + '</button>' +
         '<button class="bb-close" data-bact="clear">' + U.icon('close', 14) + '</button>' +
       '</div>' : '') +
-      (list.length ? '' : '<div class="panel" style="margin-top:16px">' + emptyState(t('cards.empty'), t('cards.emptyHint'), '<button class="btn primary" data-act="new">' + t('cards.new') + '</button>') + '</div>');
+      (list.length ? '' : '<div class="panel" style="margin-top:16px">' + emptyState(t('cards.empty'), t('cards.emptyHint')) + '</div>');
 
-    root.querySelectorAll('[data-act="new"]').forEach(function (b) { b.onclick = function () { CC.app.quickNewCard(); }; });
     root.querySelectorAll('[data-act="batch"]').forEach(function (b) {
       b.onclick = function () {
         list.forEach(function (c) { cardSel[c.id] = 1; });

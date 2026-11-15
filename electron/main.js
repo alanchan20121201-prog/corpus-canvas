@@ -6,6 +6,7 @@ const fs = require('node:fs');
 const fsp = require('node:fs/promises');
 const zlib = require('node:zlib');
 const aiClient = require('./ai-client');
+const corpusStore = require('./corpus-store');
 
 const SMOKE = process.argv.includes('--smoke');
 const dbgFile = path.join(require('node:os').tmpdir(), 'corpus-canvas-debug.log');
@@ -22,6 +23,8 @@ const corpusPath = path.join(userDir, 'corpus.json');
 const securePath = path.join(userDir, 'secure.json');
 const backupDir = path.join(userDir, 'backups');
 const layoutDir = path.join(userDir, 'layout-cache');
+const attachDir = path.join(userDir, 'attachments');
+const aiLedgerPath = path.join(userDir, 'ai-ledger.json');
 
 function layoutFile(id) {
   const safe = String(id || '').replace(/[^a-zA-Z0-9_-]/g, '');
@@ -31,13 +34,13 @@ const FORMAT_VERSION = 2;
 
 async function autoBackup() {
   try {
-    const st = await fsp.stat(corpusPath).catch(() => null);
-    if (!st || !st.size) return;
+    const data = await corpusStore.assembled(userDir, corpusPath);
+    if (!data || !Array.isArray(data.cards) || !data.cards.length) return;
     await fsp.mkdir(backupDir, { recursive: true });
     const d = new Date();
     const pad = (n) => String(n).padStart(2, '0');
     const name = 'corpus-' + d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate()) + '-' + pad(d.getHours()) + pad(d.getMinutes()) + pad(d.getSeconds()) + '.json';
-    await fsp.copyFile(corpusPath, path.join(backupDir, name));
+    await fsp.writeFile(path.join(backupDir, name), JSON.stringify(data), 'utf8');
     const files = (await fsp.readdir(backupDir)).filter((f) => /^corpus-\d{8}-\d{6}\.json$/.test(f)).sort();
     while (files.length > 10) await fsp.rm(path.join(backupDir, files.shift()), { force: true });
   } catch (e) { /* ignore */ }
@@ -229,7 +232,7 @@ ipcMain.handle('app:info', async () => ({
   systemLanguages: (() => { try { return app.getPreferredSystemLanguages(); } catch (e) { return []; } })()
 }));
 
-ipcMain.handle('corpus:load', async () => readJson(corpusPath));
+ipcMain.handle('corpus:load', async () => corpusStore.load(userDir, corpusPath));
 
 ipcMain.handle('layout:read', async (_e, id) => {
   const file = layoutFile(id);
@@ -282,9 +285,12 @@ ipcMain.handle('backup:restore', async (_e, name) => {
   } catch (e) { return { ok: false, error: String(e.message || e) }; }
 });
 
-ipcMain.handle('corpus:save', async (_e, data) => {
-  await writeJsonAtomic(corpusPath, data);
-  return { ok: true };
+ipcMain.handle('corpus:save', async (_e, data) => corpusStore.save(userDir, corpusPath, data));
+
+ipcMain.handle('corpus:stats', async () => {
+  const sharded = await corpusStore.isSharded(corpusPath);
+  const raw = await readJson(corpusPath);
+  return { ok: true, sharded: sharded, shards: sharded && raw && raw.__shards ? raw.__shards.length : 0, cards: raw && raw.__shards ? raw.__shards.reduce((a, x) => a + x.count, 0) : (raw && raw.cards ? raw.cards.length : 0) };
 });
 
 ipcMain.handle('corpus:reveal', async () => {
@@ -361,6 +367,108 @@ ipcMain.handle('file:import-dialog', async () => {
   }
 });
 
+/* ------------------------------------------------------------------ */
+/* attachments: bytes live beside the corpus, metadata lives inside it */
+/* ------------------------------------------------------------------ */
+
+const MIME_BY_EXT = {
+  '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.gif': 'image/gif',
+  '.webp': 'image/webp', '.bmp': 'image/bmp', '.svg': 'image/svg+xml', '.avif': 'image/avif',
+  '.pdf': 'application/pdf', '.txt': 'text/plain', '.md': 'text/markdown',
+  '.doc': 'application/msword', '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  '.xls': 'application/vnd.ms-excel', '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  '.ppt': 'application/vnd.ms-powerpoint', '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  '.zip': 'application/zip', '.json': 'application/json', '.csv': 'text/csv'
+};
+
+const ATTACH_MAX = 20 * 1024 * 1024;
+
+function safeAttachName(id) {
+  const safe = String(id || '').replace(/[^a-zA-Z0-9_-]/g, '');
+  return safe || null;
+}
+
+async function attachFile(id) {
+  const safe = safeAttachName(id);
+  if (!safe) return null;
+  const files = await fsp.readdir(attachDir).catch(() => []);
+  const hit = files.find((f) => f.startsWith(safe + '.'));
+  return hit ? path.join(attachDir, hit) : null;
+}
+
+ipcMain.handle('file:pick-attachments', async (_e, kind) => {
+  const images = kind === 'image';
+  const res = await dialog.showOpenDialog(win, {
+    title: images ? 'Choose image' : 'Choose file',
+    properties: ['openFile', 'multiSelections'],
+    filters: images
+      ? [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg', 'avif'] }]
+      : [{ name: 'All files', extensions: ['*'] }]
+  });
+  if (res.canceled || !res.filePaths.length) return { ok: false, canceled: true };
+  await fsp.mkdir(attachDir, { recursive: true });
+  const out = [];
+  for (const src of res.filePaths) {
+    const st = await fsp.stat(src).catch(() => null);
+    if (!st) continue;
+    if (st.size > ATTACH_MAX) {
+      out.push({ ok: false, error: 'tooLarge', name: path.basename(src), max: ATTACH_MAX });
+      continue;
+    }
+    const ext = path.extname(src).toLowerCase();
+    const id = 'a' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+    const dest = path.join(attachDir, id + ext);
+    try {
+      await fsp.copyFile(src, dest);
+    } catch (e) {
+      out.push({ ok: false, error: 'copy', name: path.basename(src) });
+      continue;
+    }
+    out.push({
+      ok: true, id, name: path.basename(src), ext,
+      mime: MIME_BY_EXT[ext] || 'application/octet-stream',
+      size: st.size
+    });
+  }
+  const files = out.filter((f) => f.ok);
+  if (!files.length) return { ok: false, files: out, error: out[0] && out[0].error };
+  return { ok: true, files, skipped: out.filter((f) => !f.ok) };
+});
+
+ipcMain.handle('file:read-attachment', async (_e, id) => {
+  const file = await attachFile(id);
+  if (!file) return { ok: false };
+  try {
+    const buf = await fsp.readFile(file);
+    const ext = path.extname(file).toLowerCase();
+    const mime = MIME_BY_EXT[ext] || 'application/octet-stream';
+    return { ok: true, dataUrl: `data:${mime};base64,${buf.toString('base64')}` };
+  } catch (e) {
+    return { ok: false, error: String(e.message || e) };
+  }
+});
+
+ipcMain.handle('file:open-attachment', async (_e, id) => {
+  const file = await attachFile(id);
+  if (!file) return { ok: false };
+  const err = await shell.openPath(file);
+  return { ok: !err, error: err || '' };
+});
+
+ipcMain.handle('file:reveal-attachment', async (_e, id) => {
+  const file = await attachFile(id);
+  if (!file) return { ok: false };
+  shell.showItemInFolder(file);
+  return { ok: true };
+});
+
+ipcMain.handle('file:delete-attachment', async (_e, id) => {
+  const file = await attachFile(id);
+  if (!file) return { ok: true };
+  await fsp.rm(file, { force: true });
+  return { ok: true };
+});
+
 ipcMain.handle('shell:open', async (_e, url) => {
   if (/^https?:\/\//i.test(String(url))) { await shell.openExternal(String(url)); return { ok: true }; }
   return { ok: false };
@@ -423,10 +531,71 @@ ipcMain.handle('ai:models', async (_e, payload) => {
   } catch (e) { return { ok: false, error: String(e.message || e) }; }
 });
 
-ipcMain.handle('ai:chat', async (_e, payload) => {
-  return aiClient.chat(Object.assign({}, payload, {
-    fetchFn: (url, init) => net.fetch(url, init)
-  }));
+/* Active requests, keyed by the renderer-supplied id, so the UI can
+   really cancel a request instead of just ignoring the result. */
+const activeChats = new Map();
+const LEDGER_MAX = 300;
+let ledgerQueue = Promise.resolve();
+
+async function appendLedger(entry) {
+  ledgerQueue = ledgerQueue.then(async () => {
+    try {
+      const list = await readJson(aiLedgerPath);
+      const items = Array.isArray(list) ? list : [];
+      items.unshift(entry);
+      while (items.length > LEDGER_MAX) items.pop();
+      await writeJsonAtomic(aiLedgerPath, items);
+    } catch (e) { /* the ledger must never break a call */ }
+  }).catch(() => {});
+  return ledgerQueue;
+}
+
+ipcMain.handle('ai:chat', async (e, payload) => {
+  const p = payload || {};
+  const id = String(p.requestId || ('req-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7)));
+  const ctrl = new AbortController();
+  const started = Date.now();
+  activeChats.set(id, { ctrl: ctrl, started: started, kind: p.kind || '' });
+  const sender = e.sender;
+  let result;
+  try {
+    result = await aiClient.chat(Object.assign({}, p, {
+      fetchFn: (url, init) => net.fetch(url, init),
+      signal: ctrl.signal,
+      stream: !!p.stream,
+      onDelta: (delta) => {
+        if (!sender.isDestroyed()) sender.send('ai:chunk', { id: id, delta: delta });
+      }
+    }));
+  } finally {
+    activeChats.delete(id);
+  }
+  await appendLedger({
+    id: id, at: started, kind: p.kind || '', model: p.model || '',
+    scope: p.scope || '', status: result.ok ? (result.code === 'aborted' ? 'aborted' : 'ok') : (result.code === 'aborted' ? 'aborted' : 'error'),
+    code: result.code || '', error: result.ok ? '' : String(result.error || '').slice(0, 200),
+    tokens: result.usage ? (result.usage.total_tokens || 0) : 0,
+    ms: result.ms || (Date.now() - started), streamed: !!result.streamed,
+    bytes: result.ok ? String(result.content || '').length : 0
+  });
+  return result;
+});
+
+ipcMain.handle('ai:cancel', async (_e, id) => {
+  const hit = activeChats.get(String(id || ''));
+  if (!hit) return { ok: false, error: 'not running' };
+  hit.ctrl.abort();
+  return { ok: true };
+});
+
+ipcMain.handle('ai:ledger-list', async () => {
+  const list = await readJson(aiLedgerPath);
+  return { ok: true, items: Array.isArray(list) ? list : [] };
+});
+
+ipcMain.handle('ai:ledger-clear', async () => {
+  await writeJsonAtomic(aiLedgerPath, []);
+  return { ok: true };
 });
 
 ipcMain.handle('win:toggle-full', async () => {

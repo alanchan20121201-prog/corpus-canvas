@@ -64,8 +64,12 @@
       untitled = true;
     }
 
+    var summary = String(card.summary || '').trim();
+    var pics = (card.attachments || []).filter(function (a) { return a && a.mime && a.mime.indexOf('image/') === 0; });
+
     var key = [card.id, display, untitled ? 1 : 0, fs, fw, iconW, card.note ? 1 : 0,
-      (card.tags || []).join(','), (card.langs || []).join(',')].join('|');
+      (card.tags || []).join(','), (card.langs || []).join(','),
+      summary, pics.length, st.summaryKind || ''].join('|');
     if (mcache[key]) return mcache[key];
 
     var c = mctx();
@@ -75,10 +79,28 @@
     var lines = wrap(display, width - PAD_X * 2 - 4 - iconW, 3, fs);
     var meta = (card.tags && card.tags.length) || (card.langs && card.langs.length) || card.note;
     var lineH = Math.round(fs * 1.42);
-    var h = PAD_TOP + lines.length * lineH + (meta ? 22 : 4) + PAD_BOTTOM;
+
+    /* an optional one-line summary drawn under the title */
+    var sumLines = [];
+    var sumFs = Math.max(10.5, fs - 1.5);
+    var sumLH = Math.round(sumFs * 1.38);
+    var sumBlockH = 0;
+    if (summary) {
+      sumLines = wrap(summary, width - PAD_X * 2 - 6, 3, sumFs);
+      sumBlockH = sumLines.length * sumLH + 6;
+    }
+    /* the first picture, if any, is shown as a thumbnail under the text */
+    var picH = 0;
+    if (pics.length) { picH = 96; }
+
+    /* rows stack in a fixed order: title, summary, meta, picture */
+    var h = PAD_TOP + lines.length * lineH + sumBlockH + (meta ? 22 : 4) + picH + PAD_BOTTOM;
+
     var res = {
       w: Math.round(width), h: Math.round(h), lines: lines, fs: fs, fw: fw,
-      lineH: lineH, iconW: iconW, untitled: untitled
+      lineH: lineH, iconW: iconW, untitled: untitled,
+      summaryLines: sumLines, summaryFs: sumFs, summaryLH: sumLH,
+      summaryKind: st.summaryKind || '', pic: pics[0] || null, picH: picH
     };
     mcache[key] = res;
     mcount++;
@@ -191,6 +213,8 @@
       nodes[c.id] = {
         id: c.id, card: c, x: 0, y: 0, w: ms.w, h: ms.h,
         lines: ms.lines, fs: ms.fs, fw: ms.fw, lineH: ms.lineH, iconW: ms.iconW, untitled: ms.untitled,
+        summaryLines: ms.summaryLines || [], summaryFs: ms.summaryFs || 0,
+        summaryKind: ms.summaryKind || '', pic: ms.pic || null, picH: ms.picH || 0,
         depth: 0, kids: [], hiddenCount: 0, orphan: false
       };
     });
@@ -447,26 +471,36 @@
     if (arr) arr.push(val); else map.set(key, [val]);
   }
 
-  function buildIndex(model) {
-    var nodes = model.nodes, cell = CELL;
-    var nb = new Map(), eb = new Map(), coarse = new Map();
-    Object.keys(nodes).forEach(function (id) {
-      var n = nodes[id];
-      var x1 = n.x - n.w / 2, x2 = n.x + n.w / 2, y1 = n.y - n.h / 2, y2 = n.y + n.h / 2;
-      var cx1 = Math.floor(x1 / cell), cx2 = Math.floor(x2 / cell);
-      var cy1 = Math.floor(y1 / cell), cy2 = Math.floor(y2 / cell);
-      for (var cx = cx1; cx <= cx2; cx++) {
-        for (var cy = cy1; cy <= cy2; cy++) push(nb, cx + ',' + cy, id);
-      }
-      var k = Math.floor(n.x / COARSE) + ',' + Math.floor(n.y / COARSE);
-      var c = coarse.get(k);
-      if (!c) coarse.set(k, { x1: x1, y1: y1, x2: x2, y2: y2, count: 1 });
-      else {
-        c.x1 = Math.min(c.x1, x1); c.y1 = Math.min(c.y1, y1);
-        c.x2 = Math.max(c.x2, x2); c.y2 = Math.max(c.y2, y2); c.count++;
-      }
-    });
+  function nodeCells(n, cell) {
+    var x1 = n.x - n.w / 2, x2 = n.x + n.w / 2, y1 = n.y - n.h / 2, y2 = n.y + n.h / 2;
+    var cx1 = Math.floor(x1 / cell), cx2 = Math.floor(x2 / cell);
+    var cy1 = Math.floor(y1 / cell), cy2 = Math.floor(y2 / cell);
+    var keys = [];
+    for (var cx = cx1; cx <= cx2; cx++) {
+      for (var cy = cy1; cy <= cy2; cy++) keys.push(cx + ',' + cy);
+    }
+    return { keys: keys, x1: x1, y1: y1, x2: x2, y2: y2 };
+  }
 
+  /* The fine grid is split from the edge/coarse indexes: dragging a subtree
+     only reindexes the nodes that actually moved instead of rebuilding all
+     three structures on every frame. */
+  function buildNodeIndex(model) {
+    var nodes = model.nodes, cell = CELL;
+    var nb = new Map(), cells = new Map();
+    Object.keys(nodes).forEach(function (id) {
+      var g = nodeCells(nodes[id], cell);
+      cells.set(id, g.keys);
+      g.keys.forEach(function (k) { push(nb, k, id); });
+    });
+    model.index = model.index || { edges: new Map() };
+    model.index.nodes = nb;
+    model.index.cells = cells;
+    if (!model.index.edges) model.index.edges = new Map();
+  }
+
+  function buildEdgeIndex(model) {
+    var nodes = model.nodes, cell = CELL, eb = new Map();
     model.edges.forEach(function (e) {
       var a = nodes[e.from], b = nodes[e.to];
       if (!a || !b) return;
@@ -484,15 +518,72 @@
         for (var cy = cy1; cy <= cy2; cy++) push(eb, cx + ',' + cy, e);
       }
     });
+    model.index = model.index || { nodes: new Map(), cells: new Map() };
+    model.index.edges = eb;
+    model.edgeIndexDirty = false;
+  }
 
-    model.index = { nodes: nb, edges: eb };
+  function buildCoarse(model) {
+    var nodes = model.nodes, coarse = new Map();
+    Object.keys(nodes).forEach(function (id) {
+      var n = nodes[id];
+      var x1 = n.x - n.w / 2, x2 = n.x + n.w / 2, y1 = n.y - n.h / 2, y2 = n.y + n.h / 2;
+      var k = Math.floor(n.x / COARSE) + ',' + Math.floor(n.y / COARSE);
+      var c = coarse.get(k);
+      if (!c) coarse.set(k, { x1: x1, y1: y1, x2: x2, y2: y2, count: 1 });
+      else {
+        c.x1 = Math.min(c.x1, x1); c.y1 = Math.min(c.y1, y1);
+        c.x2 = Math.max(c.x2, x2); c.y2 = Math.max(c.y2, y2); c.count++;
+      }
+    });
     model.coarse = coarse;
+    model.coarseDirty = false;
+    model.coarseReady = true;
+  }
+
+  function buildIndex(model) {
+    buildNodeIndex(model);
+    buildEdgeIndex(model);
+    buildCoarse(model);
     model.indexDirty = false;
   }
 
   function ensureIndex(model) {
     if (!model) return;
-    if (model.indexDirty || !model.index) buildIndex(model);
+    if (model.indexDirty || !model.index || !model.index.nodes) buildIndex(model);
+    else if (model.edgeIndexDirty || !model.index.edges) buildEdgeIndex(model);
+  }
+
+  function ensureCoarse(model) {
+    if (!model) return;
+    if (model.coarseDirty || !model.coarse) buildCoarse(model);
+  }
+
+  /* Incremental index update for a set of moved/resized nodes. */
+  function patchIndex(model, ids) {
+    if (!model || !ids || !ids.length) return model;
+    ensureIndex(model);
+    var idx = model.index, nodes = model.nodes, cell = CELL;
+    ids.forEach(function (id) {
+      var n = nodes[id];
+      if (!n) return;
+      var old = idx.cells.get(id) || [];
+      old.forEach(function (k) {
+        var arr = idx.nodes.get(k);
+        if (!arr) return;
+        var at = arr.indexOf(id);
+        if (at >= 0) arr.splice(at, 1);
+        if (!arr.length) idx.nodes.delete(k);
+      });
+      var g = nodeCells(n, cell);
+      g.keys.forEach(function (k) { push(idx.nodes, k, id); });
+      idx.cells.set(id, g.keys);
+    });
+    model.edgeIndexDirty = true;
+    model.coarseDirty = true;
+    model.indexDirty = false;
+    model.bounds = computeBounds(nodes);
+    return model;
   }
 
   function overlap(n, r) {
@@ -553,7 +644,7 @@
   }
 
   function clusters(model, rect) {
-    ensureIndex(model);
+    ensureCoarse(model);
     var out = [];
     model.coarse.forEach(function (c) {
       if (c.x2 < rect.x1 || c.x1 > rect.x2 || c.y2 < rect.y1 || c.y1 > rect.y2) return;
@@ -567,7 +658,7 @@
   /* Coarse cells sampled down to a maximum, so a million-node map still
      yields a cheap overview (the minimap) without building a huge array. */
   function coarseSample(model, limit) {
-    ensureIndex(model);
+    ensureCoarse(model);
     var out = [];
     var size = model.coarse.size;
     var stride = Math.max(1, Math.ceil(size / Math.max(1, limit || 700)));
@@ -594,8 +685,63 @@
       if (!node) return;
       node.x += dx; node.y += dy;
     });
-    model.indexDirty = true;
-    model.bounds = computeBounds(model.nodes);
+    patchIndex(model, ids);
+  }
+
+  /* Progressive warm-up: compute the coarse overview off the main thread
+     for large maps, then hand it back as a ready Map. */
+  var WARM_THRESHOLD = 2500;
+  function warm(model) {
+    if (!model) return Promise.resolve(null);
+    if (!model.coarseDirty && model.coarse) return Promise.resolve(model);
+    var ids = Object.keys(model.nodes);
+    if (ids.length < WARM_THRESHOLD || !CC.workers) {
+      buildCoarse(model);
+      return Promise.resolve(model);
+    }
+    var samples = new Array(ids.length);
+    for (var i = 0; i < ids.length; i++) {
+      var n = model.nodes[ids[i]];
+      samples[i] = [n.x - n.w / 2, n.y - n.h / 2, n.x + n.w / 2, n.y + n.h / 2];
+    }
+    return CC.workers.run('coarse', { samples: samples, cell: COARSE }).then(function (res) {
+      if (!res || !res.cells) { buildCoarse(model); return model; }
+      var coarse = new Map();
+      res.cells.forEach(function (c) {
+        coarse.set(c.key, { x1: c.x1, y1: c.y1, x2: c.x2, y2: c.y2, count: c.count });
+      });
+      model.coarse = coarse;
+      model.coarseDirty = false;
+      model.coarseReady = true;
+      return model;
+    }).catch(function () { buildCoarse(model); return model; });
+  }
+
+  /* Idle-time memory cleanup: drop the measure cache and old layout models
+     so a long session does not keep every map alive. */
+  function idleSweep(opts) {
+    opts = opts || {};
+    var beforeModels = Object.keys(cache).length;
+    var beforeMeasures = Object.keys(mcache).length;
+    if (beforeMeasures > (opts.measureLimit || 4000)) mcache = {};
+    var keys = Object.keys(cache);
+    var keep = opts.keepModels == null ? 3 : opts.keepModels;
+    if (keys.length > keep) keys.slice(0, keys.length - keep).forEach(function (k) { delete cache[k]; });
+    return {
+      modelsBefore: beforeModels, modelsAfter: Object.keys(cache).length,
+      measuresBefore: beforeMeasures, measuresAfter: Object.keys(mcache).length
+    };
+  }
+
+  function stats(model) {
+    return {
+      cachedModels: Object.keys(cache).length,
+      measures: Object.keys(mcache).length,
+      worker: CC.workers ? CC.workers.mode() : 'none',
+      indexNodes: model && model.index && model.index.nodes ? model.index.nodes.size : 0,
+      coarseCells: model && model.coarse ? model.coarse.size : 0,
+      dirty: !!(model && (model.indexDirty || model.coarseDirty || model.edgeIndexDirty))
+    };
   }
 
   CC.layout = {
@@ -604,6 +750,7 @@
     totalNodes: totalNodes, shiftSubtree: shiftSubtree,
     serialize: serialize, hydrate: hydrate, sigOf: sigOf,
     recomputeBounds: function (model) { return computeBounds(model.nodes); },
-    measure: measure, wrap: wrap, CELL: CELL
+    measure: measure, wrap: wrap, CELL: CELL,
+    patch: patchIndex, warm: warm, idleSweep: idleSweep, stats: stats
   };
 })();

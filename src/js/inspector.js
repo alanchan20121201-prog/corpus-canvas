@@ -85,6 +85,8 @@
           '<textarea class="insp-textarea" id="insp-body" rows="4" placeholder="' + U.esc(t('cards.bodyPlaceholder')) + '">' + U.esc(c.body) + '</textarea>' +
         '</div>' +
 
+        summaryBlock(c) +
+
         '<div class="insp-section note-section' + (noteOpen ? ' open' : '') + '">' +
           '<button class="note-toggle" data-act="note-toggle">' +
             '<span class="nt-left">' + U.icon('note', 14) + U.esc(t('common.note')) + '<em>' + U.esc(t('common.optional')) + '</em></span>' +
@@ -112,6 +114,8 @@
               '<div class="mini-empty">' + U.esc(t('common.empty')) + '</div>') +
           '</div>' +
         '</div>' +
+
+        (CC.attach ? CC.attach.block(c) : '') +
 
         '<div class="insp-block">' +
           '<div class="insp-block-head"><span>' + U.esc(t('cards.links')) + '</span>' +
@@ -158,6 +162,7 @@
     bind(c, opts);
     autogrow(host.querySelector('#insp-body'));
     autogrow(host.querySelector('#insp-note'));
+    autogrow(host.querySelector('#insp-summary'));
   }
 
   function cap(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : 'Manual'; }
@@ -201,6 +206,23 @@
     '</div>';
   }
 
+  function summaryBlock(c) {
+    var st = c.style || {};
+    var kind = st.summaryKind || 'plain';
+    return '<div class="insp-section summary-section">' +
+      '<div class="insp-label">' + U.esc(t('cards.summary')) + '</div>' +
+      '<textarea class="insp-textarea summary-area" id="insp-summary" rows="2" placeholder="' + U.esc(t('cards.summaryPlaceholder')) + '">' + U.esc(c.summary || '') + '</textarea>' +
+      '<div class="style-line summary-line">' +
+        '<span class="style-sub">' + U.esc(t('map.summaryStyle')) + '</span>' +
+        '<div class="segmented tiny">' +
+          ['plain', 'callout', 'badge'].map(function (k) {
+            return '<button class="seg' + (kind === k ? ' active' : '') + '" data-sumkind="' + k + '">' + U.esc(t('map.summary' + k.charAt(0).toUpperCase() + k.slice(1))) + '</button>';
+          }).join('') +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  }
+
   function patchStyle(key, value) {
     var c = S.card(currentId);
     if (!c) return;
@@ -216,6 +238,12 @@
       c.updatedAt = Date.now();
     });
     refresh();
+  }
+
+  function findAttachment(cardId, attId) {
+    var c = S.card(cardId);
+    if (!c || !c.attachments) return null;
+    return c.attachments.filter(function (a) { return a.id === attId; })[0] || null;
   }
 
   function chipSection(field, label, values, placeholder, kind) {
@@ -249,6 +277,7 @@
     bindText('#insp-title', 'title', t('history.kind.edit'));
     bindText('#insp-body', 'body', t('history.kind.edit'));
     bindText('#insp-note', 'note', t('history.kind.edit'));
+    bindText('#insp-summary', 'summary', t('history.kind.edit'));
     bindText('#insp-category', 'category', t('history.kind.edit'));
 
     var addSource = host.querySelector('[data-act="add-source"]');
@@ -275,6 +304,29 @@
     if (boldBtn) boldBtn.onclick = function () {
       patchStyle('bold', (c.style && c.style.bold === false) ? '' : false);
     };
+    host.querySelectorAll('[data-sumkind]').forEach(function (b) {
+      b.onclick = function () { patchStyle('summaryKind', b.getAttribute('data-sumkind')); };
+    });
+
+    if (CC.attach) {
+      host.querySelectorAll('[data-act="attach-image"]').forEach(function (b) {
+        b.onclick = function () { CC.attach.pick(id, true); };
+      });
+      host.querySelectorAll('[data-act="attach-file"]').forEach(function (b) {
+        b.onclick = function () { CC.attach.pick(id, false); };
+      });
+      host.querySelectorAll('[data-act="attach-open"]').forEach(function (b) {
+        b.onclick = function () { CC.attach.open(findAttachment(id, b.getAttribute('data-id'))); };
+      });
+      host.querySelectorAll('[data-act="attach-reveal"]').forEach(function (b) {
+        b.onclick = function () { CC.attach.reveal(findAttachment(id, b.getAttribute('data-id'))); };
+      });
+      host.querySelectorAll('[data-act="attach-del"]').forEach(function (b) {
+        b.onclick = function () { CC.attach.remove(id, b.getAttribute('data-id')); };
+      });
+      CC.attach.load(id);
+    }
+
     host.querySelectorAll('[data-fill]').forEach(function (b) {
       b.onclick = function () { patchStyle('fill', b.getAttribute('data-fill')); };
     });

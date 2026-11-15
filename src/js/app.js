@@ -23,6 +23,16 @@
       saveImage: function () { return Promise.resolve({ ok: false, canceled: true }); },
       parseXmind: function () { return Promise.resolve({ ok: false, error: 'preview' }); },
       chat: function () { return Promise.resolve({ ok: false, error: 'preview mode' }); },
+      cancelChat: function () { return Promise.resolve({ ok: false }); },
+      onChatChunk: function () { return function () {}; },
+      ledgerList: function () { return Promise.resolve({ ok: true, items: [] }); },
+      ledgerClear: function () { return Promise.resolve({ ok: true }); },
+      corpusStats: function () { return Promise.resolve({ ok: true, sharded: false, shards: 0, cards: 0 }); },
+      pickAttachments: function () { return Promise.resolve({ ok: false, canceled: true }); },
+      readAttachment: function () { return Promise.resolve({ ok: false }); },
+      openAttachment: function () { return Promise.resolve({ ok: false }); },
+      revealAttachment: function () { return Promise.resolve({ ok: false }); },
+      deleteAttachment: function () { return Promise.resolve({ ok: true }); },
       smokeDone: function () { return Promise.resolve({ ok: true }); },
       quit: function () { }
     };
@@ -69,6 +79,13 @@
         }
       });
       syncChrome();
+      /* Idle-time memory cleanup: keep a long session from holding on to
+         every measured card and every cached layout model. */
+      if (CC.layout && CC.layout.idleSweep) {
+        setInterval(function () {
+          CC.layout.idleSweep({ keepModels: 3, measureLimit: 4000 });
+        }, 60000);
+      }
       if (PREVIEW) applyPreviewQuery();
       if (location.search.indexOf('smoke=1') >= 0) runSmoke();
     }).catch(function (err) {
@@ -409,13 +426,6 @@
   /* flows                                                              */
   /* ------------------------------------------------------------------ */
 
-  function quickNewCard() {
-    var c = null;
-    S.commit('create', t('cards.new'), function () { c = S.newCard({ title: '' }, true); });
-    openCard(c.id, { focusTitle: true });
-    U.toast(t('cards.new'), 'ok');
-  }
-
   function openCard(id, opts) {
     if (st.view !== 'map' && st.view !== 'cards' && st.view !== 'outline') {
       nav('cards');
@@ -701,7 +711,6 @@
       else if (S.undo()) U.toast(t('history.undo'), 'ok');
       return;
     }
-    if (mod && (e.key === 'n' || e.key === 'N')) { e.preventDefault(); quickNewCard(); return; }
     if (e.key === 'F11') {
       e.preventDefault();
       if (window.api && window.api.toggleFullScreen) window.api.toggleFullScreen();
@@ -720,7 +729,6 @@
       U.closeMenus();
       return;
     }
-    if (e.key === 'n' || e.key === 'N') { e.preventDefault(); quickNewCard(); return; }
     if (/^[1-9]$/.test(e.key)) {
       var target = VIEWS[Number(e.key) - 1];
       if (target) { e.preventDefault(); nav(target); }
@@ -868,7 +876,7 @@
     newMapFlow: newMapFlow, renameMapFlow: renameMapFlow, duplicateMap: duplicateMap,
     deleteMapFlow: deleteMapFlow, saveTemplate: saveTemplate, applyTemplate: applyTemplate,
     createMapFromCards: createMapFromCards, mergeFlow: mergeFlow, deleteCardFlow: deleteCardFlow,
-    quickNewCard: quickNewCard, outlineAddChild: outlineAddChild, outlineAddSibling: outlineAddSibling,
+    outlineAddChild: outlineAddChild, outlineAddSibling: outlineAddSibling,
     searchTag: searchTag, pickCard: pickCard, startLinkFrom: startLinkFrom,
     openAI: function (k) { CC.ai.open(k); }, openReviewPanel: function () { CC.ai.openReviewPanel(); },
     setLang: setLang, setTheme: setTheme, syncChrome: syncChrome, info: function () { return st.info; },

@@ -26,6 +26,30 @@
         '<p>Once several nodes are selected you can drag them as a group, link them in one go, or delete them together with <kbd>Delete</kbd>.</p>' +
         '<h3>Minimap</h3><p>The small map at the bottom left shows the whole map; the pale rectangle marks the current viewport. Click it or drag it and the viewport jumps to that spot — on a map with hundreds of thousands of cards this is the quickest way to find your way around.</p>' +
         '<p>Show or hide it with the map-icon button in the toolbar or from the canvas “…” menu. The choice is stored per map, so each map remembers its own setting.</p>' },
+      { id: 'style', title: 'Appearance, attachments and output', html:
+        '<h3>Theme library</h3><p>The “…” menu on the canvas holds a Theme library with six palettes (Default, Paper, Ink, Night, Forest, Dusk). The theme is stored per map: changing it affects that map only, and never touches the cards themselves.</p>' +
+        '<p>A theme applies to the canvas — background, link colours and tag colours change — while the surrounding interface keeps its own look.</p>' +
+        '<h3>Summary nodes</h3><p>A card can carry a one-line summary. It is drawn straight onto the node and appears once the map is at full detail. Three styles are available: plain, callout (a bordered block) and badge (a small label in the corner).</p>' +
+        '<p>Edit the text in the Summary field of the side panel and switch style with the buttons next to it. An empty summary costs the node no extra space.</p>' +
+        '<h3>Link line styles</h3><p>Double-click a link to set three things: the line type (solid, dashed, dotted), the arrow (filled, open, none) and the width (thin, medium, thick). Doubtful links keep their orange dashed look and the question mark.</p>' +
+        '<p>These settings are purely visual: the relation type does not change, and search and Check still work by type.</p>' +
+        '<h3>Attachments</h3><p>A card can carry images or any other file. Use Add image or Add file in the Attachments block of the side panel. The bytes live in a local attachments folder; the corpus file keeps only the name, size and type, so backups stay small.</p>' +
+        '<p>Images are drawn under the node as a thumbnail. Open shows the file with your default program, Show in folder reveals it in the file browser.</p>' +
+        '<h3>Presentation mode</h3><p>The play button in the toolbar (also in the “…” menu) starts a full-screen presentation that follows the map structure: root first, then level by level.</p>' +
+        '<p><kbd>←</kbd> <kbd>→</kbd> or <kbd>Space</kbd> turn pages, <kbd>Home</kbd> / <kbd>End</kbd> jump to the first and last slide, <kbd>Esc</kbd> leaves the presentation.</p>' +
+        '<h3>A4 printing</h3><p>The print button in the toolbar lays the current view out on A4 landscape pages and then opens the system print dialog. Wide maps are split across pages; the margin is 10 mm.</p>' +
+        '<p>Check the range first if you like — what prints is the map itself, without any interface controls.</p>' },
+      { id: 'runtime', title: 'Streaming AI and local storage', html:
+        '<h3>Text as it is written</h3><p>After you press Generate, the reply appears a piece at a time above the result area instead of arriving all at once. Long answers are much easier to steer early.</p>' +
+        '<p>Streaming only changes how the reply is shown: it is still parsed into a draft and nothing reaches your corpus until you confirm each item.</p>' +
+        '<h3>A real cancel</h3><p>While generating, the “Cancel request” button becomes available. It does not just close the dialog — the main process aborts the in-flight network request, so the connection stops immediately and nothing keeps billing in the background.</p>' +
+        '<p>A cancelled call is recorded as “Cancelled” in the ledger; it produces no result.</p>' +
+        '<h3>Call ledger</h3><p>“Call ledger” in the AI panel lists every call: time, action, model, status, tokens, duration and the error message when one failed. The log lives only in a local <code>ai-ledger.json</code>; it is never exported in a .wef backup and never uploaded.</p>' +
+        '<p>Up to 300 entries are kept, oldest first to go. The panel can clear the whole log in one click.</p>' +
+        '<h3>Sharded storage for large corpora</h3><p>Once the card count passes a threshold, the corpus switches from one <code>corpus.json</code> to shards: metadata stays in corpus.json while cards are split into files of 2000 in a <code>corpus-shards/</code> folder.</p>' +
+        '<p>On save only the shards whose content actually changed are rewritten, so editing one card no longer rewrites the whole library. Auto-backup reassembles the shards into a full corpus before writing, so a restore is always lossless. Settings → Data shows whether storage is single-file or sharded.</p>' +
+        '<h3>Incremental layout and background warm-up</h3><p>Dragging a branch reindexes only the nodes that moved instead of rebuilding the whole spatial grid. The coarse overview used at very low zoom is computed in a Web Worker after the visible frame has been painted, so the interface stays responsive.</p>' +
+        '<p>When idle, the app drops stale measurement caches and unused layout models, so memory does not keep growing during a long session.</p>' },
       { id: 'outline', title: 'Outline', html:
         '<p>The outline edits the same data as the map. Change a title or level here and the map follows immediately, and vice versa.</p>' +
         '<p><kbd>Tab</kbd> indents, <kbd>Shift</kbd>+<kbd>Tab</kbd> outdents, <kbd>Enter</kbd> adds a sibling; the row buttons add children and siblings.</p>' },
@@ -47,7 +71,7 @@
         '<p>Interface language and theme apply immediately. The data panel shows the file location and format version, and opens the folder.</p>' +
         '<p>There is no account, telemetry or cloud sync. Only an AI action sends the selected text to your endpoint; everything else is local.</p>' },
       { id: 'keys', title: 'Keyboard', html:
-        '<p><kbd>N</kbd> new card · <kbd>Ctrl</kbd>+<kbd>K</kbd> search · <kbd>Ctrl</kbd>+<kbd>S</kbd> save · <kbd>Ctrl</kbd>+<kbd>Z</kbd> undo · <kbd>F</kbd> focus · <kbd>G</kbd> fit · <kbd>F11</kbd> full screen · <kbd>1</kbd>-<kbd>9</kbd> views.</p>' }
+        '<p><kbd>Ctrl</kbd>+<kbd>K</kbd> search · <kbd>Ctrl</kbd>+<kbd>S</kbd> save · <kbd>Ctrl</kbd>+<kbd>Z</kbd> undo · <kbd>F</kbd> focus · <kbd>G</kbd> fit · <kbd>F11</kbd> full screen · <kbd>1</kbd>-<kbd>9</kbd> views.</p>' }
     ],
     ai: [
       { id: 'what', title: 'What AI does', html:
@@ -105,6 +129,30 @@
         '<p>複数選択後はまとめて移動、まとめて接続、<kbd>Delete</kbd>で一括削除できます。</p>' +
         '<h3>ミニマップ</h3><p>キャンバス左下の小さな図がマップ全体を示し、薄い長方形が現在の表示範囲です。クリックまたはドラッグするとその位置へ表示が移動します。数十万枚のカードのあるマップでは、これが一番早い道しるべになります。</p>' +
         '<p>表示・非表示はツールバーの地図アイコン、またはキャンバス右クリックの「…」メニューから切り替えます。設定はマップごとに保存されます。</p>' },
+      { id: 'style', title: '外観・添付・書き出し', html:
+        '<h3>テーマ集</h3><p>キャンバスの「…」メニューに「テーマ集」があり、6 種類の配色（標準・和紙・墨・夜・森・夕暮）を選べます。テーマは図ごとに保存されるので、変えたのはその図だけで、カードのデータには一切触れません。</p>' +
+        '<p>テーマはキャンバスにだけ適用されます。背景・線の色・タグの色が変わりますが、画面自体の見た目はそのままです。</p>' +
+        '<h3>概要ノード</h3><p>カードには一行の概要を書けます。ノードに直接描かれ、詳細表示のときに見えます。書き方は 3 種類——通常、コールアウト（枠で囲んだブロック）、バッジ（角の小さなラベル）。</p>' +
+        '<p>サイドパネルの「概要」欄で文章を直し、隣のボタンで書き方を切り替えます。空なら余白も広がりません。</p>' +
+        '<h3>リンクの線スタイル</h3><p>リンクをダブルクリックすると、線の種類（実線・破線・点線）、矢印（塗りつぶし・開いた形・なし）、太さ（細・中・太）を設定できます。不確かなリンクはオレンジの破線と「?」のままです。</p>' +
+        '<p>これは見た目だけの設定で、関係の種類は変わりません。検索も検査も以前どおり種類で見つけます。</p>' +
+        '<h3>添付ファイル</h3><p>カードには画像や任意のファイルを添えられます。サイドパネルの「添付」欄で「画像を追加」か「ファイルを追加」を選びます。中身はローカルの添付フォルダに置き、コーパスファイルには名前・大きさ・種類だけが残るので、バックアップは膨らみません。</p>' +
+        '<p>画像はノードの下にサムネイルとして描かれます。「開く」は既定のプログラムで、「フォルダーに表示」は保存場所を出します。</p>' +
+        '<h3>発表モード</h3><p>ツールバーの再生ボタン（または「…」メニュー）から全画面発表が始まり、図の構造順に進みます。まず根のノード、その下へ段階的に。</p>' +
+        '<p><kbd>←</kbd> <kbd>→</kbd> または <kbd>Space</kbd> でページ送り、<kbd>Home</kbd> / <kbd>End</kbd> で最初と最後へ、<kbd>Esc</kbd> で終了します。</p>' +
+        '<h3>A4 印刷</h3><p>ツールバーの印刷ボタンが現在の表示を A4 横向きのページに割り付け、系统の印刷ダイアログを開きます。広い図は複数ページに分かれ、余白は 10 ミリです。</p>' +
+        '<p>必要なら先に範囲を確認してください。印刷されるのは図そのものだけで、画面の操作部品は含まれません。</p>' },
+      { id: 'runtime', title: 'AI ストリーミングとローカル保存', html:
+        '<h3>生成されながら表示</h3><p>「生成」を押すと、返答が結果欄の上に少しずつ現れます。まとめて届くのを待たなくてよいので、長い回答ほど早く方向を確認できます。</p>' +
+        '<p>ストリーミングは表示の仕方だけを変えます。最後はこれまでどおり下書きに解析され、項目ごとに確認するまで資料庫には書き込まれません。</p>' +
+        '<h3>本当に中止する</h3><p>生成中は「リクエストを中止」が使えるようになります。ダイアログを閉じるだけではなく、メインプロセスが送信中のネットワーク要求を直接中断します。接続はその場で切れ、裏で課金が続くこともありません。</p>' +
+        '<p>中止した呼び出しは履歴に「中止」と残り、結果は作られません。</p>' +
+        '<h3>呼び出し履歴</h3><p>AI パネルの「呼び出し履歴」には、時刻・動作・モデル・状態・トークン数・所要時間、失敗したときのエラーが並びます。記録はローカルの <code>ai-ledger.json</code> だけにあり、.wef バックアップにも入らず、外部にも送られません。</p>' +
+        '<p>最大 300 件までで、古いものから消えます。パネルから一括でクリアできます。</p>' +
+        '<h3>大規模コーパスの分割保存</h3><p>カードが一定数を超えると、単一の <code>corpus.json</code> から分割保存へ自動で切り替わります。メタデータは corpus.json のまま、カードは 2000 枚ずつ <code>corpus-shards/</code> 内の小さなファイルに分かれます。</p>' +
+        '<p>保存時に書き直すのは内容が変わったファイルだけなので、1 枚直すためにライブラリ全体を書き直す必要がありません。自動バックアップは分割を完全なコーパスに組み直してから書き出すため、復元は常に無損失です。設定 → データで現在の方式を確認できます。</p>' +
+        '<h3>段階的なレイアウトと裏側の準備</h3><p>枝をドラッグしても、動いたノードだけを再索引し、空間グリッド全体を作り直しません。縮小時の粗い概観は Web Worker で、見えているフレームを描いたあとに計算するので画面が止まりません。</p>' +
+        '<p>暇なときに古い計測キャッシュと使っていないレイアウトモデルを捨てるため、長時間起動してもメモリが増え続けません。</p>' },
       { id: 'outline', title: 'アウトライン', html:
         '<p>アウトラインはマップと同じデータを編集します。ここでタイトルや階層を変えるとマップに即反映し、逆も同じです。</p>' +
         '<p><kbd>Tab</kbd> で下げ、<kbd>Shift</kbd>+<kbd>Tab</kbd> で上げ、<kbd>Enter</kbd> で同じ階層を追加します。</p>' },
@@ -126,7 +174,7 @@
         '<p>言語とテーマはすぐ反映されます。データ欄には保存場所と形式バージョンが出て、フォルダーを開けます。</p>' +
         '<p>アカウント・テレメトリ・クラウド同期はありません。AI を実行したときだけ選択範囲が送られ、それ以外はローカルです。</p>' },
       { id: 'keys', title: 'キーボード', html:
-        '<p><kbd>N</kbd> 新規カード · <kbd>Ctrl</kbd>+<kbd>K</kbd> 検索 · <kbd>Ctrl</kbd>+<kbd>S</kbd> 保存 · <kbd>Ctrl</kbd>+<kbd>Z</kbd> 元に戻す · <kbd>F</kbd> フォーカス · <kbd>G</kbd> 全体表示 · <kbd>F11</kbd> 全画面 · <kbd>1</kbd>-<kbd>9</kbd> 画面切替。</p>' }
+        '<p><kbd>Ctrl</kbd>+<kbd>K</kbd> 検索 · <kbd>Ctrl</kbd>+<kbd>S</kbd> 保存 · <kbd>Ctrl</kbd>+<kbd>Z</kbd> 元に戻す · <kbd>F</kbd> フォーカス · <kbd>G</kbd> 全体表示 · <kbd>F11</kbd> 全画面 · <kbd>1</kbd>-<kbd>9</kbd> 画面切替。</p>' }
     ],
     ai: [
       { id: 'what', title: 'AI でできること', html:
@@ -180,6 +228,30 @@
         '<p>Con varios nodos seleccionados puedes moverlos en bloque, enlazarlos de una vez o borrarlos juntos con <kbd>Delete</kbd>.</p>' +
         '<h3>Minimapa</h3><p>El pequeño mapa de la esquina inferior izquierda muestra el mapa entero; el rectángulo claro marca la vista actual. Haz clic o arrástralo y la vista salta a ese punto: en un mapa con cientos de miles de tarjetas es la forma más rápida de orientarse.</p>' +
         '<p>Se muestra u oculta con el botón de icono de mapa de la barra de herramientas o desde el menú «…» del lienzo. La preferencia se guarda por mapa.</p>' },
+      { id: 'style', title: 'Apariencia, adjuntos y salida', html:
+        '<h3>Biblioteca de temas</h3><p>El menú «…» del lienzo incluye una Biblioteca de temas con seis paletas (Predeterminado, Papel, Tinta, Nocturno, Bosque, Crepúsculo). El tema se guarda por mapa: cambiarlo solo afecta a ese mapa y nunca toca las tarjetas.</p>' +
+        '<p>Un tema se aplica al lienzo —cambian el fondo, los colores de los enlaces y los de las etiquetas— mientras que la interfaz conserva su propia apariencia.</p>' +
+        '<h3>Nodos de resumen</h3><p>Una tarjeta puede llevar un resumen de una línea. Se dibuja directamente sobre el nodo y aparece cuando el mapa está en detalle completo. Hay tres estilos: simple, destacado (un bloque con borde) e insignia (una etiqueta pequeña en la esquina).</p>' +
+        '<p>Edita el texto en el campo Resumen del panel lateral y cambia de estilo con los botones contiguos. Si está vacío, el nodo no ocupa espacio extra.</p>' +
+        '<h3>Estilos de línea</h3><p>Haz doble clic en un enlace para fijar tres cosas: el tipo de trazo (continuo, discontinuo, punteado), la flecha (rellena, abierta, ninguna) y el grosor (fino, medio, grueso). Los enlaces dudosos conservan su trazo naranja discontinuo y el signo de interrogación.</p>' +
+        '<p>Son ajustes solo visuales: el tipo de relación no cambia, y la búsqueda y el Control siguen funcionando por tipo.</p>' +
+        '<h3>Adjuntos</h3><p>Una tarjeta puede llevar imágenes o cualquier archivo. Usa Añadir imagen o Añadir archivo en el bloque Adjuntos del panel lateral. Los bytes viven en una carpeta local de adjuntos; el archivo del corpus solo guarda nombre, tamaño y tipo, así que las copias de seguridad no engordan.</p>' +
+        '<p>Las imágenes se dibujan bajo el nodo como miniatura. Abrir las muestra con tu programa habitual y Mostrar en la carpeta las localiza en el explorador de archivos.</p>' +
+        '<h3>Modo presentación</h3><p>El botón de reproducción de la barra (también en el menú «…») inicia una presentación a pantalla completa que sigue la estructura del mapa: primero la raíz y luego nivel a nivel.</p>' +
+        '<p><kbd>←</kbd> <kbd>→</kbd> o <kbd>Espacio</kbd> pasan de diapositiva, <kbd>Inicio</kbd> / <kbd>Fin</kbd> saltan a la primera y la última, y <kbd>Esc</kbd> sale.</p>' +
+        '<h3>Impresión A4</h3><p>El botón de impresión de la barra reparte la vista actual en páginas A4 horizontales y abre el diálogo de impresión del sistema. Los mapas anchos se parten en varias páginas; el margen es de 10 mm.</p>' +
+        '<p>Puedes comprobar el alcance antes: lo que se imprime es el mapa, sin los controles de la interfaz.</p>' },
+      { id: 'runtime', title: 'IA en streaming y almacenamiento local', html:
+        '<h3>Texto mientras se escribe</h3><p>Tras pulsar Generar, la respuesta aparece poco a poco sobre el área de resultados en lugar de llegar de golpe. En las respuestas largas se ve antes si va por buen camino.</p>' +
+        '<p>El streaming solo cambia la forma de mostrarla: se sigue analizando como borrador y nada entra en el corpus hasta que confirmas cada elemento.</p>' +
+        '<h3>Una cancelación real</h3><p>Durante la generación se activa «Cancelar solicitud». No se limita a cerrar el diálogo: el proceso principal interrumpe la petición de red en curso, la conexión se corta al instante y no sigue consumiendo crédito en segundo plano.</p>' +
+        '<p>Una llamada cancelada queda registrada como «Cancelada» y no produce resultados.</p>' +
+        '<h3>Registro de llamadas</h3><p>«Registro de llamadas» en el panel de IA muestra cada llamada: hora, acción, modelo, estado, tokens, duración y el error cuando falló. El registro vive solo en un <code>ai-ledger.json</code> local; no se exporta en las copias .wef ni se sube a ningún sitio.</p>' +
+        '<p>Se conservan hasta 300 entradas y se descartan las más antiguas. El panel puede vaciarlo de una vez.</p>' +
+        '<h3>Almacenamiento fragmentado</h3><p>Cuando el número de tarjetas supera un umbral, el corpus pasa de un único <code>corpus.json</code> a fragmentos: los metadatos siguen en corpus.json y las tarjetas se reparten en archivos de 2000 dentro de <code>corpus-shards/</code>.</p>' +
+        '<p>Al guardar solo se reescriben los fragmentos que han cambiado, así que editar una tarjeta ya no reescribe toda la biblioteca. La copia automática recompone los fragmentos antes de escribir, por lo que restaurar nunca pierde datos. Ajustes → Datos indica si el almacenamiento es de archivo único o fragmentado.</p>' +
+        '<h3>Layout incremental y preparación en segundo plano</h3><p>Al arrastrar una rama solo se reindexan los nodos que se movieron, en vez de reconstruir toda la rejilla espacial. La vista gruesa de cuando se aleja mucho se calcula en un Web Worker después de pintar el fotograma visible, así que la interfaz sigue respondiendo.</p>' +
+        '<p>En reposo se descartan las cachés de medición antiguas y los modelos de layout sin uso, para que la memoria no crezca sin fin en una sesión larga.</p>' },
       { id: 'outline', title: 'Esquema', html:
         '<p>El esquema edita los mismos datos que el mapa: cambia un título o nivel y el mapa sigue al instante, y al revés.</p>' +
         '<p><kbd>Tab</kbd> sangra, <kbd>Mayús</kbd>+<kbd>Tab</kbd> quita sangría y <kbd>Intro</kbd> crea un hermano.</p>' },
@@ -201,7 +273,7 @@
         '<p>Idioma y tema se aplican al instante. El panel de datos muestra ubicación y versión del formato, y abre la carpeta.</p>' +
         '<p>Sin cuenta, telemetría ni nube. Solo una acción de IA envía el texto seleccionado a tu servicio; el resto es local.</p>' },
       { id: 'keys', title: 'Teclado', html:
-        '<p><kbd>N</kbd> tarjeta · <kbd>Ctrl</kbd>+<kbd>K</kbd> buscar · <kbd>Ctrl</kbd>+<kbd>S</kbd> guardar · <kbd>Ctrl</kbd>+<kbd>Z</kbd> deshacer · <kbd>F</kbd> enfoque · <kbd>G</kbd> ajustar · <kbd>F11</kbd> pantalla completa · <kbd>1</kbd>-<kbd>9</kbd> vistas.</p>' }
+        '<p><kbd>Ctrl</kbd>+<kbd>K</kbd> buscar · <kbd>Ctrl</kbd>+<kbd>S</kbd> guardar · <kbd>Ctrl</kbd>+<kbd>Z</kbd> deshacer · <kbd>F</kbd> enfoque · <kbd>G</kbd> ajustar · <kbd>F11</kbd> pantalla completa · <kbd>1</kbd>-<kbd>9</kbd> vistas.</p>' }
     ],
     ai: [
       { id: 'what', title: 'Qué hace la IA', html:
@@ -254,6 +326,30 @@
         '<p>Une fois plusieurs nœuds sélectionnés, vous pouvez les déplacer ensemble, les relier d’un coup ou les supprimer avec <kbd>Suppr</kbd>.</p>' +
         '<h3>Mini-carte</h3><p>La petite carte en bas à gauche montre la carte entière ; le rectangle clair indique la vue en cours. Cliquez-la ou faites-la glisser et l’affichage s’y rend : sur une carte de centaines de milliers de fiches, c’est le moyen le plus rapide de s’orienter.</p>' +
         '<p>Elle s’affiche ou se masque avec le bouton d’icône de carte de la barre d’outils ou via le menu « … » du canevas. Le choix est enregistré pour chaque carte.</p>' },
+      { id: 'style', title: 'Apparence, pièces jointes et sortie', html:
+        '<h3>Bibliothèque de thèmes</h3><p>Le menu «…» du canevas propose une Bibliothèque de thèmes avec six palettes (Par défaut, Papier, Encre, Nuit, Forêt, Crépuscule). Le thème est enregistré par carte : le changer n’affecte que cette carte et ne touche jamais aux fiches.</p>' +
+        '<p>Un thème s’applique au canevas — le fond, les couleurs des liens et des étiquettes changent — tandis que l’interface conserve son apparence.</p>' +
+        '<h3>Nœuds de résumé</h3><p>Une fiche peut porter un résumé d’une ligne. Il est dessiné directement sur le nœud et apparaît quand la carte est en détail complet. Trois styles sont proposés : simple, encadré (un bloc bordé) et badge (une petite étiquette dans le coin).</p>' +
+        '<p>Modifiez le texte dans le champ Résumé du panneau latéral et changez de style avec les boutons voisins. Un résumé vide n’occupe aucune place supplémentaire.</p>' +
+        '<h3>Styles de trait</h3><p>Double-cliquez un lien pour régler trois choses : le type de trait (plein, tirets, pointillés), la flèche (pleine, ouverte, aucune) et l’épaisseur (fine, moyenne, épaisse). Les liens douteux gardent leur trait orange et leur point d’interrogation.</p>' +
+        '<p>Ces réglages sont purement visuels : le type de relation ne change pas, et la recherche comme le Contrôle continuent de travailler par type.</p>' +
+        '<h3>Pièces jointes</h3><p>Une fiche peut porter des images ou n’importe quel fichier. Utilisez Ajouter une image ou Ajouter un fichier dans le bloc Pièces jointes du panneau latéral. Les octets restent dans un dossier local de pièces jointes ; le fichier du corpus ne conserve que le nom, la taille et le type, donc les sauvegardes ne grossissent pas.</p>' +
+        '<p>Les images sont dessinées sous le nœud en vignette. Ouvrir les affiche avec votre programme par défaut, Afficher dans le dossier les localise dans l’explorateur de fichiers.</p>' +
+        '<h3>Mode présentation</h3><p>Le bouton lecture de la barre d’outils (aussi dans le menu «…») lance une présentation plein écran qui suit la structure de la carte : la racine d’abord, puis niveau par niveau.</p>' +
+        '<p><kbd>←</kbd> <kbd>→</kbd> ou <kbd>Espace</kbd> changent de diapositive, <kbd>Début</kbd> / <kbd>Fin</kbd> vont à la première et à la dernière, <kbd>Échap</kbd> quitte.</p>' +
+        '<h3>Impression A4</h3><p>Le bouton d’impression de la barre répartit la vue courante sur des pages A4 paysage, puis ouvre la boîte de dialogue d’impression du système. Les cartes larges sont découpées en plusieurs pages ; la marge est de 10 mm.</p>' +
+        '<p>Vérifiez l’étendue si vous le souhaitez : ce qui s’imprime, c’est la carte elle-même, sans les commandes de l’interface.</p>' },
+      { id: 'runtime', title: 'IA en flux et stockage local', html:
+        '<h3>Le texte au fur et à mesure</h3><p>Après « Générer », la réponse apparaît morceau par morceau au-dessus de la zone de résultat au lieu d’arriver d’un bloc. Sur une longue réponse, on voit beaucoup plus tôt si elle prend la bonne direction.</p>' +
+        '<p>Le flux ne change que l’affichage : la réponse est toujours analysée en brouillon et rien n’entre dans le corpus avant confirmation de chaque élément.</p>' +
+        '<h3>Une annulation réelle</h3><p>Pendant la génération, « Annuler la requête » devient actif. Il ne ferme pas seulement la fenêtre : le processus principal interrompt la requête réseau en cours, la connexion s’arrête aussitôt et rien ne continue à être facturé en arrière-plan.</p>' +
+        '<p>Un appel annulé est noté « Annulé » dans le journal et ne produit aucun résultat.</p>' +
+        '<h3>Journal des appels</h3><p>« Journal des appels » dans le panneau IA liste chaque appel : heure, action, modèle, état, jetons, durée et le message d’erreur en cas d’échec. Le journal reste dans un <code>ai-ledger.json</code> local ; il n’est jamais exporté dans une sauvegarde .wef ni envoyé ailleurs.</p>' +
+        '<p>300 entrées au maximum, les plus anciennes disparaissent en premier. Le panneau permet de tout vider d’un clic.</p>' +
+        '<h3>Stockage fractionné</h3><p>Au-delà d’un certain nombre de fiches, le corpus passe d’un seul <code>corpus.json</code> à des fragments : les métadonnées restent dans corpus.json, les fiches sont réparties par fichiers de 2000 dans <code>corpus-shards/</code>.</p>' +
+        '<p>À l’enregistrement, seuls les fragments réellement modifiés sont réécrits : corriger une fiche ne réécrit plus toute la bibliothèque. La sauvegarde automatique recompose d’abord les fragments en corpus complet, donc une restauration est toujours sans perte. Réglages → Données indique le mode de stockage.</p>' +
+        '<h3>Disposition incrémentale et préparation en arrière-plan</h3><p>Déplacer une branche ne réindexe que les nœuds déplacés, sans reconstruire toute la grille spatiale. La vue grossière du zoom très éloigné est calculée dans un Web Worker après le rendu de l’image visible, l’interface reste donc fluide.</p>' +
+        '<p>Au repos, les caches de mesure périmés et les modèles de disposition inutilisés sont libérés : la mémoire ne grossit pas indéfiniment pendant une longue session.</p>' },
       { id: 'outline', title: 'Plan', html:
         '<p>Le plan modifie les mêmes données que la carte : un titre ou un niveau change ici et la carte suit, et inversement.</p>' +
         '<p><kbd>Tab</kbd> indente, <kbd>Maj</kbd>+<kbd>Tab</kbd> désindente, <kbd>Entrée</kbd> crée un voisin.</p>' },
@@ -275,7 +371,7 @@
         '<p>Langue et thème s’appliquent aussitôt. Le panneau données indique l’emplacement et la version du format, et ouvre le dossier.</p>' +
         '<p>Sans compte, télémétrie ni cloud. Seule une action IA envoie le texte sélectionné à votre service ; le reste est local.</p>' },
       { id: 'keys', title: 'Clavier', html:
-        '<p><kbd>N</kbd> fiche · <kbd>Ctrl</kbd>+<kbd>K</kbd> rechercher · <kbd>Ctrl</kbd>+<kbd>S</kbd> enregistrer · <kbd>Ctrl</kbd>+<kbd>Z</kbd> annuler · <kbd>F</kbd> focus · <kbd>G</kbd> ajuster · <kbd>F11</kbd> plein écran · <kbd>1</kbd>-<kbd>9</kbd> vues.</p>' }
+        '<p><kbd>Ctrl</kbd>+<kbd>K</kbd> rechercher · <kbd>Ctrl</kbd>+<kbd>S</kbd> enregistrer · <kbd>Ctrl</kbd>+<kbd>Z</kbd> annuler · <kbd>F</kbd> focus · <kbd>G</kbd> ajuster · <kbd>F11</kbd> plein écran · <kbd>1</kbd>-<kbd>9</kbd> vues.</p>' }
     ],
     ai: [
       { id: 'what', title: 'Ce que fait l’IA', html:
@@ -328,6 +424,30 @@
         '<p>여러 노드를 고른 뒤에는 한꺼번에 옮기고, 한꺼번에 연결하고, <kbd>Delete</kbd>로 함께 지울 수 있습니다.</p>' +
         '<h3>미니맵</h3><p>캔버스 왼쪽 아래의 작은 지도가 전체 지도를 보여 주고 연한 사각형이 현재 화면입니다. 클릭하거나 끌면 그 위치로 이동합니다. 카드가 수십만 장인 지도에서 길을 찾는 가장 빠른 방법입니다.</p>' +
         '<p>지도 아이콘 버튼이나 캔버스 오른쪽 클릭의 「…」 메뉴에서 표시를 켜고 끌 수 있습니다. 이 설정은 지도마다 따로 저장됩니다.</p>' },
+      { id: 'style', title: '외관, 첨부 파일 및 내보내기', html:
+        '<h3>테마 라이브러리</h3><p>캔버스의 「…」 메뉴에 「테마 라이브러리」가 있고, 여섯 가지 색 조합(기본, 종이, 먹, 야행, 숲속, 박명)을 고를 수 있습니다. 테마는 지도마다 저장되므로 바꿔도 그 지도에만 적용되고 카드 데이터는 그대로입니다.</p>' +
+        '<p>테마는 캔버스에만 적용됩니다. 배경, 연결선 색, 태그 색이 바뀌지만 화면 자체의 모양은 유지됩니다.</p>' +
+        '<h3>요약 노드</h3><p>카드에는 한 줄 요약을 쓸 수 있습니다. 노드에 직접 그려지고 상세 보기에서 나타납니다. 서체는 세 가지 — 일반, 강조 블록(테두리 있는 박스), 배지(모서리 작은 라벨).</p>' +
+        '<p>사이드 패널의 「요약」 칸에서 문장을 고치고, 옆 버튼으로 모양을 바꿉니다. 비워 두면 노드 크기가 늘지 않습니다.</p>' +
+        '<h3>연결선 스타일</h3><p>연결선을 두 번 누르면 세 가지를 정할 수 있습니다: 선 종류(실선·파선·점선), 화살표(채워짐·열림·없음), 굵기(얇게·보통·두껍게). 확실하지 않은 연결선은 주황 파선과 물음표 표시를 그대로 유지합니다.</p>' +
+        '<p>이 설정은 모양만 바꾸며 관계 종류는 그대로입니다. 검색과 점검도 예전처럼 종류로 찾습니다.</p>' +
+        '<h3>첨부 파일</h3><p>카드에 이미지나 아무 파일이나 붙일 수 있습니다. 사이드 패널의 「첨부」 영역에서 「이미지 추가」 또는 「파일 추가」를 누릅니다. 실제 내용은 로컬 첨부 폴더에 두고, 코퍼스 파일에는 이름·크기·종류만 남기므로 백업이 불어나지 않습니다.</p>' +
+        '<p>이미지는 노드 아래에 축소판으로 그려집니다. 「열기」는 기본 프로그램으로, 「폴더에서 표시」는 파일 위치를 파일 탐색기에서 보여 줍니다.</p>' +
+        '<h3>발표 모드</h3><p>툴바의 재생 버튼(또는 「…」 메뉴)에서 전체 화면 발표가 시작되며, 지도의 구조 순서로 진행합니다. 루트 노드부터 단계별로 내려갑니다.</p>' +
+        '<p><kbd>←</kbd> <kbd>→</kbd> 또는 <kbd>Space</kbd>로 넘기고, <kbd>Home</kbd> / <kbd>End</kbd>로 처음과 끝에 갈 수 있으며, <kbd>Esc</kbd>로 종료합니다.</p>' +
+        '<h3>A4 인쇄</h3><p>툴바의 인쇄 버튼이 현재 화면을 A4 가로 페이지에 배치한 뒤 시스템 인쇄 대화상자를 엽니다. 넓은 지도는 여러 페이지로 나뉘며 여백은 10밀리미터입니다.</p>' +
+        '<p>원한다면 먼저 범위를 확인하세요. 인쇄되는 것은 지도 자체이며 화면 조작 요소는 포함되지 않습니다.</p>' },
+      { id: 'runtime', title: 'AI 스트리밍과 로컬 저장', html:
+        '<h3>생성되는 대로 표시</h3><p>「생성」을 누르면 답변이 한꺼번에 도착하지 않고 결과 영역 위에 조금씩 나타납니다. 긴 답변일수록 방향이 맞는지 훨씬 빨리 알 수 있습니다.</p>' +
+        '<p>스트리밍은 표시 방식만 바꿉니다. 마지막에는 여전히 초안으로 분석되어, 항목마다 확인하기 전까지 코퍼스에 기록되지 않습니다.</p>' +
+        '<h3>실제로 중지하기</h3><p>생성 중에는 「요청 취소」가 활성화됩니다. 창을 닫는 것만이 아니라 메인 프로세스가 진행 중인 네트워크 요청을 직접 중단합니다. 연결이 즉시 끊기고 백그라운드에서 비용이 계속 발생하지 않습니다.</p>' +
+        '<p>중지된 호출은 기록에 「중지됨」으로 남고 결과는 만들어지지 않습니다.</p>' +
+        '<h3>호출 기록</h3><p>AI 패널의 「호출 기록」에는 시간, 동작, 모델, 상태, 토큰 수, 소요 시간, 실패 시 오류가 표시됩니다. 기록은 로컬 <code>ai-ledger.json</code>에만 있으며 .wef 백업에 포함되지 않고 외부로 전송되지도 않습니다.</p>' +
+        '<p>최대 300건까지 보관되고 오래된 것부터 사라집니다. 패널에서 한 번에 비울 수 있습니다.</p>' +
+        '<h3>대용량 코퍼스 분할 저장</h3><p>카드 수가 기준을 넘으면 단일 <code>corpus.json</code>에서 분할 저장으로 자동 전환됩니다. 메타데이터는 corpus.json에 남고, 카드는 2000장씩 <code>corpus-shards/</code> 안의 작은 파일로 나뉩니다.</p>' +
+        '<p>저장할 때 내용이 바뀐 조각만 다시 쓰므로 카드 하나를 고치려고 전체 라이브러리를 다시 쓰지 않습니다. 자동 백업은 조각을 완전한 코퍼스로 다시 합친 뒤 기록하므로 복원은 항상 손실이 없습니다. 설정 → 데이터에서 현재 방식을 확인할 수 있습니다.</p>' +
+        '<h3>증분 레이아웃과 백그라운드 준비</h3><p>가지 하나를 끌면 움직인 노드만 다시 색인하므로 공간 그리드 전체를 다시 만들지 않습니다. 많이 축소했을 때의 개괄 뷰는 보이는 화면을 그린 뒤 Web Worker에서 계산하므로 화면이 멈추지 않습니다.</p>' +
+        '<p>유휴 시간에는 오래된 측정 캐시와 쓰지 않는 레이아웃 모델을 정리해, 오래 켜 두어도 메모리가 계속 늘어나지 않습니다.</p>' },
       { id: 'outline', title: '개요', html:
         '<p>개요는 맵과 같은 데이터를 편집합니다. 여기서 제목이나 단계를 바꾸면 맵이 즉시 따라오고, 반대도 같습니다.</p>' +
         '<p><kbd>Tab</kbd>은 내리기, <kbd>Shift</kbd>+<kbd>Tab</kbd>은 올리기, <kbd>Enter</kbd>는 같은 단계 추가입니다.</p>' },
@@ -349,7 +469,7 @@
         '<p>언어와 테마는 즉시 적용됩니다. 자료 패널에 저장 위치와 형식 버전이 나오고 폴더를 열 수 있습니다.</p>' +
         '<p>계정·텔레메트리·클라우드가 없습니다. AI를 실행할 때만 선택 범위가 전송되고 나머지는 로컬입니다.</p>' },
       { id: 'keys', title: '키보드', html:
-        '<p><kbd>N</kbd> 새 카드 · <kbd>Ctrl</kbd>+<kbd>K</kbd> 검색 · <kbd>Ctrl</kbd>+<kbd>S</kbd> 저장 · <kbd>Ctrl</kbd>+<kbd>Z</kbd> 실행 취소 · <kbd>F</kbd> 포커스 · <kbd>G</kbd> 화면 맞춤 · <kbd>F11</kbd> 전체 화면 · <kbd>1</kbd>-<kbd>9</kbd> 화면 전환.</p>' }
+        '<p><kbd>Ctrl</kbd>+<kbd>K</kbd> 검색 · <kbd>Ctrl</kbd>+<kbd>S</kbd> 저장 · <kbd>Ctrl</kbd>+<kbd>Z</kbd> 실행 취소 · <kbd>F</kbd> 포커스 · <kbd>G</kbd> 화면 맞춤 · <kbd>F11</kbd> 전체 화면 · <kbd>1</kbd>-<kbd>9</kbd> 화면 전환.</p>' }
     ],
     ai: [
       { id: 'what', title: 'AI가 하는 일', html:
