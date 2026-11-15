@@ -467,6 +467,15 @@
     'ai.errServer': '서버 오류(5xx). 잠시 후 다시 시도하세요.',
     'ai.errEmpty': '서비스가 빈 내용을 반환했습니다.',
     'ai.errConfig': '주소나 모델명이 없습니다.',
+    'cards.all': '전체',
+    'cards.inMaps': '맵에 있음',
+    'style.rounded': '둥근',
+    'style.rect': '사각',
+    'style.pill': '캡슐',
+    'style.small': '작게',
+    'style.medium': '보통',
+    'style.large': '크게',
+    'ai.summarize': '요약',
     'search.inTags': '태그'
   };
 })();

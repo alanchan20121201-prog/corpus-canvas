@@ -467,6 +467,15 @@
     'ai.errServer': 'Erreur serveur (5xx). Réessayez plus tard.',
     'ai.errEmpty': 'Le service a renvoyé un contenu vide.',
     'ai.errConfig': 'Adresse ou modèle manquant.',
+    'cards.all': 'Tout',
+    'cards.inMaps': 'Dans les cartes',
+    'style.rounded': 'Arrondi',
+    'style.rect': 'Carré',
+    'style.pill': 'Pilule',
+    'style.small': 'Petit',
+    'style.medium': 'Moyen',
+    'style.large': 'Grand',
+    'ai.summarize': 'Résumer',
     'search.inTags': 'étiquettes'
   };
 })();

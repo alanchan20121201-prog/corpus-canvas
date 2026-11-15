@@ -467,6 +467,15 @@
     'ai.errServer': 'Error del servidor (5xx). Inténtalo más tarde.',
     'ai.errEmpty': 'El servicio devolvió contenido vacío.',
     'ai.errConfig': 'Falta la dirección o el modelo.',
+    'cards.all': 'Todo',
+    'cards.inMaps': 'En mapas',
+    'style.rounded': 'Redondeado',
+    'style.rect': 'Cuadrado',
+    'style.pill': 'Cápsula',
+    'style.small': 'Pequeño',
+    'style.medium': 'Medio',
+    'style.large': 'Grande',
+    'ai.summarize': 'Resumir',
     'search.inTags': 'etiquetas'
   };
 })();

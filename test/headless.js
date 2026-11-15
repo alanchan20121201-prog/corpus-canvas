@@ -103,7 +103,8 @@ function step(name, fn) {
       const d = CC.i18n.dicts[code];
       if (!d) throw new Error('missing dictionary ' + code);
       Object.keys(reach).forEach((k) => { if (!d[k]) missing.push(code + ':' + k); });
-      ['ai.errAuth', 'ai.errRate', 'ai.errEndpoint', 'ai.errTimeout', 'ai.errNetwork', 'ai.errRequest', 'ai.errServer', 'ai.errEmpty', 'ai.errConfig']
+      ['ai.errAuth', 'ai.errRate', 'ai.errEndpoint', 'ai.errTimeout', 'ai.errNetwork', 'ai.errRequest', 'ai.errServer', 'ai.errEmpty', 'ai.errConfig',
+        'ai.summarize', 'cards.all', 'cards.inMaps', 'style.rounded', 'style.rect', 'style.pill', 'style.small', 'style.medium', 'style.large']
         .forEach((k) => { if (!d[k]) missing.push(code + ':' + k); });
     });
     if (missing.length) throw new Error('missing: ' + missing.slice(0, 12).join(', '));
