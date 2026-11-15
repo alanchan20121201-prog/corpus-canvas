@@ -54,6 +54,15 @@ const clusters = L.clusters(model, { x1: -1e6, y1: -1e6, x2: 1e6, y2: 1e6 });
 const tCache0 = Date.now();
 L.get(m);
 const tCache = Date.now() - tCache0;
+const ser0 = Date.now();
+const payload = L.serialize(model);
+const serMs = Date.now() - ser0;
+const serMB = Math.round(JSON.stringify(payload).length / 1048576 * 10) / 10;
+L.invalidate(m.id);
+const hy0 = Date.now();
+const hydrated = L.hydrate(m, payload);
+const hyMs = Date.now() - hy0;
+const hyNodes = hydrated ? Object.keys(hydrated.nodes).length : 0;
 
 let orgOk = true;
 let org = null;
@@ -69,12 +78,17 @@ if (N <= 200000) {
 const out = {
   nodes: N,
   buildMs: tBuild,
+  timings: model.timings,
   queryMs: tq,
   visible: q.ids.length,
   truncated: q.truncated,
   edgesVisible: edges.length,
   clusters: clusters.length,
   cacheMs: tCache,
+  serializeMs: serMs,
+  serializeMB: serMB,
+  hydrateMs: hyMs,
+  hydratedNodes: hyNodes,
   panAvgMs: Number(tPan.toFixed(3)),
   wideQueryMs: Number(tWide.toFixed(3)),
   wideVisible: wide.ids.length,
@@ -88,5 +102,5 @@ const out = {
 console.log(JSON.stringify(out, null, 2));
 
 const ok = out.nodes === N && out.visible > 0 && out.visible < 400 && out.clusters > 0 &&
-  out.cacheMs < 50 && out.orgOk && out.bounds.w > 0 && out.panAvgMs < 16 && out.wideQueryMs < 120;
+  out.cacheMs < 50 && hyNodes >= N && hyMs < tBuild && out.orgOk && out.bounds.w > 0 && out.panAvgMs < 16 && out.wideQueryMs < 120;
 process.exit(ok ? 0 : 1);

@@ -58,13 +58,16 @@
       st.ready = true;
       var bootQ = new URLSearchParams(location.search);
       var firstId = (bootQ.get('nofirst') === '1' || bootQ.get('demo') === '1') ? null : ensureFirstNode();
-      nav(S.resolveView(), { silent: true });
-      if (firstId) {
-        setTimeout(function () {
-          if (CC.graph && CC.graph.selectCard) CC.graph.selectCard(firstId);
-          openCard(firstId, { focusTitle: true });
-        }, 120);
-      }
+      var bootView = S.resolveView();
+      preloadLayoutCache(bootView).then(function () {
+        nav(bootView, { silent: true });
+        if (firstId) {
+          setTimeout(function () {
+            if (CC.graph && CC.graph.selectCard) CC.graph.selectCard(firstId);
+            openCard(firstId, { focusTitle: true });
+          }, 120);
+        }
+      });
       syncChrome();
       if (PREVIEW) applyPreviewQuery();
       if (location.search.indexOf('smoke=1') >= 0) runSmoke();
@@ -86,6 +89,16 @@
     CC.i18n.apply(document);
     syncChrome();
     if (q.get('focus') === 'card' && S.cards().length) openCard(S.cards()[0].id);
+  }
+
+  /* Read the persisted layout before the first paint when opening on a map. */
+  function preloadLayoutCache(view) {
+    if (view !== 'map' || !window.api || !window.api.readLayoutCache) return Promise.resolve();
+    var m = S.currentMap();
+    if (!m) return Promise.resolve();
+    return window.api.readLayoutCache(m.id).then(function (r) {
+      if (r && r.ok && r.data) CC.layout.hydrate(m, r.data);
+    }).catch(function () { });
   }
 
   /* A brand-new install opens on a map with one central topic, ready to rename. */

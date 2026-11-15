@@ -92,6 +92,82 @@
     return [map.id, map.rev || 0, S.cardsRev(), S.state().cards.length].join('|');
   }
 
+  /* persistent cache signature: survives restarts, unlike cardsRev */
+  function sigOf(map) {
+    return [map.id, map.rev || 0, S.state().cards.length, map.structure || 'tree',
+      (map.collapsed || []).length].join('|');
+  }
+
+  function serialize(model) {
+    var nodes = [];
+    Object.keys(model.nodes).forEach(function (id) {
+      var n = model.nodes[id];
+      nodes.push([id, Math.round(n.x), Math.round(n.y), n.w, n.h, n.depth, n.orphan ? 1 : 0]);
+    });
+    return {
+      sig: sigOf(model.map),
+      bounds: model.bounds,
+      vertical: model.vertical,
+      total: nodes.length,
+      nodes: nodes
+    };
+  }
+
+  function hydrate(map, data) {
+    if (!data || data.sig !== sigOf(map) || !Array.isArray(data.nodes) || !data.nodes.length) return null;
+    var cards = S.mapCards(map);
+    if (!cards.length) return null;
+    var byId = {};
+    cards.forEach(function (c) { byId[c.id] = c; });
+
+    var nodes = {};
+    data.nodes.forEach(function (row) {
+      var c = byId[row[0]];
+      if (!c) return;
+      nodes[row[0]] = {
+        id: row[0], card: c, x: row[1], y: row[2], w: row[3], h: row[4],
+        lines: null, fs: 13.5, fw: 600, lineH: 19, iconW: 0,
+        depth: row[5] || 0, kids: [], hiddenCount: 0, orphan: !!row[6]
+      };
+    });
+    if (!Object.keys(nodes).length) return null;
+
+    var edges = [];
+    var childMap = {};
+    var hasParent = {};
+    var hierCount = {};
+    map.edges.forEach(function (e) {
+      if (e.type !== 'hierarchy') {
+        if (nodes[e.from] && nodes[e.to] && e.from !== e.to) edges.push(e);
+        return;
+      }
+      hierCount[e.from] = (hierCount[e.from] || 0) + 1;
+      if (!nodes[e.from] || !nodes[e.to] || e.from === e.to) return;
+      edges.push(e);
+      if (!hasParent[e.to]) {
+        hasParent[e.to] = true;
+        (childMap[e.from] = childMap[e.from] || []).push(e.to);
+      }
+    });
+    Object.keys(childMap).forEach(function (id) {
+      childMap[id] = childMap[id].filter(function (k) { return nodes[k]; });
+    });
+    Object.keys(nodes).forEach(function (id) {
+      nodes[id].kids = (childMap[id] || []).slice();
+      nodes[id].hiddenCount = Math.max(0, (hierCount[id] || 0) - nodes[id].kids.length);
+    });
+
+    var roots = Object.keys(nodes).filter(function (id) { return !hasParent[id]; });
+    var model = {
+      mapId: map.id, map: map, nodes: nodes, edges: edges, roots: roots,
+      vertical: !!data.vertical, bounds: data.bounds,
+      index: null, indexDirty: true, coarse: null,
+      fromCache: true, timings: { cached: true, total: 0 }
+    };
+    cache[map.id] = { key: keyOf(map), model: model };
+    return model;
+  }
+
   function get(map) {
     if (!map) return null;
     var key = keyOf(map);
@@ -107,6 +183,7 @@
   }
 
   function build(map) {
+    var t0 = Date.now();
     var cards = S.mapCards(map);
     var nodes = {};
     cards.forEach(function (c) {
@@ -118,6 +195,7 @@
       };
     });
 
+    var tMeasure = Date.now() - t0;
     var edges = [];
     var childMap = {};
     var hasParent = {};
@@ -183,7 +261,9 @@
     });
     if (autoPlace.length && !loneRoot) placeOrphans(nodes, autoPlace);
 
+    var tEnd = Date.now();
     return {
+      timings: { measure: tMeasure, layout: tEnd - t0 - tMeasure, total: tEnd - t0 },
       mapId: map.id, map: map, nodes: nodes, edges: edges,
       roots: roots, vertical: vertical, bounds: computeBounds(nodes),
       index: null, indexDirty: true, coarse: null
@@ -507,6 +587,7 @@
     get: get, compute: get, invalidate: invalidate,
     query: query, queryEdges: queryEdges, clusters: clusters,
     totalNodes: totalNodes, shiftSubtree: shiftSubtree,
+    serialize: serialize, hydrate: hydrate, sigOf: sigOf,
     recomputeBounds: function (model) { return computeBounds(model.nodes); },
     measure: measure, wrap: wrap, CELL: CELL
   };

@@ -21,6 +21,12 @@ const userDir = app.getPath('userData');
 const corpusPath = path.join(userDir, 'corpus.json');
 const securePath = path.join(userDir, 'secure.json');
 const backupDir = path.join(userDir, 'backups');
+const layoutDir = path.join(userDir, 'layout-cache');
+
+function layoutFile(id) {
+  const safe = String(id || '').replace(/[^a-zA-Z0-9_-]/g, '');
+  return safe ? path.join(layoutDir, safe + '.json') : null;
+}
 const FORMAT_VERSION = 2;
 
 async function autoBackup() {
@@ -224,6 +230,31 @@ ipcMain.handle('app:info', async () => ({
 }));
 
 ipcMain.handle('corpus:load', async () => readJson(corpusPath));
+
+ipcMain.handle('layout:read', async (_e, id) => {
+  const file = layoutFile(id);
+  if (!file) return { ok: false };
+  try {
+    const text = await fsp.readFile(file, 'utf8');
+    return { ok: true, data: JSON.parse(text) };
+  } catch (e) { return { ok: false }; }
+});
+
+ipcMain.handle('layout:write', async (_e, id, data) => {
+  const file = layoutFile(id);
+  if (!file) return { ok: false };
+  try {
+    await fsp.mkdir(layoutDir, { recursive: true });
+    await writeJsonAtomic(file, data);
+    return { ok: true };
+  } catch (e) { return { ok: false }; }
+});
+
+ipcMain.handle('layout:clear', async (_e, id) => {
+  const file = layoutFile(id);
+  if (!file) return { ok: false };
+  try { await fsp.rm(file, { force: true }); return { ok: true }; } catch (e) { return { ok: false }; }
+});
 
 ipcMain.handle('backup:list', async () => {
   try {

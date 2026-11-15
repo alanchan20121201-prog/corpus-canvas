@@ -221,6 +221,13 @@
     var edges = L.queryEdges(model, rect, vis, margin);
     var showLabels = !model.map.style || model.map.style.showLabels !== false;
     gEdges.innerHTML = edges.map(function (e) { return edgeHTML(e, lod, showLabels); }).join('');
+    q.ids.forEach(function (id) {
+      var n = model.nodes[id];
+      if (n && !n.lines) {
+        var ms = L.measure(n.card);
+        n.lines = ms.lines; n.fs = ms.fs; n.fw = ms.fw; n.lineH = ms.lineH; n.iconW = ms.iconW; n.untitled = ms.untitled;
+      }
+    });
     gNodes.innerHTML = q.ids.map(function (id) { return nodeHTML(model.nodes[id], lod); }).join('');
     st.nodeEls = {};
     gNodes.querySelectorAll('.node').forEach(function (el) { st.nodeEls[el.getAttribute('data-id')] = el; });
@@ -228,6 +235,7 @@
 
     updateStatus(edges.length);
     markSelection();
+    scheduleLayoutCache();
   }
 
   function updateStatus(edgeCount) {
@@ -237,6 +245,21 @@
       '<span>' + U.esc(t('map.visibleCount', { v: st.visible, n: st.total })) + '</span>' +
       '<i></i><span>' + U.esc(t('map.edgeCount', { n: edgeCount })) + '</span>' +
       (st.focus ? '<i></i><span class="focus-chip">' + U.esc(t('map.focusHint', { name: S.cardTitle(S.card(st.focus)) })) + '</span>' : '');
+  }
+
+  var cacheTimer = null;
+  function scheduleLayoutCache() {
+    if (!window.api || !window.api.writeLayoutCache || !model || model.fromCache) return;
+    var m = activeMap();
+    if (!m) return;
+    var total = L.totalNodes(model);
+    if (total < 2000 || total > 1600000) return;
+    if (model._cacheQueued) return;
+    model._cacheQueued = true;
+    clearTimeout(cacheTimer);
+    cacheTimer = setTimeout(function () {
+      try { window.api.writeLayoutCache(m.id, L.serialize(model)); } catch (e) { /* ignore */ }
+    }, 8000);
   }
 
   function paintSoon() {
@@ -533,6 +556,8 @@
         model.indexDirty = true;
         model.bounds = L.recomputeBounds(model);
         m.updatedAt = Date.now();
+        if (window.api && window.api.clearLayoutCache) window.api.clearLayoutCache(m.id);
+        model._cacheQueued = false;
         S.saveSoon();
         paint();
       }

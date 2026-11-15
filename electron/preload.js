@@ -5,6 +5,9 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('api', {
   info: () => ipcRenderer.invoke('app:info'),
   loadCorpus: () => ipcRenderer.invoke('corpus:load'),
+  readLayoutCache: (id) => ipcRenderer.invoke('layout:read', id),
+  writeLayoutCache: (id, data) => ipcRenderer.invoke('layout:write', id, data),
+  clearLayoutCache: (id) => ipcRenderer.invoke('layout:clear', id),
   listBackups: () => ipcRenderer.invoke('backup:list'),
   restoreBackup: (name) => ipcRenderer.invoke('backup:restore', name),
   saveCorpus: (data) => ipcRenderer.invoke('corpus:save', data),
