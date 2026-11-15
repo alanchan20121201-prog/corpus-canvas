@@ -266,12 +266,19 @@
         CC.app.goMap(b.getAttribute('data-map'), b.getAttribute('data-jump'));
       };
     });
+    root.querySelectorAll('[data-merge]').forEach(function (b) {
+      b.onclick = function (e) {
+        e.stopPropagation();
+        CC.app.mergeFlow(b.getAttribute('data-merge'), b.getAttribute('data-b'));
+      };
+    });
 
     var selAll = root.querySelector('[data-act="sel-all"]');
     if (selAll) selAll.onclick = function () {
-      var all = results.length > 0 && results.every(function (r) { return st.sel[r.card.id]; });
+      var shown = results.slice(0, 200);
+      var all = shown.length > 0 && shown.every(function (r) { return st.sel[r.card.id]; });
       st.sel = {};
-      if (!all) results.forEach(function (r) { st.sel[r.card.id] = 1; });
+      if (!all) shown.forEach(function (r) { st.sel[r.card.id] = 1; });
       rerender(root);
     };
     var saveQ = root.querySelector('[data-act="save-query"]');
@@ -355,14 +362,15 @@
     }
     if (!results.length) return '<div class="panel"><div class="mini-empty pad big">' + U.esc(t('common.noResults')) + '</div></div>';
 
-    return '<div class="result-list">' + results.slice(0, 200).map(function (r) {
+    var shown = results.slice(0, 200);
+    return '<div class="result-list">' + shown.map(function (r) {
       var c = r.card;
       var snippet = r.hit === 'body' ? c.body : r.hit === 'note' ? c.note : r.hit === 'tags' ? (c.tags || []).join(' · ') : c.body || c.note || '';
       return '<div class="result-row' + (st.sel[c.id] ? ' selected' : '') + '" data-result="' + c.id + '">' +
         '<input type="checkbox" data-check="' + c.id + '"' + (st.sel[c.id] ? ' checked' : '') + '>' +
         '<div class="rr-body">' +
           '<div class="rr-head"><span class="rr-title">' + hl(c.title || t('common.untitled'), st.q) + '</span>' +
-            '<span class="hit-badge">' + U.esc(t('search.in' + cap(r.hit))) + '</span>' +
+            (r.hit ? '<span class="hit-badge">' + U.esc(t('search.in' + cap(r.hit))) + '</span>' : '') +
             (pend[c.id] ? '<span class="pend-badge">' + pend[c.id] + '</span>' : '') +
           '</div>' +
           (snippet ? '<div class="rr-snippet">' + hl(String(snippet).slice(0, 160), st.q) + '</div>' : '') +
@@ -373,7 +381,9 @@
           '</div>' +
         '</div>' +
       '</div>';
-    }).join('') + '</div>';
+    }).join('') +
+      (results.length > shown.length ? '<div class="trunc-note">' + U.esc(t('common.moreHidden', { n: results.length - shown.length })) + '</div>' : '') +
+      '</div>';
   }
 
   function cap(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : ''; }
@@ -400,6 +410,7 @@
             '<button class="icon-btn xs" data-map="' + r.m.id + '" data-jump="' + r.a.id + '">' + U.icon('focus', 12) + '</button>' +
           '</div>';
         }).join('') + '</div>' +
+        (types[k].length > 8 ? '<div class="trunc-note">' + U.esc(t('common.moreHidden', { n: types[k].length - 8 })) + '</div>' : '') +
       '</section>';
     }).join('') + '</div>';
   }
@@ -415,7 +426,7 @@
         return '<div class="hc-item static"><span class="hci-title">' + U.esc(S.cardTitle(it.card)) + '</span><span class="hci-sub">' + U.esc(it.map.name) + ' · depth ' + it.depth + '</span>' +
           '<button class="icon-btn xs" data-map="' + it.map.id + '" data-jump="' + it.card.id + '">' + U.icon('focus', 12) + '</button></div>';
       } },
-      { key: 'duplicates', items: h.duplicates, label: t('search.duplicates'), render: function (it) {
+      { key: 'duplicates', items: h.duplicates, more: Math.max(0, (h.duplicateTotal || 0) - h.duplicates.length), label: t('search.duplicates'), render: function (it) {
         return '<div class="hc-item static"><span class="hci-title">' + U.esc(it.a.title || '?') + ' ≈ ' + U.esc(it.b.title || '?') + '</span>' +
           '<button class="mini-btn accent" data-merge="' + it.a.id + '" data-b="' + it.b.id + '">' + U.esc(t('common.merge')) + '</button></div>';
       } },
@@ -426,8 +437,10 @@
 
     if (!groups.length) return '<div class="panel"><div class="mini-empty pad big">' + U.esc(t('search.noStructure')) + '</div></div>';
     return '<div class="relation-groups">' + groups.map(function (g) {
+      var total = g.items.length + (g.more || 0);
       return '<section class="panel rel-card"><div class="hc-head"><h3>' + U.esc(g.label) + '</h3><span class="hc-count">' + g.items.length + '</span></div>' +
-        '<div class="hc-list">' + g.items.slice(0, 8).map(g.render).join('') + '</div></section>';
+        '<div class="hc-list">' + g.items.slice(0, 8).map(g.render).join('') + '</div>' +
+        (total > 8 ? '<div class="trunc-note">' + U.esc(t('common.moreHidden', { n: total - 8 })) + '</div>' : '') + '</section>';
     }).join('') + '</div>';
   }
 

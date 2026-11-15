@@ -93,14 +93,36 @@
     var picH = 0;
     if (pics.length) { picH = 96; }
 
-    /* rows stack in a fixed order: title, summary, meta, picture */
-    var h = PAD_TOP + lines.length * lineH + sumBlockH + (meta ? 22 : 4) + picH + PAD_BOTTOM;
+    /* Rows stack in a fixed order: title, summary, meta, picture. The very
+       same coordinates are consumed by graph.nodeHTML, the SVG/PNG exporter
+       and the A4 printer. Keeping two independent formulas here is what used
+       to push tags, the note dot and pictures outside the node rectangle. */
+    var y = PAD_TOP;
+    var titleY = y + Math.round(fs * 0.95);       /* first title baseline */
+    y += lines.length * lineH;
+    var sumTop = y + (summary ? 3 : 0);
+    var sumBase = sumTop + sumFs;
+    if (summary) y = sumTop + sumLines.length * sumLH + 4;
+    var metaY = y + 12;                            /* pill text baseline */
+    y += meta ? 22 : 4;
+    var picY = y + 2;
+    if (picH) y += picH + 6;
+    var h = y + PAD_BOTTOM;
+
+    /* widest summary line, measured with the real font, for the badge */
+    var sumMaxW = 0;
+    if (summary) {
+      c.font = '400 ' + sumFs + 'px ' + FONT;
+      sumLines.forEach(function (ln) { sumMaxW = Math.max(sumMaxW, c.measureText(ln).width); });
+    }
 
     var res = {
       w: Math.round(width), h: Math.round(h), lines: lines, fs: fs, fw: fw,
       lineH: lineH, iconW: iconW, untitled: untitled,
       summaryLines: sumLines, summaryFs: sumFs, summaryLH: sumLH,
-      summaryKind: st.summaryKind || '', pic: pics[0] || null, picH: picH
+      summaryKind: st.summaryKind || '', pic: pics[0] || null, picH: picH,
+      titleY: titleY, sumTop: sumTop, sumBase: sumBase, metaY: metaY,
+      picY: picY, sumMaxW: sumMaxW, key: key
     };
     mcache[key] = res;
     mcount++;
@@ -150,6 +172,7 @@
         id: row[0], card: c, x: row[1], y: row[2], w: row[3], h: row[4],
         lines: null, fs: 13.5, fw: 600, lineH: 19, iconW: 0, untitled: false,
         summaryLines: [], summaryFs: 0, summaryLH: 0, summaryKind: '', pic: null, picH: 0,
+        titleY: 24, sumTop: 24, sumBase: 36, metaY: 42, picY: 44, sumMaxW: 0, _mKey: '',
         depth: row[5] || 0, kids: [], hiddenCount: 0, orphan: !!row[6]
       };
     });
@@ -216,6 +239,8 @@
         lines: ms.lines, fs: ms.fs, fw: ms.fw, lineH: ms.lineH, iconW: ms.iconW, untitled: ms.untitled,
         summaryLines: ms.summaryLines || [], summaryFs: ms.summaryFs || 0, summaryLH: ms.summaryLH || 0,
         summaryKind: ms.summaryKind || '', pic: ms.pic || null, picH: ms.picH || 0,
+        titleY: ms.titleY, sumTop: ms.sumTop, sumBase: ms.sumBase, metaY: ms.metaY,
+        picY: ms.picY, sumMaxW: ms.sumMaxW, _mKey: ms.key,
         depth: 0, kids: [], hiddenCount: 0, orphan: false
       };
     });
@@ -235,6 +260,11 @@
 
     /* collapsed branches hide their descendants */
     var hidden = {};
+    /* Remember the pre-collapse child count: after filtering, childMap only
+       holds visible kids, so all - kids.length used to be permanently 0 and
+       the "+N" collapse bubble never appeared on a freshly built map. */
+    var fullChildCount = {};
+    Object.keys(childMap).forEach(function (id) { fullChildCount[id] = childMap[id].length; });
     Object.keys(childMap).forEach(function (id) {
       if (map.collapsed.indexOf(id) < 0) return;
       (function mark(pid) {
@@ -251,9 +281,8 @@
       childMap[id] = childMap[id].filter(function (k) { return nodes[k]; });
     });
     Object.keys(nodes).forEach(function (id) {
-      var all = (childMap[id] || []).length;
       nodes[id].kids = (childMap[id] || []).slice();
-      nodes[id].hiddenCount = all - nodes[id].kids.length;
+      nodes[id].hiddenCount = Math.max(0, (fullChildCount[id] || 0) - nodes[id].kids.length);
     });
 
     var roots = Object.keys(nodes).filter(function (id) { return !hasParent[id]; });

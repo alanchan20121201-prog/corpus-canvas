@@ -104,7 +104,7 @@
       var x = n.x - n.w / 2, y = n.y - n.h / 2;
       out.push('<g transform="translate(' + x + ',' + y + ')">');
       out.push('<rect width="' + n.w + '" height="' + n.h + '" rx="' + rx + '" fill="' + (n.fill || '#ffffff') + '" stroke="#d8d4c8" stroke-width="1"/>');
-      var ty = 10 + Math.round(n.fs * 1.2);
+      var ty = n.titleY || 10 + Math.round(n.fs * 1.2);
       (n.lines || []).forEach(function (line) {
         out.push('<text x="15" y="' + ty + '" style="font-size:' + n.fs + 'px;font-weight:600;fill:#23201b">' + U.esc(line) + '</text>');
         ty += n.lineH;

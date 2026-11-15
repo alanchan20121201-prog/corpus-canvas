@@ -284,6 +284,15 @@
     }
 
     function handleResult(r) {
+      /* A .wef / corpus JSON chosen in the file dialog must go to the backup
+         importer, not the outline parser (the drop path already does this). */
+      var payload = r.text ? detectBackup(r.text) : null;
+      if (payload) {
+        U.closeTopModal();
+        if (window.CC && CC.settings && CC.settings.importBackupData) CC.settings.importBackupData(payload);
+        else U.toast(t('import.error', { msg: 'backup' }), 'bad');
+        return;
+      }
       var parsed = null;
       if (r.kind === 'xmind') parsed = r.json ? parseXmindJson(r.json) : (r.xml ? parseXmindXml(r.xml) : null);
       else if (r.kind === 'opml') parsed = parseOPML(r.text);
@@ -359,16 +368,21 @@
 
   /* A .wef backup (or any corpus-canvas JSON) must never be read as an
      outline: that would silently pollute the corpus with raw JSON text. */
-  function handleBackupText(text, ext) {
+  function detectBackup(text, ext) {
     var trimmed = text ? String(text).trim() : '';
-    if (trimmed.charAt(0) !== '{') return false;
+    if (trimmed.charAt(0) !== '{') return null;
     var payload = null;
-    try { payload = JSON.parse(trimmed); } catch (e) { return false; }
-    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return false;
+    try { payload = JSON.parse(trimmed); } catch (e) { return null; }
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return null;
     var data = payload.data || payload;
     var looksBackup = payload.format === 'corpus-canvas' ||
       (Array.isArray(data.cards) && (ext === 'wef' || Array.isArray(data.maps)));
-    if (!looksBackup) return false;
+    return looksBackup ? payload : null;
+  }
+
+  function handleBackupText(text, ext) {
+    var payload = detectBackup(text, ext);
+    if (!payload) return false;
     if (window.CC && CC.settings && CC.settings.importBackupData) CC.settings.importBackupData(payload);
     else U.toast(t('import.error', { msg: 'backup' }), 'bad');
     return true;

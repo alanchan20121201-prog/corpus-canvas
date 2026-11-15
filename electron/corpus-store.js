@@ -32,7 +32,7 @@ async function writeJsonAtomic(file, obj) {
   await fs.rename(tmp, file);
 }
 
-function shardDir(userDir) { return path.join(userDir, 'corpus-shards'); }
+function shardDir(corpusPath) { return path.join(path.dirname(corpusPath), 'corpus-shards'); }
 
 async function exists(file) {
   try { await fs.stat(file); return true; } catch (e) { return false; }
@@ -44,7 +44,7 @@ async function load(userDir, corpusPath) {
   if (!raw) return null;
   if (!Array.isArray(raw.__shards)) return raw;
 
-  const dir = shardDir(userDir);
+  const dir = shardDir(corpusPath);
   const cards = [];
   for (const s of raw.__shards) {
     const part = await readJson(path.join(dir, s.file));
@@ -69,7 +69,7 @@ async function save(userDir, corpusPath, db) {
     return { ok: true, sharded: false, shards: 0, cards: cards.length };
   }
 
-  const dir = shardDir(userDir);
+  const dir = shardDir(corpusPath);
   await fs.mkdir(dir, { recursive: true });
   let hashes = lastHashes.get(corpusPath);
   if (!hashes) { hashes = new Map(); lastHashes.set(corpusPath, hashes); }
@@ -112,4 +112,6 @@ async function save(userDir, corpusPath, db) {
 /* Full assembled corpus, used by auto-backup so restore stays lossless. */
 async function assembled(userDir, corpusPath) { return load(userDir, corpusPath); }
 
-module.exports = { load, save, isSharded, assembled, SHARD_SIZE };
+function forget(corpusPath) { lastHashes.delete(corpusPath); }
+
+module.exports = { load, save, isSharded, assembled, forget, SHARD_SIZE };

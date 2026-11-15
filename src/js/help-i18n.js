@@ -66,12 +66,14 @@
         '<p>Deleted cards go to Trash and can be restored; links are kept so a restore is lossless. “Delete forever” is irreversible.</p>' },
       { id: 'io', title: 'Import and backup', html:
         '<p>Import XMind, OPML or Markdown outlines; everything becomes the same corpus, with provenance recorded. The import report shows how many nodes were imported or skipped.</p>' +
-        '<p>Backup writes one readable .wef JSON file. Restore can merge by id or replace everything. Keys never enter backups.</p>' },
+        '<p>Backup writes one readable .wef JSON file. Restore can merge by id or replace everything. Keys never enter backups.</p>' +
+        '<p>You can also drop a .wef (or an auto-backup corpus-*.json) onto the window, or pick it in Import: it is detected by content and offered as a restore, never parsed as an outline. One auto-backup is kept at each start (last 10 kept).</p>' },
       { id: 'settings', title: 'Settings and privacy', html:
         '<p>Interface language and theme apply immediately. The data panel shows the file location and format version, and opens the folder.</p>' +
         '<p>There is no account, telemetry or cloud sync. Only an AI action sends the selected text to your endpoint; everything else is local.</p>' },
       { id: 'keys', title: 'Keyboard', html:
-        '<p><kbd>Ctrl</kbd>+<kbd>K</kbd> search · <kbd>Ctrl</kbd>+<kbd>S</kbd> save · <kbd>Ctrl</kbd>+<kbd>Z</kbd> undo · <kbd>F</kbd> focus · <kbd>G</kbd> fit · <kbd>F11</kbd> full screen · <kbd>1</kbd>-<kbd>9</kbd> views.</p>' }
+        '<p><kbd>Ctrl</kbd>+<kbd>K</kbd> search · <kbd>Ctrl</kbd>+<kbd>S</kbd> save · <kbd>Ctrl</kbd>+<kbd>Z</kbd> undo · <kbd>F</kbd> focus · <kbd>G</kbd> fit · <kbd>F11</kbd> full screen · <kbd>1</kbd>-<kbd>9</kbd> views.</p>' +
+        '<p>In Settings you can re-record any shortcut or reset them all, keep several AI profiles that share one API key, and create independent libraries (switching reloads the window; existing data stays in place).</p>' }
     ],
     ai: [
       { id: 'what', title: 'What AI does', html:
@@ -140,11 +142,11 @@
         '<p>画像はノードの下にサムネイルとして描かれます。「開く」は既定のプログラムで、「フォルダーに表示」は保存場所を出します。</p>' +
         '<h3>発表モード</h3><p>ツールバーの再生ボタン（または「…」メニュー）から全画面発表が始まり、図の構造順に進みます。まず根のノード、その下へ段階的に。</p>' +
         '<p><kbd>←</kbd> <kbd>→</kbd> または <kbd>Space</kbd> でページ送り、<kbd>Home</kbd> / <kbd>End</kbd> で最初と最後へ、<kbd>Esc</kbd> で終了します。</p>' +
-        '<h3>A4 印刷</h3><p>ツールバーの印刷ボタンが現在の表示を A4 横向きのページに割り付け、系统の印刷ダイアログを開きます。広い図は複数ページに分かれ、余白は 10 ミリです。</p>' +
+        '<h3>A4 印刷</h3><p>ツールバーの印刷ボタンが現在の表示を A4 横向きのページに割り付け、システムの印刷ダイアログを開きます。広い図は複数ページに分かれ、余白は 10 ミリです。</p>' +
         '<p>必要なら先に範囲を確認してください。印刷されるのは図そのものだけで、画面の操作部品は含まれません。</p>' },
       { id: 'runtime', title: 'AI ストリーミングとローカル保存', html:
         '<h3>生成されながら表示</h3><p>「生成」を押すと、返答が結果欄の上に少しずつ現れます。まとめて届くのを待たなくてよいので、長い回答ほど早く方向を確認できます。</p>' +
-        '<p>ストリーミングは表示の仕方だけを変えます。最後はこれまでどおり下書きに解析され、項目ごとに確認するまで資料庫には書き込まれません。</p>' +
+        '<p>ストリーミングは表示の仕方だけを変えます。最後はこれまでどおり下書きに解析され、項目ごとに確認するまでデータベースには書き込まれません。</p>' +
         '<h3>本当に中止する</h3><p>生成中は「リクエストを中止」が使えるようになります。ダイアログを閉じるだけではなく、メインプロセスが送信中のネットワーク要求を直接中断します。接続はその場で切れ、裏で課金が続くこともありません。</p>' +
         '<p>中止した呼び出しは履歴に「中止」と残り、結果は作られません。</p>' +
         '<h3>呼び出し履歴</h3><p>AI パネルの「呼び出し履歴」には、時刻・動作・モデル・状態・トークン数・所要時間、失敗したときのエラーが並びます。記録はローカルの <code>ai-ledger.json</code> だけにあり、.wef バックアップにも入らず、外部にも送られません。</p>' +
@@ -169,12 +171,14 @@
         '<p>削除したカードはゴミ箱から戻せます。線も保持されるため復元は失われません。「完全削除」は取り消せません。</p>' },
       { id: 'io', title: '読み込みとバックアップ', html:
         '<p>XMind・OPML・Markdown を取り込むと同じ正本になり、出典も記録されます。取り込みレポートに成功・スキップ数が出ます。</p>' +
-        '<p>バックアップは読める .wef（JSON）1ファイルです。復元は ID で統合するか上書きするかを選べます。キーは含まれません。</p>' },
+        '<p>バックアップは読める .wef（JSON）1ファイルです。復元は ID で統合するか上書きするかを選べます。キーは含まれません。</p>' +
+        '<p>.wef（または自動バックアップの corpus-*.json）はウィンドウにドロップしても、「読み込み」で選んでも構いません。内容でバックアップと判定され、アウトラインとしては読み込まれず復元ダイアログが出ます。起動時に 1 部、最近 10 部を保持します。</p>' },
       { id: 'settings', title: '設定とプライバシー', html:
         '<p>言語とテーマはすぐ反映されます。データ欄には保存場所と形式バージョンが出て、フォルダーを開けます。</p>' +
         '<p>アカウント・テレメトリ・クラウド同期はありません。AI を実行したときだけ選択範囲が送られ、それ以外はローカルです。</p>' },
       { id: 'keys', title: 'キーボード', html:
-        '<p><kbd>Ctrl</kbd>+<kbd>K</kbd> 検索 · <kbd>Ctrl</kbd>+<kbd>S</kbd> 保存 · <kbd>Ctrl</kbd>+<kbd>Z</kbd> 元に戻す · <kbd>F</kbd> フォーカス · <kbd>G</kbd> 全体表示 · <kbd>F11</kbd> 全画面 · <kbd>1</kbd>-<kbd>9</kbd> 画面切替。</p>' }
+        '<p><kbd>Ctrl</kbd>+<kbd>K</kbd> 検索 · <kbd>Ctrl</kbd>+<kbd>S</kbd> 保存 · <kbd>Ctrl</kbd>+<kbd>Z</kbd> 元に戻す · <kbd>F</kbd> フォーカス · <kbd>G</kbd> 全体表示 · <kbd>F11</kbd> 全画面 · <kbd>1</kbd>-<kbd>9</kbd> 画面切替。</p>' +
+        '<p>設定ではショートカットの再記録と一括リセット、1 つの API キーを共有する複数の AI プロファイル、独立したライブラリの作成ができます。切り替えると画面が再読み込みされ、既存データはそのまま残ります。</p>' }
     ],
     ai: [
       { id: 'what', title: 'AI でできること', html:
@@ -268,12 +272,14 @@
         '<p>Las tarjetas borradas van a la papelera y se pueden recuperar; los enlaces se conservan. «Eliminar para siempre» es irreversible.</p>' },
       { id: 'io', title: 'Importar y copias', html:
         '<p>Importa XMind, OPML o Markdown; todo pasa al mismo corpus y se registra la procedencia. El informe indica cuántos nodos entraron o se omitieron.</p>' +
-        '<p>La copia es un .wef JSON legible; restaurar puede combinar por id o reemplazar. Las claves nunca entran en la copia.</p>' },
+        '<p>La copia es un .wef JSON legible; restaurar puede combinar por id o reemplazar. Las claves nunca entran en la copia.</p>' +
+        '<p>También puedes arrastrar un .wef (o un corpus-*.json de copia automática) a la ventana, o elegirlo en Importar: se detecta por contenido y se ofrece restaurar, nunca se analiza como esquema. Se guarda una copia en cada inicio (se conservan las 10 últimas).</p>' },
       { id: 'settings', title: 'Ajustes y privacidad', html:
         '<p>Idioma y tema se aplican al instante. El panel de datos muestra ubicación y versión del formato, y abre la carpeta.</p>' +
         '<p>Sin cuenta, telemetría ni nube. Solo una acción de IA envía el texto seleccionado a tu servicio; el resto es local.</p>' },
       { id: 'keys', title: 'Teclado', html:
-        '<p><kbd>Ctrl</kbd>+<kbd>K</kbd> buscar · <kbd>Ctrl</kbd>+<kbd>S</kbd> guardar · <kbd>Ctrl</kbd>+<kbd>Z</kbd> deshacer · <kbd>F</kbd> enfoque · <kbd>G</kbd> ajustar · <kbd>F11</kbd> pantalla completa · <kbd>1</kbd>-<kbd>9</kbd> vistas.</p>' }
+        '<p><kbd>Ctrl</kbd>+<kbd>K</kbd> buscar · <kbd>Ctrl</kbd>+<kbd>S</kbd> guardar · <kbd>Ctrl</kbd>+<kbd>Z</kbd> deshacer · <kbd>F</kbd> enfoque · <kbd>G</kbd> ajustar · <kbd>F11</kbd> pantalla completa · <kbd>1</kbd>-<kbd>9</kbd> vistas.</p>' +
+        '<p>En Ajustes puedes regrabar atajos o restablecerlos, guardar varios perfiles de IA que comparten una clave, y crear bibliotecas independientes (al cambiar se recarga la ventana y los datos existentes permanecen).</p>' }
     ],
     ai: [
       { id: 'what', title: 'Qué hace la IA', html:
@@ -366,12 +372,14 @@
         '<p>Les fiches supprimées vont à la corbeille et peuvent revenir ; les liens sont conservés. « Supprimer définitivement » est irréversible.</p>' },
       { id: 'io', title: 'Import et sauvegardes', html:
         '<p>Importez XMind, OPML ou Markdown ; tout rejoint le même corpus avec sa provenance. Le rapport indique les nœuds importés ou ignorés.</p>' +
-        '<p>La sauvegarde est un .wef JSON lisible ; la restauration fusionne par id ou remplace. Les clés n’y entrent jamais.</p>' },
+        '<p>La sauvegarde est un .wef JSON lisible ; la restauration fusionne par id ou remplace. Les clés n’y entrent jamais.</p>' +
+        '<p>Vous pouvez aussi déposer un .wef (ou un corpus-*.json de sauvegarde auto) sur la fenêtre, ou le choisir dans Importer : il est reconnu par son contenu et proposé à la restauration, jamais analysé comme plan. Une sauvegarde est faite à chaque démarrage (10 dernières conservées).</p>' },
       { id: 'settings', title: 'Réglages et confidentialité', html:
         '<p>Langue et thème s’appliquent aussitôt. Le panneau données indique l’emplacement et la version du format, et ouvre le dossier.</p>' +
         '<p>Sans compte, télémétrie ni cloud. Seule une action IA envoie le texte sélectionné à votre service ; le reste est local.</p>' },
       { id: 'keys', title: 'Clavier', html:
-        '<p><kbd>Ctrl</kbd>+<kbd>K</kbd> rechercher · <kbd>Ctrl</kbd>+<kbd>S</kbd> enregistrer · <kbd>Ctrl</kbd>+<kbd>Z</kbd> annuler · <kbd>F</kbd> focus · <kbd>G</kbd> ajuster · <kbd>F11</kbd> plein écran · <kbd>1</kbd>-<kbd>9</kbd> vues.</p>' }
+        '<p><kbd>Ctrl</kbd>+<kbd>K</kbd> rechercher · <kbd>Ctrl</kbd>+<kbd>S</kbd> enregistrer · <kbd>Ctrl</kbd>+<kbd>Z</kbd> annuler · <kbd>F</kbd> focus · <kbd>G</kbd> ajuster · <kbd>F11</kbd> plein écran · <kbd>1</kbd>-<kbd>9</kbd> vues.</p>' +
+        '<p>Dans les Réglages vous pouvez réenregistrer les raccourcis ou les réinitialiser, conserver plusieurs profils IA partageant une clé, et créer des bibliothèques indépendantes (changer recharge la fenêtre, les données existantes restent en place).</p>' }
     ],
     ai: [
       { id: 'what', title: 'Ce que fait l’IA', html:
@@ -464,12 +472,14 @@
         '<p>삭제한 카드는 휴지통에서 되살릴 수 있고 연결도 유지됩니다. 영구 삭제는 되돌릴 수 없습니다.</p>' },
       { id: 'io', title: '가져오기와 백업', html:
         '<p>XMind·OPML·Markdown을 가져오면 같은 원본이 되고 출처가 기록됩니다. 가져오기 보고서에 성공·건너뜀 수가 나옵니다.</p>' +
-        '<p>백업은 읽을 수 있는 .wef(JSON) 한 파일입니다. 복원은 ID 병합 또는 덮어쓰기를 고릅니다. 키는 포함되지 않습니다.</p>' },
+        '<p>백업은 읽을 수 있는 .wef(JSON) 한 파일입니다. 복원은 ID 병합 또는 덮어쓰기를 고릅니다. 키는 포함되지 않습니다.</p>' +
+        '<p>.wef(또는 자동 백업 corpus-*.json)를 창에 끌어다 놓거나 가져오기에서 선택해도 됩니다. 내용으로 백업을 판별해 복원 대화상자를 띄우며 개요로 읽어들이지 않습니다. 시작할 때마다 한 부, 최근 10부를 보관합니다.</p>' },
       { id: 'settings', title: '설정과 개인정보', html:
         '<p>언어와 테마는 즉시 적용됩니다. 자료 패널에 저장 위치와 형식 버전이 나오고 폴더를 열 수 있습니다.</p>' +
         '<p>계정·텔레메트리·클라우드가 없습니다. AI를 실행할 때만 선택 범위가 전송되고 나머지는 로컬입니다.</p>' },
       { id: 'keys', title: '키보드', html:
-        '<p><kbd>Ctrl</kbd>+<kbd>K</kbd> 검색 · <kbd>Ctrl</kbd>+<kbd>S</kbd> 저장 · <kbd>Ctrl</kbd>+<kbd>Z</kbd> 실행 취소 · <kbd>F</kbd> 포커스 · <kbd>G</kbd> 화면 맞춤 · <kbd>F11</kbd> 전체 화면 · <kbd>1</kbd>-<kbd>9</kbd> 화면 전환.</p>' }
+        '<p><kbd>Ctrl</kbd>+<kbd>K</kbd> 검색 · <kbd>Ctrl</kbd>+<kbd>S</kbd> 저장 · <kbd>Ctrl</kbd>+<kbd>Z</kbd> 실행 취소 · <kbd>F</kbd> 포커스 · <kbd>G</kbd> 화면 맞춤 · <kbd>F11</kbd> 전체 화면 · <kbd>1</kbd>-<kbd>9</kbd> 화면 전환.</p>' +
+        '<p>설정에서 단축키를 다시 기록하거나 초기화하고, 하나의 API 키를 공유하는 여러 AI 프로필을 저장하며, 독립적인 라이브러리를 만들 수 있습니다. 전환하면 창이 다시 로드되고 기존 데이터는 그대로 유지됩니다.</p>' }
     ],
     ai: [
       { id: 'what', title: 'AI가 하는 일', html:

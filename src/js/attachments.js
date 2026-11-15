@@ -29,13 +29,15 @@
   function load(cardId) {
     var c = S.card(cardId);
     if (!c || !c.attachments) return Promise.resolve();
-    var jobs = c.attachments.filter(function (a) { return isImage(a) && !cache[a.id]; });
+    /* undefined = not tried yet; '' marks a failed read so a broken file does
+       not re-emit (and re-render every subscriber) on each paint. */
+    var jobs = c.attachments.filter(function (a) { return isImage(a) && cache[a.id] === undefined; });
     if (!jobs.length) return Promise.resolve();
     return Promise.all(jobs.map(function (a) {
-      if (!window.api || !window.api.readAttachment) return null;
+      if (!window.api || !window.api.readAttachment) { cache[a.id] = ''; return null; }
       return window.api.readAttachment(a.id).then(function (r) {
-        if (r && r.ok && r.dataUrl) cache[a.id] = r.dataUrl;
-      }).catch(function () { /* ignore */ });
+        cache[a.id] = (r && r.ok && r.dataUrl) ? r.dataUrl : '';
+      }).catch(function () { cache[a.id] = ''; });
     })).then(function () { emit(); });
   }
 
@@ -51,7 +53,7 @@
         added.forEach(function (f) { c.attachments.push(f); });
         c.updatedAt = Date.now();
       });
-      load(cardId).then(function () { emit(); });
+      load(cardId);
       return added;
     }).catch(function () { return null; });
   }

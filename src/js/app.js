@@ -34,6 +34,20 @@
       revealAttachment: function () { return Promise.resolve({ ok: false }); },
       deleteAttachment: function () { return Promise.resolve({ ok: true }); },
       smokeDone: function () { return Promise.resolve({ ok: true }); },
+      readLayoutCache: function () { return Promise.resolve(null); },
+      writeLayoutCache: function () { return Promise.resolve({ ok: true }); },
+      clearLayoutCache: function () { return Promise.resolve({ ok: true }); },
+      listBackups: function () { return Promise.resolve({ ok: true, items: [] }); },
+      restoreBackup: function () { return Promise.resolve({ ok: false }); },
+      saveText: function () { return Promise.resolve({ ok: false, canceled: true }); },
+      openExternal: function () { },
+      listModels: function () { return Promise.resolve({ ok: false, models: [] }); },
+      listLibraries: function () { return Promise.resolve({ ok: true, activeId: 'default', items: [{ id: 'default', name: 'Default', cards: 0, corpusPath: 'localStorage' }] }); },
+      createLibrary: function () { return Promise.resolve({ ok: false, error: 'preview' }); },
+      switchLibrary: function () { return Promise.resolve({ ok: false, error: 'preview' }); },
+      renameLibrary: function () { return Promise.resolve({ ok: false, error: 'preview' }); },
+      deleteLibrary: function () { return Promise.resolve({ ok: false, error: 'preview' }); },
+      toggleFullScreen: function () { },
       quit: function () { }
     };
   }
@@ -147,7 +161,10 @@
 
   function onStoreChange() {
     clearTimeout(st.lightTimer);
-    st.lightTimer = setTimeout(refreshLight, 140);
+    st.lightTimer = setTimeout(function () {
+      refreshLight();
+      if (CC.inspector && CC.inspector.isOpen()) CC.inspector.refresh();
+    }, 140);
     syncChrome();
   }
 
@@ -193,13 +210,24 @@
   function refreshLight() {
     if (!st.ready) return;
     if (st.view === 'map') { CC.graph.refresh(); return; }
+    /* Only skip the redraw while the user is actually typing. Buttons keep
+       focus after a click, so the old "focus anywhere in the view" guard made
+       outline expand/collapse and similar actions look like they did nothing. */
     var ae = document.activeElement;
-    if (ae && viewRoot() && viewRoot().contains(ae)) return;
-    if (st.view === 'cards' || st.view === 'outline' || st.view === 'health' || st.view === 'home') {
+    var typing = ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' ||
+      ae.tagName === 'SELECT' || ae.isContentEditable);
+    var inView = ae && viewRoot() && viewRoot().contains(ae);
+    var inInspector = ae && ae.closest && ae.closest('#inspector');
+    if (typing && (inView || inInspector)) return;
+    if (st.view === 'cards' || st.view === 'outline' || st.view === 'health' || st.view === 'home' ||
+        st.view === 'search' || st.view === 'history' || st.view === 'trash') {
       if (st.view === 'home') CC.views.home(viewRoot());
       else if (st.view === 'cards') CC.views.cards(viewRoot());
       else if (st.view === 'outline') CC.views.outline(viewRoot());
-      else CC.views.health(viewRoot());
+      else if (st.view === 'health') CC.views.health(viewRoot());
+      else if (st.view === 'history') CC.views.history(viewRoot());
+      else if (st.view === 'trash') CC.views.trash(viewRoot());
+      else if (CC.search && CC.search.mount) CC.search.mount(viewRoot());
     }
   }
 
@@ -694,67 +722,105 @@
   /* keyboard + drop                                                    */
   /* ------------------------------------------------------------------ */
 
+  /* Shortcuts are a sparse override map on top of these defaults. 'Mod'
+     means Ctrl on Windows/Linux and Cmd on macOS. 'nav' (1-9) stays fixed. */
+  var DEFAULT_SHORTCUTS = {
+    search: 'Mod+K', save: 'Mod+S', undo: 'Mod+Z', redo: 'Mod+Shift+Z',
+    fullscreen: 'F11', delete: 'Delete', escape: 'Escape',
+    focus: 'F', fit: 'G', edit: 'Enter', nav: '1-9'
+  };
+
+  function shortcuts() {
+    var s = S.settings();
+    return Object.assign({}, DEFAULT_SHORTCUTS, (s && s.shortcuts) || {});
+  }
+
+  function keyToken(e) {
+    var parts = [];
+    if (e.ctrlKey || e.metaKey) parts.push('Mod');
+    if (e.altKey) parts.push('Alt');
+    if (e.shiftKey) parts.push('Shift');
+    var k = e.key;
+    if (k === ' ') k = 'Space';
+    else if (k === 'Backspace') k = 'Delete';
+    else if (k && k.length === 1) k = k.toUpperCase();
+    parts.push(k);
+    return parts.join('+');
+  }
+
+  function switchLibrary(id) {
+    if (!window.api || !window.api.switchLibrary) return Promise.resolve(false);
+    return S.flush().then(function () {
+      return window.api.switchLibrary({ id: id });
+    }).then(function (r) {
+      if (r && r.ok) { location.reload(); return true; }
+      U.toast(t('settings.librarySwitchFail'), 'bad');
+      return false;
+    });
+  }
+
+  function runShortcut(action, e) {
+    if (action === 'search') {
+      e.preventDefault(); nav('search');
+      setTimeout(function () { var q = document.getElementById('q'); if (q) q.focus(); }, 50);
+      return true;
+    }
+    if (action === 'save') { e.preventDefault(); S.flush().then(function () { U.toast(t('common.saved'), 'ok'); }); return true; }
+    if (action === 'undo') { e.preventDefault(); if (S.undo()) U.toast(t('history.undo'), 'ok'); return true; }
+    if (action === 'redo') { e.preventDefault(); if (S.redo()) U.toast(t('history.redo'), 'ok'); return true; }
+    if (action === 'fullscreen') { e.preventDefault(); if (window.api && window.api.toggleFullScreen) window.api.toggleFullScreen(); return true; }
+    if (action === 'escape') {
+      if (CC.inspector.isOpen()) CC.inspector.close(); else U.closeMenus();
+      return true;
+    }
+    if (st.view !== 'map') return false;
+    if (action === 'focus') { CC.graph.toggleFocus(); return true; }
+    if (action === 'fit') { CC.graph.zoomFit(); return true; }
+    if (action === 'delete') {
+      var sel = CC.graph.selection();
+      if (sel.length === 1) { e.preventDefault(); deleteCardFlow(sel[0]); }
+      else if (sel.length > 1) {
+        e.preventDefault();
+        U.confirm(t('cards.delete'), t('cards.batchHint', { n: sel.length }), { danger: true }).then(function (ok) {
+          if (!ok) return;
+          S.commit('delete', t('cards.delete'), function () { sel.forEach(function (id) { S.trashCard(id); }); });
+        });
+      }
+      return true;
+    }
+    if (action === 'edit' && CC.graph.selection().length === 1) {
+      e.preventDefault();
+      openCard(CC.graph.selection()[0], { focusTitle: true });
+      return true;
+    }
+    return false;
+  }
+
   function onKey(e) {
     var tag = (e.target && e.target.tagName) || '';
     var typing = /INPUT|TEXTAREA|SELECT/.test(tag) || (e.target && e.target.isContentEditable);
-    var mod = e.ctrlKey || e.metaKey;
+    var token = keyToken(e);
+    var sc = shortcuts();
 
-    if (mod && (e.key === 'k' || e.key === 'K')) { e.preventDefault(); nav('search'); setTimeout(function () { var q = document.getElementById('q'); if (q) q.focus(); }, 50); return; }
-    if (mod && (e.key === 's' || e.key === 'S')) {
-      e.preventDefault();
-      S.flush().then(function () { U.toast(t('common.saved'), 'ok'); });
-      return;
-    }
-    if (mod && (e.key === 'z' || e.key === 'Z')) {
-      e.preventDefault();
-      if (e.shiftKey) { if (S.redo()) U.toast(t('history.redo'), 'ok'); }
-      else if (S.undo()) U.toast(t('history.undo'), 'ok');
-      return;
-    }
-    if (e.key === 'F11') {
-      e.preventDefault();
-      if (window.api && window.api.toggleFullScreen) window.api.toggleFullScreen();
-      return;
-    }
-    if (mod) return;
-
+    /* Form fields keep the browser's own text editing; only an explicitly
+       configured "save" combo is allowed to reach the app. */
     if (typing) {
+      if (token === sc.save) { e.preventDefault(); S.flush().then(function () { U.toast(t('common.saved'), 'ok'); }); return; }
       if (e.key === 'Escape' && e.target.blur) e.target.blur();
       return;
     }
     if (document.querySelector('.overlay')) return;
 
-    if (e.key === 'Escape') {
-      if (CC.inspector.isOpen()) { CC.inspector.close(); return; }
-      U.closeMenus();
-      return;
-    }
-    if (/^[1-9]$/.test(e.key)) {
+    if (/^[1-9]$/.test(e.key) && sc.nav === '1-9') {
       var target = VIEWS[Number(e.key) - 1];
       if (target) { e.preventDefault(); nav(target); }
       return;
     }
-    if (st.view === 'map') {
-      if (e.key === 'f' || e.key === 'F') { CC.graph.toggleFocus(); return; }
-      if (e.key === 'g' || e.key === 'G') { CC.graph.zoomFit(); return; }
-      if (e.key === 'Delete' || e.key === 'Backspace') {
-        var sel = CC.graph.selection();
-        if (sel.length === 1) { e.preventDefault(); deleteCardFlow(sel[0]); }
-        else if (sel.length > 1) {
-          e.preventDefault();
-          U.confirm(t('cards.delete'), t('cards.batchHint', { n: sel.length }), { danger: true }).then(function (ok) {
-            if (!ok) return;
-            S.commit('delete', t('cards.delete'), function () { sel.forEach(function (id) { S.trashCard(id); }); });
-          });
-        }
-        return;
-      }
-      if (e.key === 'Enter' && CC.graph.selection().length === 1) {
-        e.preventDefault();
-        openCard(CC.graph.selection()[0], { focusTitle: true });
-        return;
-      }
-    }
+
+    var action = null;
+    Object.keys(sc).forEach(function (a) { if (a !== 'nav' && sc[a] === token) action = a; });
+    if (!action) return;
+    runShortcut(action, e);
   }
 
   function bindDragDrop() {
@@ -881,6 +947,18 @@
     openAI: function (k) { CC.ai.open(k); }, openReviewPanel: function () { CC.ai.openReviewPanel(); },
     setLang: setLang, setTheme: setTheme, syncChrome: syncChrome, info: function () { return st.info; },
     getKey: function () { return st.aiKey; },
+    setKey: function (k) { st.aiKey = k || ''; },
+    switchLibrary: switchLibrary,
+    keyToken: keyToken,
+    getShortcuts: function () { return shortcuts(); },
+    setShortcut: function (a, k) {
+      var s = S.settings();
+      if (!s.shortcuts || typeof s.shortcuts !== 'object' || Array.isArray(s.shortcuts)) s.shortcuts = {};
+      s.shortcuts[a] = k;
+      S.saveSoon();
+    },
+    resetShortcuts: function () { S.settings().shortcuts = {}; S.saveSoon(); },
+    defaultShortcuts: DEFAULT_SHORTCUTS,
     refreshLight: refreshLight, refreshView: refreshView, refreshInspector: refreshInspector,
     ensureFirstNode: ensureFirstNode,
     onSelectionChange: function (sel) {

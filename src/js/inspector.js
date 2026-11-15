@@ -57,6 +57,18 @@
     var dups = S.similarTo(c);
     var typeName = function (k) { return t('edge.' + (k || 'custom')); };
 
+    /* host.innerHTML below destroys the focused field; capture it first so
+       a background refresh while typing does not lose the caret/scroll. */
+    var focusState = null;
+    if (opts && opts.keepFocus) {
+      var ae = document.activeElement;
+      if (ae && ae.id && host.contains(ae)) {
+        var bodyEl = host.querySelector('.insp-body');
+        focusState = { id: ae.id, start: ae.selectionStart, end: ae.selectionEnd,
+          scroll: bodyEl ? bodyEl.scrollTop : 0 };
+      }
+    }
+
     host.innerHTML =
       '<div class="insp-head">' +
         '<div class="insp-head-left">' +
@@ -107,7 +119,7 @@
             '<button class="mini-btn" data-act="add-source">' + U.icon('plus', 13) + U.esc(t('cards.addSource')) + '</button></div>' +
           '<div class="source-list">' +
             (c.sources.length ? c.sources.map(function (s) {
-              return '<div class="source-row"><span class="src-kind">' + U.esc(t('cards.source' + cap(s.kind || 'manual'))) + '</span>' +
+              return '<div class="source-row"><span class="src-kind">' + U.esc(t('cards.source' + (String(s.kind || 'manual') === 'ai' ? 'AI' : cap(s.kind || 'manual')))) + '</span>' +
                 '<span class="src-ref">' + U.esc(s.ref || '') + '</span>' +
                 '<span class="src-time">' + U.esc(U.fmtDate(s.at)) + '</span></div>';
             }).join('') :
@@ -152,6 +164,7 @@
               '<button class="mini-btn accent" data-act="merge" data-target="' + d.card.id + '">' + U.esc(t('common.merge')) + '</button>' +
               '<button class="icon-btn xs" data-act="dismiss" data-target="' + d.card.id + '" title="' + U.esc(t('common.ignore')) + '">' + U.icon('close', 12) + '</button></div>';
           }).join('') +
+          (dups.total > dups.length ? '<p class="trunc-note">' + U.esc(t('common.moreHidden', { n: dups.total - dups.length })) + '</p>' : '') +
         '</div>' : '') +
 
         '<div class="insp-foot">' +
@@ -163,6 +176,17 @@
     autogrow(host.querySelector('#insp-body'));
     autogrow(host.querySelector('#insp-note'));
     autogrow(host.querySelector('#insp-summary'));
+    if (focusState) {
+      var el2 = host.querySelector('#' + focusState.id);
+      if (el2) {
+        el2.focus();
+        if (focusState.start != null && el2.setSelectionRange) {
+          try { el2.setSelectionRange(focusState.start, focusState.end); } catch (e) { /* ignore */ }
+        }
+      }
+      var body2 = host.querySelector('.insp-body');
+      if (body2) body2.scrollTop = focusState.scroll;
+    }
   }
 
   function cap(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : 'Manual'; }
@@ -398,14 +422,6 @@
       });
     });
 
-    if (opts && opts.keepFocus) {
-      var keep = document.activeElement;
-      if (keep && keep.id && host.querySelector('#' + keep.id)) {
-        var el = host.querySelector('#' + keep.id);
-        el.focus();
-        el.setSelectionRange(keep.selectionStart, keep.selectionEnd);
-      }
-    }
   }
 
   function addChip(field, value) {
@@ -468,6 +484,12 @@
       close();
     }
   });
+
+  /* Attachment bytes arrive asynchronously and deletions happen in the
+     attachment module; re-render the panel whenever either occurs. */
+  if (CC.attach && CC.attach.onChange) {
+    CC.attach.onChange(function () { if (isOpen() && host) refresh(); });
+  }
 
   CC.inspector = {
     open: open, close: close, refresh: refresh, isOpen: isOpen,

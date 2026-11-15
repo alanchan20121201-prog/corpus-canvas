@@ -1,7 +1,7 @@
 {
   "name": "corpus-canvas",
   "productName": "CorpusCanvas",
-  "version": "1.4.2",
+  "version": "1.4.3",
   "description": "Corpus Canvas - one corpus, many maps",
   "main": "electron/main.js",
   "author": "CorpusCanvas",
@@ -9,7 +9,7 @@
   "private": true,
   "scripts": {
     "start": "electron .",
-    "test": "node test/headless.js",
+    "test": "node test/headless.js && node test/library-store-test.js",
     "test:ai": "node test/ai-test.js",
     "test:scale": "node test/scale.js 30000",
     "build:win": "electron-builder --win portable -c.win.signAndEditExecutable=false",

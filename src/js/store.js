@@ -33,7 +33,10 @@
           model: 'gpt-4o-mini',
           hasKey: false,
           local: false
-        }
+        },
+        shortcuts: {},
+        aiProfiles: [{ id: 'default', name: 'Default', baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o-mini', local: false, preset: '' }],
+        aiActiveId: 'default'
       },
       cards: [],
       maps: [],
@@ -55,6 +58,17 @@
     out.settings = Object.assign(base.settings, raw.settings || {});
     out.settings.ai = Object.assign(base.settings.ai, (raw.settings && raw.settings.ai) || {});
     if (out.settings.langAuto == null) out.settings.langAuto = true;
+    if (!out.settings.shortcuts || typeof out.settings.shortcuts !== 'object' || Array.isArray(out.settings.shortcuts)) out.settings.shortcuts = {};
+    if (!Array.isArray(out.settings.aiProfiles) || !out.settings.aiProfiles.length) {
+      out.settings.aiProfiles = [{
+        id: 'default', name: 'Default',
+        baseUrl: out.settings.ai.baseUrl, model: out.settings.ai.model,
+        local: out.settings.ai.local, preset: ''
+      }];
+    }
+    if (!out.settings.aiActiveId || !out.settings.aiProfiles.some(function (p) { return p.id === out.settings.aiActiveId; })) {
+      out.settings.aiActiveId = out.settings.aiProfiles[0].id;
+    }
     out.formatVersion = FORMAT_VERSION;
     ['cards', 'maps', 'history', 'snapshots', 'reviews', 'savedQueries', 'aiActions', 'templates', 'dismissed'].forEach(function (k) {
       if (!Array.isArray(out[k])) out[k] = [];
@@ -189,14 +203,21 @@
     var before = snapshotState();
     if (opts.snapshot) createSnapshot(typeof opts.snapshot === 'string' ? opts.snapshot : summary, true, true);
     fn(db);
+    /* Compare before bumping map revs. Commits that only touch fields outside
+       the snapshot (saved queries, dismissed pairs, templates) would leave a
+       history entry whose undo appears to do nothing. */
+    var after = snapshotState();
+    var changed = before !== after;
+    var entry = changed ? { id: U.uid('h'), at: now(), kind: kind, summary: summary, before: before } : null;
     db.updatedAt = now();
     db.maps.forEach(function (m) { m.rev = (m.rev || 0) + 1; });
-    var entry = { id: U.uid('h'), at: now(), kind: kind, summary: summary, before: before };
-    db.history.unshift(entry);
-    trimHistory();
-    undoStack.push({ kind: kind, summary: summary, before: before, after: snapshotState() });
-    if (undoStack.length > 40) undoStack.shift();
-    redoStack.length = 0;
+    if (changed) {
+      db.history.unshift(entry);
+      trimHistory();
+      undoStack.push({ kind: kind, summary: summary, before: before, after: after });
+      if (undoStack.length > 40) undoStack.shift();
+      redoStack.length = 0;
+    }
     saveSoon();
     emit();
     return entry;
@@ -486,7 +507,10 @@
       );
       if (s >= threshold) out.push({ card: c, score: s });
     });
-    return out.sort(function (a, b) { return b.score - a.score; }).slice(0, 5);
+    var sorted = out.sort(function (a, b) { return b.score - a.score; });
+    var list = sorted.slice(0, 5);
+    list.total = sorted.length;
+    return list;
   }
 
   function duplicatePairs() {
@@ -502,7 +526,10 @@
         }
       }
     }
-    return out.sort(function (x, y) { return y.score - x.score; }).slice(0, 20);
+    var sorted = out.sort(function (x, y) { return y.score - x.score; });
+    var list = sorted.slice(0, 20);
+    list.total = sorted.length;
+    return list;
   }
 
   function health() {
@@ -559,13 +586,15 @@
       });
     });
 
+    var dups = duplicatePairs();
     return {
       unmapped: unmapped,
       empties: empties,
       isolated: isolated,
       dubious: dubious,
       broken: broken,
-      duplicates: duplicatePairs(),
+      duplicates: dups,
+      duplicateTotal: dups.total || dups.length,
       deepest: deepest
     };
   }

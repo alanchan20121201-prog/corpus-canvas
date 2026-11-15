@@ -62,6 +62,14 @@ window.api = {
   ] }),
   ledgerClear: () => Promise.resolve({ ok: true }),
   corpusStats: () => Promise.resolve({ ok: true, sharded: true, shards: 3, cards: 4201 }),
+  listLibraries: () => Promise.resolve({ ok: true, activeId: 'default', items: [
+    { id: 'default', name: 'Default', cards: 3, corpusPath: 'C:/tmp/corpus.json' },
+    { id: 'lib2', name: 'Work', cards: 0, corpusPath: 'C:/tmp/libraries/lib2/corpus.json' }
+  ] }),
+  createLibrary: (p) => Promise.resolve({ ok: true, id: 'lib3', name: p.name }),
+  switchLibrary: () => Promise.resolve({ ok: false }),
+  renameLibrary: () => Promise.resolve({ ok: true }),
+  deleteLibrary: () => Promise.resolve({ ok: true }),
   smokeDone: () => Promise.resolve({ ok: true }),
   quit: () => Promise.resolve()
 };
@@ -103,6 +111,11 @@ function step(name, fn) {
     const missing = [];
     full.forEach((lang) => {
       Object.keys(base).forEach((k) => { if (!CC.i18n.dicts[lang][k]) missing.push(lang + ':' + k); });
+    });
+    /* keys present in en/ja but absent in zh-CN silently fall back to English
+       in the Chinese UI, so check the reverse direction too */
+    ['en', 'ja'].forEach((lang) => {
+      Object.keys(CC.i18n.dicts[lang]).forEach((k) => { if (!base[k]) missing.push('zh-CN<' + lang + ':' + k); });
     });
     if (missing.length) throw new Error('missing: ' + missing.join(', '));
     const extra = ['es', 'fr', 'ko'];
@@ -1006,6 +1019,267 @@ function step(name, fn) {
       if (!S.state()[k].some((x) => String(x.id).indexOf('-test') >= 0)) throw new Error(k + ' lost in merge');
     });
     return 'all four field groups merged';
+  });
+
+  await step('node-layout-in-bounds', async () => {
+    const L = CC.layout;
+    const m = S.currentMap();
+    const card = m && S.mapCards(m)[0];
+    if (!card) throw new Error('no card');
+    S.commit('edit', 'geometry', () => {
+      card.title = '中心主题与排版验证'; card.body = ''; card.summary = '一段较长的摘要用来检验徽章宽度';
+      card.note = 'x'; card.tags = ['标签一', '标签二', '标签三'];
+      card.style = Object.assign({}, card.style, { summaryKind: 'badge', size: 'l' });
+    });
+    await sleep(240);
+    const ms = L.measure(card);
+    if (!(ms.titleY > 0 && ms.sumTop > 0 && ms.metaY > 0 && ms.picY > 0)) throw new Error('coordinate fields missing');
+    if (ms.metaY + 5 > ms.h) throw new Error('meta row exceeds node height');
+    if (ms.picH && ms.picY + ms.picH > ms.h) throw new Error('picture exceeds node height');
+    CC.app.nav('map');
+    await sleep(200);
+    const nodes = document.querySelector('#g-nodes');
+    const html = nodes ? nodes.innerHTML : '';
+    if (!html) throw new Error('nodes not rendered');
+    if (html.indexOf('NaN') >= 0) throw new Error('NaN in node svg');
+    const pill = nodes.querySelector('.node-pill');
+    if (pill) {
+      const y = Number(pill.getAttribute('y'));
+      if (!isFinite(y) || y < 0 || y + 15 > ms.h + 1) throw new Error('pill out of bounds y=' + y + ' h=' + ms.h);
+    }
+    const badge = nodes.querySelector('.node-summary-badge');
+    if (badge && !isFinite(Number(badge.getAttribute('width')))) throw new Error('badge width NaN');
+    return 'h=' + ms.h + ' metaY=' + ms.metaY + ' picY=' + ms.picY;
+  });
+
+  await step('inspector-title-live', async () => {
+    CC.app.nav('map');
+    await sleep(200);
+    const m = S.currentMap();
+    const card = S.mapCards(m)[0];
+    CC.inspector.open(card.id);
+    const input = document.querySelector('#insp-title');
+    if (!input) throw new Error('inspector title missing');
+    input.value = 'LIVE-TITLE-XYZ';
+    input.dispatchEvent(new window.Event('input', { bubbles: true }));
+    await sleep(200);
+    const nodes = document.querySelector('#g-nodes');
+    const text = nodes ? nodes.textContent : '';
+    if (text.indexOf('LIVE-TITLE-XYZ') < 0) throw new Error('canvas title not updated after input');
+    input.dispatchEvent(new window.Event('blur', { bubbles: true }));
+    return 'live update ok';
+  });
+
+  await step('attach-delete-refreshes-inspector', async () => {
+    const m = S.currentMap();
+    const card = S.mapCards(m)[0];
+    S.commit('edit', 'attach', () => {
+      card.attachments = [{ id: 'att-ui', name: 'x.png', ext: 'png', mime: 'image/png', size: 1024 }];
+    });
+    CC.app.nav('cards');
+    await sleep(200);
+    CC.inspector.open(card.id);
+    await sleep(160);
+    let rows = document.querySelectorAll('#inspector .attach-row').length;
+    if (rows !== 1) throw new Error('attachment row missing: ' + rows);
+    const del = document.querySelector('#inspector [data-act="attach-del"]');
+    if (!del) throw new Error('delete button missing');
+    del.click();
+    await sleep(220);
+    rows = document.querySelectorAll('#inspector .attach-row').length;
+    if (rows !== 0) throw new Error('attachment row still shown: ' + rows);
+    if ((S.card(card.id).attachments || []).length !== 0) throw new Error('attachment not removed from store');
+    return 'row removed';
+  });
+
+  await step('outline-expand-all', async () => {
+    CC.app.nav('outline');
+    await sleep(160);
+    const m = S.currentMap();
+    const col = document.querySelector('[data-act="collapse"]');
+    if (col) { col.focus(); col.click(); await sleep(240); }
+    const exp = document.querySelector('[data-act="expand"]');
+    if (!exp) throw new Error('expand button missing');
+    exp.focus(); exp.click();
+    await sleep(260);
+    if ((m.collapsed || []).length !== 0) throw new Error('expand-all did not clear collapsed');
+    const closed = document.querySelectorAll('.ol-toggle.closed').length;
+    if (closed) throw new Error('outline still shows ' + closed + ' collapsed rows');
+    return 'collapsed cleared, view redrawn';
+  });
+
+  await step('danger-confirm-enter', async () => {
+    let result = 'unset';
+    U.confirm('danger', 'sure?', { danger: true }).then((r) => { result = r; });
+    await sleep(30);
+    const okBtn = document.querySelector('.overlay .modal-foot .btn.danger');
+    if (!okBtn) throw new Error('danger ok missing');
+    if (okBtn.classList.contains('primary')) throw new Error('danger should not be primary');
+    window.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    await sleep(40);
+    if (result !== true) throw new Error('Enter did not confirm: ' + String(result));
+    await sleep(200);
+    return 'ok';
+  });
+
+  await step('wef-dialog-routed-to-backup', async () => {
+    const before = S.cards().length;
+    const orig = CC.settings.importBackupData;
+    let called = 0;
+    CC.settings.importBackupData = function () { called++; };
+    const oldDialog = window.api.importDialog;
+    const payload = { format: 'corpus-canvas', formatVersion: S.FORMAT_VERSION,
+      data: { cards: [], maps: [], reviews: [], savedQueries: [], aiActions: [], templates: [] } };
+    window.api.importDialog = () => Promise.resolve({ ok: true, kind: 'text', name: 'corpus', text: JSON.stringify(payload) });
+    CC.importer.open();
+    await sleep(30);
+    const dz = document.querySelector('.overlay #dz');
+    if (!dz) throw new Error('dropzone missing');
+    dz.click();
+    await sleep(220);
+    window.api.importDialog = oldDialog;
+    CC.settings.importBackupData = orig;
+    if (!called) throw new Error('.wef from dialog not routed to backup');
+    if (S.cards().length !== before) throw new Error('.wef from dialog polluted corpus');
+    return 'routed=' + called;
+  });
+
+  await step('export-corpus', async () => {
+    CC.app.nav('settings');
+    await sleep(160);
+    const btn = document.querySelector('#export-corpus');
+    if (!btn) throw new Error('export-corpus button missing');
+    let saved = null;
+    const old = window.api.saveText;
+    window.api.saveText = (p) => { saved = p; return Promise.resolve({ ok: true, path: 'C:/tmp/all.md' }); };
+    btn.click();
+    await sleep(60);
+    window.api.saveText = old;
+    if (!saved || saved.ext !== 'md') throw new Error('saveText not called with md');
+    if (!/^# /.test(saved.text)) throw new Error('no heading in export');
+    if (saved.text.indexOf('## ') < 0) throw new Error('no map section');
+    return saved.text.split('\n').length + ' lines';
+  });
+
+  await step('svg-export-after-hydrate', async () => {
+    const L = CC.layout;
+    const m = S.currentMap();
+    const cached = L.serialize(L.get(m));
+    L.invalidate(m.id);
+    if (!L.hydrate(m, cached)) throw new Error('hydrate failed');
+    CC.app.nav('cards'); await sleep(40); CC.app.nav('map'); await sleep(200);
+    const old = window.api.saveText;
+    let saved = null;
+    window.api.saveText = (p) => { saved = p; return Promise.resolve({ ok: true, path: 'x.svg' }); };
+    CC.graph.exportSVG();
+    await sleep(60);
+    window.api.saveText = old;
+    if (!saved) throw new Error('exportSVG did not call saveText');
+    if (saved.text.indexOf('NaN') >= 0) throw new Error('NaN in exported svg');
+    if (saved.text.indexOf('<text') < 0) throw new Error('no titles in exported svg');
+    return 'svg ok';
+  });
+
+  await step('commit-no-empty-history', () => {
+    const before = S.state().history.length;
+    S.commit('edit', 'noop-query', () => {
+      S.state().savedQueries.push({ id: 'q-noop', name: 'n', q: '', tags: [], langs: [], presence: 'any', at: 1 });
+    });
+    const after = S.state().history.length;
+    if (after !== before) throw new Error('empty history entry added: ' + before + ' -> ' + after);
+    return 'no empty entry';
+  });
+
+  await step('truncation-hint-i18n', () => {
+    ['zh-CN', 'zh-TW', 'en', 'ja', 'es', 'fr', 'ko'].forEach((lang) => {
+      CC.i18n.setLang(lang);
+      const s = window.t('common.moreHidden', { n: 7 });
+      if (s === 'common.moreHidden' || s.indexOf('7') < 0) throw new Error(lang + ': ' + s);
+    });
+    CC.i18n.setLang('zh-CN');
+    return '7 langs';
+  });
+
+  await step('library-manager-ui', async () => {
+    CC.app.nav('settings');
+    await sleep(40);
+    const rows = document.querySelectorAll('#lib-list .lib-row');
+    if (rows.length !== 2) throw new Error('lib rows=' + rows.length);
+    if (!document.querySelector('#lib-list .lib-row.active')) throw new Error('no active library');
+    if (document.querySelectorAll('#lib-list [data-lib-switch]').length !== 1) throw new Error('switch buttons');
+    if (document.querySelectorAll('#lib-list [data-lib-delete]').length !== 1) throw new Error('delete button');
+    return rows.length + ' libraries';
+  });
+
+  await step('library-switch-flushes-first', async () => {
+    let flushed = 0, switched = 0;
+    const origFlush = S.flush, origSwitch = window.api.switchLibrary;
+    S.flush = function () { flushed++; return origFlush.call(S); };
+    window.api.switchLibrary = function () { switched++; return Promise.resolve({ ok: false }); };
+    await CC.app.switchLibrary('lib2');
+    S.flush = origFlush; window.api.switchLibrary = origSwitch;
+    if (!flushed || !switched) throw new Error('flush=' + flushed + ' switch=' + switched);
+    return 'flush then switch';
+  });
+
+  await step('shortcut-custom', () => {
+    document.querySelectorAll('.overlay').forEach((o) => o.remove());
+    const before = CC.app.getShortcuts().focus;
+    CC.app.setShortcut('focus', 'J');
+    if (CC.app.getShortcuts().focus !== 'J') throw new Error('set failed');
+    CC.app.nav('map');
+    let toggled = 0;
+    const orig = CC.graph.toggleFocus;
+    CC.graph.toggleFocus = function () { toggled++; return orig.call(CC.graph); };
+    window.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'j', bubbles: true }));
+    CC.graph.toggleFocus = orig;
+    CC.app.resetShortcuts();
+    if (CC.app.getShortcuts().focus !== before) throw new Error('reset failed');
+    if (!toggled) throw new Error('custom key not dispatched');
+    return 'custom key ok';
+  });
+
+  await step('ai-profile-preset', () => {
+    CC.app.nav('settings');
+    const sel = document.getElementById('ai-profile');
+    const preset = document.getElementById('ai-preset');
+    if (!sel || !preset) throw new Error('profile UI missing');
+    if (sel.options.length < 1) throw new Error('no profile options');
+    preset.value = 'zhipu';
+    preset.dispatchEvent(new window.Event('change'));
+    if (S.settings().ai.model !== 'glm-4.6v-flash') throw new Error('model=' + S.settings().ai.model);
+    const ap = (S.settings().aiProfiles || []).find((p) => p.id === S.settings().aiActiveId);
+    if (!ap || ap.model !== 'glm-4.6v-flash') throw new Error('profile not synced');
+    return 'preset + profile synced';
+  });
+
+  await step('backup-new-fields', () => {
+    S.settings().shortcuts = { search: 'Mod+J' };
+    let cap = null;
+    const orig = window.api.exportBackup;
+    window.api.exportBackup = function (p) { cap = p; return Promise.resolve({ ok: true }); };
+    CC.settings.exportBackup();
+    window.api.exportBackup = orig;
+    const st = cap && cap.data && cap.data.settings;
+    if (!st || !st.shortcuts || st.shortcuts.search !== 'Mod+J') throw new Error('shortcuts missing');
+    if (!Array.isArray(st.aiProfiles) || !st.aiProfiles.length) throw new Error('profiles missing');
+    if (!('aiActiveId' in st)) throw new Error('aiActiveId missing');
+    S.settings().shortcuts = {};
+    return 'shortcuts + profiles + active id';
+  });
+
+  await step('feature-i18n', () => {
+    const keys = ['shortcut.redo', 'shortcut.fullscreen', 'shortcut.customTitle', 'shortcut.recording',
+      'shortcut.conflict', 'shortcut.resetAll', 'shortcut.fixed',
+      'settings.library', 'settings.libraryHint', 'settings.libraryNew', 'settings.librarySwitch',
+      'settings.libraryRename', 'settings.libraryDelete', 'settings.libraryDeleteConfirm',
+      'settings.libraryActive', 'settings.libraryCards', 'settings.librarySwitchFail',
+      'settings.aiProfiles', 'settings.aiProfileNew', 'settings.aiProfileRename',
+      'settings.aiProfileDelete', 'settings.aiProfileDeleteConfirm', 'settings.aiProfileSharedKey'];
+    ['zh-CN', 'zh-TW', 'en', 'ja', 'es', 'fr', 'ko'].forEach((lang) => {
+      keys.forEach((k) => { if (!CC.i18n.dicts[lang][k]) throw new Error(lang + ':' + k); });
+    });
+    return keys.length + ' keys x 7 langs';
   });
 
   await step('no-uncaught', () => {

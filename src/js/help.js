@@ -128,14 +128,15 @@
       html: '<h3>导入</h3><p>支持 XMind（.xmind）、OPML、Markdown / TXT 大纲。导入后统一变成卡片与图，不保留原图文件。可以选择「转成一张新图」或「只加入资料库」。</p>' +
         '<p>导入后会显示自检报告：成功多少、跳过多少（空标题）、明细。导入的卡片会记录来源，方便追溯。</p>' +
         '<h3>备份</h3><p>设置 → 一键备份，写成一个可读的 .wef（JSON）。还原时可「合并」或「覆盖」；合并按 id 去重。</p>' +
-        '<p>密钥永远不会写进备份。换机器后需要重新填一次密钥。</p>' +
+        '<p>也可以把 .wef 或自动备份的 corpus-*.json 直接拖进窗口，或在「导入档案」里选它：软件按内容识别为备份并弹出还原对话框，不会当成大纲导入。</p>' +
+        '<p>每次启动还会自动留一份，保留最近 10 份，可在设置里逐个还原。密钥永远不会写进备份。换机器后需要重新填一次密钥。</p>' +
         '<h3>数据在哪</h3><p>设置里显示资料路径，可一键在文件夹中显示。删除软件不会自动删资料，请自行备份。</p>'
     },
     {
       id: 'settings', title: '设置、隐私与费用',
-      html: '<h3>语言与主题</h3><p>界面语言共 7 种：简体中文、繁體中文、英語、日本語、西班牙語、法語、韓語。全部界面文案与内置手册均为人工翻译，切换后同一屏只出现一种语言。默认「跟随系统」：用电脑语言，匹配不到就用英文。</p><p>主题有明亮、纸感、暗色、墨色。</p>' +
+      html: '<h3>语言与主题</h3><p>界面语言共 7 种：简体中文、繁體中文、英語、日本語、西班牙語、法語、韓語。内置手册也有对应译本；个别词条若尚未译出会回退到英文。默认「跟随系统」：用电脑语言，匹配不到就用英文。</p><p>主题有明亮、纸感、暗色、墨色。</p>' +
         '<h3>AI 服务</h3><p>自备服务地址、模型名与密钥；也可以勾「使用本机模型」，不填密钥直连 Ollama / LM Studio。详见「AI 与 API」页。</p>' +
-        '<h3>隐私</h3><ul><li>无账号、无遥测、无云同步。</li><li>只有你主动点 AI 动作时，才会把所选范围的文字发到你填的地址。</li><li>密钥用系统加密保存在本机，不写日志、不进备份，可一键清除。</li></ul>' +
+        '<h3>隐私</h3><ul><li>无账号、无遥测、无云同步。</li><li>只有你主动点 AI 动作时，才会把所选范围的文字发到你填的地址。</li><li>密钥用系统加密保存在本机，不写日志、不进备份，可一键清除。</li><li>设置页里列出的网络行为是固定边界说明，不是可以切换的开关。</li></ul>' +
         '<h3>费用</h3><p>软件本身免费、无订阅。AI 费用由你的服务商按用量收取。</p>'
     },
     {
@@ -144,13 +145,13 @@
         '<tr><td><kbd>Ctrl</kbd>+<kbd>K</kbd></td><td>全文检索</td></tr>' +
         '<tr><td><kbd>Ctrl</kbd>+<kbd>S</kbd></td><td>立即保存</td></tr>' +
         '<tr><td><kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd></td><td>撤销 / 重做</td></tr>' +
-        '<tr><td><kbd>Ctrl</kbd>+<kbd>D</kbd></td><td>复制选中节点</td></tr>' +
         '<tr><td><kbd>Delete</kbd></td><td>删除选中节点（进回收站）</td></tr>' +
         '<tr><td><kbd>Enter</kbd></td><td>编辑选中节点</td></tr>' +
         '<tr><td><kbd>F</kbd> / <kbd>G</kbd></td><td>聚焦 / 适应窗口（图视图）</td></tr>' +
         '<tr><td><kbd>F11</kbd></td><td>全屏</td></tr>' +
         '<tr><td><kbd>1</kbd>–<kbd>9</kbd></td><td>切换视图</td></tr>' +
-        '<tr><td><kbd>Esc</kbd></td><td>取消 / 关闭</td></tr></table>'
+        '<tr><td><kbd>Esc</kbd></td><td>取消 / 关闭</td></tr></table>' +
+        '<p>在「设置 → 快捷键」点击按键即可重新录制组合键，或一键恢复默认；「设置 → 配置方案」可保存多套 AI 服务参数并快速切换（密钥全局共用）；「设置 → 资料库」可建立多个彼此独立的资料库，切换时会重新载入窗口，旧资料原位保留。</p>'
     }
   ];
 
@@ -189,7 +190,7 @@
         '<tr><td>OpenAI</td><td><a href="https://openai.com" target="_blank" rel="noreferrer">https://openai.com</a></td><td><code>https://api.openai.com/v1</code></td><td><code>gpt-4o-mini</code></td><td>需海外支付方式，国内访问可能受限</td></tr>' +
         '<tr><td>DeepSeek</td><td><a href="https://www.deepseek.com" target="_blank" rel="noreferrer">https://www.deepseek.com</a></td><td><code>https://api.deepseek.com/v1</code></td><td><code>deepseek-chat</code></td><td>国内可直连，价格低，中文好</td></tr>' +
         '<tr><td>月之暗面 Kimi</td><td><a href="https://www.moonshot.cn" target="_blank" rel="noreferrer">https://www.moonshot.cn</a></td><td><code>https://api.moonshot.cn/v1</code></td><td><code>moonshot-v1-8k</code></td><td>国内直连</td></tr>' +
-        '<tr><td>智谱</td><td><a href="https://www.zhipuai.cn" target="_blank" rel="noreferrer">https://www.zhipuai.cn</a></td><td><code>https://open.bigmodel.cn/api/paas/v4</code></td><td><code>glm-4-flash</code></td><td>有免费模型，注意地址不带 /v1</td></tr>' +
+        '<tr><td>智谱</td><td><a href="https://www.zhipuai.cn" target="_blank" rel="noreferrer">https://www.zhipuai.cn</a></td><td><code>https://open.bigmodel.cn/api/paas/v4</code></td><td><code>glm-4.6v-flash</code></td><td>有免费模型，注意地址不带 /v1；模型名会更新，可点「拉取模型」取得最新列表</td></tr>' +
         '<tr><td>阿里百炼</td><td><a href="https://www.aliyun.com/product/bailian" target="_blank" rel="noreferrer">https://www.aliyun.com/product/bailian</a></td><td><code>https://dashscope.aliyuncs.com/compatible-mode/v1</code></td><td><code>qwen-plus</code></td><td>兼容模式地址较长</td></tr>' +
         '<tr><td>OpenRouter</td><td><a href="https://openrouter.ai" target="_blank" rel="noreferrer">https://openrouter.ai</a></td><td><code>https://openrouter.ai/api/v1</code></td><td><code>openai/gpt-4o-mini</code></td><td>一个密钥调用多家模型</td></tr>' +
         '<tr><td>本机 Ollama</td><td><a href="https://ollama.com" target="_blank" rel="noreferrer">https://ollama.com</a></td><td><code>http://127.0.0.1:11434/v1</code></td><td><code>llama3.1</code> / <code>qwen2.5</code></td><td>不填密钥，勾「使用本机模型」</td></tr>' +

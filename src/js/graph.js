@@ -141,7 +141,7 @@
     var mmBox = root.querySelector('#minimap');
     if (mmBox) bindMinimap(mmBox);
     if (!attachBound && CC.attach && CC.attach.onChange) {
-      CC.attach.onChange(function () { if (st.mounted) paintSoon(); });
+      CC.attach.onChange(function () { picTried = {}; if (st.mounted) paintSoon(); });
       attachBound = true;
     }
     st.mounted = true;
@@ -198,6 +198,8 @@
 
     var mqBtn = host.querySelector('[data-act="marquee"]');
     if (mqBtn) mqBtn.classList.toggle('active', !!st.marqueeMode);
+    var lkBtn = host.querySelector('[data-act="link"]');
+    if (lkBtn) lkBtn.classList.toggle('active', st.mode === 'link');
     var mmBtn = host.querySelector('[data-act="minimap"]');
     if (mmBtn) mmBtn.classList.toggle('active', !!(m && m.style && m.style.minimap !== false));
 
@@ -295,17 +297,13 @@
     gBounds.innerHTML = renderBoundaries(vis);
 
     var edges = L.queryEdges(model, rect, vis, margin);
+    /* In focus mode a hierarchy edge with only one visible endpoint would
+       otherwise draw a line to nowhere. */
+    if (st.focus) edges = edges.filter(function (e) { return vis[e.from] && vis[e.to]; });
     var showLabels = !model.map.style || model.map.style.showLabels !== false;
     gEdges.innerHTML = edges.map(function (e) { return edgeHTML(e, lod, showLabels); }).join('');
     q.ids.forEach(function (id) {
-      var n = model.nodes[id];
-      if (n && !n.lines) {
-        var ms = L.measure(n.card);
-        n.lines = ms.lines; n.fs = ms.fs; n.fw = ms.fw; n.lineH = ms.lineH; n.iconW = ms.iconW; n.untitled = ms.untitled;
-        n.w = ms.w; n.h = ms.h;
-        n.summaryLines = ms.summaryLines || []; n.summaryFs = ms.summaryFs || 0; n.summaryLH = ms.summaryLH || 0;
-        n.summaryKind = ms.summaryKind || ''; n.pic = ms.pic || null; n.picH = ms.picH || 0;
-      }
+      var n = ensureMeasured(model.nodes[id]);
       if (n && lod === 'full' && n.pic && CC.attach && CC.attach.load &&
           !CC.attach.dataUrl(n.pic.id) && !picTried[n.pic.id]) {
         picTried[n.pic.id] = 1;
@@ -360,8 +358,30 @@
   /* markup                                                             */
   /* ------------------------------------------------------------------ */
 
+  /* Copy every measured field onto a node. The layout cache (hydrate) and
+     on-the-fly title edits can leave a node with lines === null or a stale
+     measurement; the map, SVG/PNG export and A4 print all need the full set. */
+  function applyMeasure(n, ms) {
+    n.lines = ms.lines; n.fs = ms.fs; n.fw = ms.fw; n.lineH = ms.lineH; n.iconW = ms.iconW; n.untitled = ms.untitled;
+    n.w = ms.w; n.h = ms.h;
+    n.summaryLines = ms.summaryLines || []; n.summaryFs = ms.summaryFs || 0; n.summaryLH = ms.summaryLH || 0;
+    n.summaryKind = ms.summaryKind || ''; n.pic = ms.pic || null; n.picH = ms.picH || 0;
+    n.titleY = ms.titleY; n.sumTop = ms.sumTop; n.sumBase = ms.sumBase;
+    n.metaY = ms.metaY; n.picY = ms.picY; n.sumMaxW = ms.sumMaxW;
+    n._mKey = ms.key;
+    return n;
+  }
+
+  function ensureMeasured(n) {
+    if (!n) return n;
+    var ms = L.measure(n.card);
+    if (!n.lines || n._mKey !== ms.key) applyMeasure(n, ms);
+    return n;
+  }
+
   function nodeHTML(n, lod) {
     if (!n) return '';
+    ensureMeasured(n);
     var c = n.card, s = c.style || {};
     var x = n.x - n.w / 2, y = n.y - n.h / 2;
     var shape = s.shape || 'rounded';
@@ -385,11 +405,11 @@
 
     var iconW = 0;
     if (s.icon) {
-      html += '<text class="node-icon" x="14" y="' + (10 + n.fs + 1) + '">' + U.esc(s.icon) + '</text>';
+      html += '<text class="node-icon" x="14" y="' + (n.titleY + 1) + '">' + U.esc(s.icon) + '</text>';
       iconW = n.fs + 8;
     }
     var tx = 15 + iconW;
-    var ty = 10 + Math.round(n.fs * 1.2);
+    var ty = n.titleY;
     var lines = lod === 'mid' ? [n.lines[0]] : n.lines;
     lines.forEach(function (line) {
       html += '<text class="node-title" x="' + tx + '" y="' + ty + '" style="font-size:' + n.fs + 'px;font-weight:' + n.fw + (fill ? ';fill:' + textOn(fill) : '') + '">' + U.esc(line) + '</text>';
@@ -399,16 +419,17 @@
     /* an optional one-line summary, in one of three readings */
     if (lod === 'full' && n.summaryLines && n.summaryLines.length) {
       var sumKind = n.summaryKind || 'plain';
-      var sumTop = ty + 3;
+      var sumTop = n.sumTop;
       var sumFs = Number(n.summaryFs) > 0 ? Number(n.summaryFs) : 12;
       var sumLH = Number(n.summaryLH) > 0 ? Number(n.summaryLH) : Math.round(sumFs * 1.38);
       var sumH = n.summaryLines.length * sumLH + 2;
+      var badgeW = Math.min(n.w - 28, (Number(n.sumMaxW) || 0) + 14);
       if (sumKind === 'callout') {
         html += '<rect class="node-summary-callout" x="14" y="' + sumTop + '" width="3" height="' + sumH + '" rx="1.5"/>';
       } else if (sumKind === 'badge') {
-        html += '<rect class="node-summary-badge" x="14" y="' + (sumTop - 1) + '" width="' + Math.min(n.w - 28, 6 + String(n.summaryLines[0]).length * 5.6) + '" height="' + (sumH - 2) + '" rx="7"/>';
+        html += '<rect class="node-summary-badge" x="14" y="' + (sumTop - 1) + '" width="' + badgeW + '" height="' + (sumH - 2) + '" rx="7"/>';
       }
-      var sy = sumTop + sumFs;
+      var sy = n.sumBase;
       n.summaryLines.forEach(function (line) {
         html += '<text class="node-summary' + (sumKind === 'badge' ? ' badge' : '') + '" x="' + (sumKind === 'callout' ? 23 : 19) + '" y="' + sy + '" style="font-size:' + sumFs + 'px">' + U.esc(line) + '</text>';
         sy += sumLH;
@@ -417,7 +438,7 @@
     }
 
     if (lod === 'full') {
-      var metaY = ty + 4 + 12;
+      var metaY = n.metaY;
       var mx = 15;
       (c.tags || []).slice(0, 2).forEach(function (tg) {
         var w = String(tg).length * 7.4 + 12;
@@ -436,7 +457,7 @@
       var picSrc = CC.attach ? CC.attach.dataUrl(n.pic.id) : '';
       if (picSrc) {
         var pw = n.w - 28, ph = n.picH;
-        var py = n.h - ph - 10;
+        var py = Math.min(n.picY, n.h - ph - 8);
         html += '<image class="node-pic" x="14" y="' + py + '" width="' + pw + '" height="' + ph +
           '" preserveAspectRatio="xMidYMid slice" href="' + U.esc(picSrc) + '"/>';
         html += '<rect class="node-pic-frame" x="14" y="' + py + '" width="' + pw + '" height="' + ph + '" rx="6"/>';
@@ -566,6 +587,7 @@
 
   function applyView() {
     if (vp) vp.setAttribute('transform', 'translate(' + view.x + ',' + view.y + ') scale(' + view.k + ')');
+    if (st.inline) positionInline();
   }
 
   function markSelection() {
@@ -903,10 +925,13 @@
         cancelInlineEdit();
       }
     });
-    ta.addEventListener('blur', function () { commitInlineEdit(); });
+    ta.addEventListener('blur', function () { if (st.mounted && st.inline) commitInlineEdit(); });
     ta.addEventListener('input', function () { ta.style.height = 'auto'; ta.style.height = ta.scrollHeight + 'px'; });
 
-    setTimeout(function () { ta.focus(); ta.select(); }, 0);
+    setTimeout(function () {
+      ta.focus(); ta.select();
+      ta.style.height = 'auto'; ta.style.height = ta.scrollHeight + 'px';
+    }, 0);
     if (CC.app) CC.app.onSelectionChange(st.sel.indexOf(id) >= 0 ? st.sel : [id]);
   }
 
@@ -1283,8 +1308,12 @@
   var fitTries = 0;
 
   function zoomFit() {
-    if (!st.mounted || !host || !svg || !model) return;
-    if (!Object.keys(model.nodes).length) return;
+    if (!st.mounted || !host || !svg) return;
+    /* auto-arrange / structure switch call zoomFit before the debounced
+       refresh runs, so rebuild the model here instead of fitting old bounds */
+    var fm = activeMap();
+    if (fm) model = L.get(fm);
+    if (!model || !Object.keys(model.nodes).length) return;
     var r = svg.getBoundingClientRect();
     /* the stage may not have been laid out yet on the first frame */
     if (r.width < 120 || r.height < 120) {
@@ -1530,13 +1559,14 @@
     });
 
     ids.forEach(function (id) {
+      ensureMeasured(nodes[id]);
       var n = nodes[id], c = n.card, s = c.style || {};
       var shape = s.shape || 'rounded';
       var rx = shape === 'rect' ? 4 : shape === 'pill' ? n.h / 2 : 13;
       parts.push('<g transform="translate(' + (n.x - n.w / 2) + ',' + (n.y - n.h / 2) + ')">');
       parts.push('<rect class="node-rect" width="' + n.w + '" height="' + n.h + '" rx="' + rx + '"' + (s.fill ? ' fill="' + U.esc(s.fill) + '"' : '') + '/>');
-      var ty = 10 + Math.round(n.fs * 1.2);
-      n.lines.forEach(function (line) {
+      var ty = n.titleY;
+      (n.lines || []).forEach(function (line) {
         parts.push('<text class="node-title" x="15" y="' + ty + '" style="font-size:' + n.fs + 'px">' + U.esc(line) + '</text>');
         ty += n.lineH;
       });
@@ -1753,12 +1783,12 @@
     var nodes = [];
     var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     ids.forEach(function (id) {
-      var n = model.nodes[id];
+      var n = ensureMeasured(model.nodes[id]);
       var c = n.card || {};
       var s = c.style || {};
       nodes.push({
         id: id, x: n.x, y: n.y, w: n.w, h: n.h,
-        title: c.title || '', lines: n.lines || [], fs: n.fs, lineH: n.lineH,
+        title: c.title || '', lines: n.lines || [], fs: n.fs, lineH: n.lineH, titleY: n.titleY,
         fill: s.fill || '#ffffff', shape: s.shape || 'rounded',
         summary: c.summary || ''
       });
@@ -1795,12 +1825,18 @@
   function clearFocus() { st.focus = null; st.focusCache = null; if (st.mounted) refresh(); }
 
   function resetState() {
+    cancelInlineEdit();
     st.sel = []; st.edgeSel = null; st.mode = 'select'; st.connectFrom = null;
-    st.focus = null; st.drag = null; st.pan = null; st._viewApplied = false;
+    st.focus = null; st.drag = null; st.pan = null; st.inline = null; st.marquee = null;
+    st._viewApplied = false;
     st._fittedOnce = false; st.focusCache = null; model = null;
   }
 
-  function unmount() { st.mounted = false; host = null; }
+  function unmount() {
+    st.mounted = false;
+    cancelInlineEdit();
+    host = null;
+  }
 
   function beginLink(id) {
     if (!st.mounted) return;

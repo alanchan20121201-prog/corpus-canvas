@@ -227,8 +227,9 @@
 
     var rows = '';
     var rowCount = 0;
+    var truncated = false;
     function walk(id, depth) {
-      if (rowCount > 1500) return;
+      if (rowCount > 1500) { truncated = true; return; }
       rowCount++;
       var c = S.card(id);
       if (!c) return;
@@ -262,7 +263,8 @@
           '<span class="sync-badge">' + U.icon('restore', 13) + U.esc(t('outline.sync')) + '</span>' +
           '<span class="ol-tip">' + U.esc(t('outline.tabHint')) + '</span>' +
         '</div>' +
-        '<div class="ol-body">' + (rows || '<div class="mini-empty pad">' + U.esc(t('outline.empty')) + '</div>') + '</div>' +
+        '<div class="ol-body">' + (rows || '<div class="mini-empty pad">' + U.esc(t('outline.empty')) + '</div>') +
+          (truncated ? '<div class="trunc-note">' + U.esc(t('outline.limitHint')) + '</div>' : '') + '</div>' +
       '</div>';
 
     root.querySelector('[data-act="add-root"]').onclick = function () {
@@ -453,13 +455,13 @@
     if (more) more.onclick = function () { cardLimit += 400; cards(root); };
     var q = root.querySelector('#card-q');
     if (q) {
-      var runFilter = U.debounce(function (value) {
+      var runFilter = U.debounce(function (value, caret) {
         cardQuery = value;
         cards(root);
         var nq = root.querySelector('#card-q');
-        if (nq && value) { nq.focus(); nq.setSelectionRange(value.length, value.length); }
+        if (nq) { nq.focus(); if (caret != null) nq.setSelectionRange(caret, caret); }
       }, 220);
-      q.addEventListener('input', function () { runFilter(q.value); });
+      q.addEventListener('input', function () { runFilter(q.value, q.selectionStart); });
     }
     var sortSel = root.querySelector('#card-sort');
     if (sortSel) sortSel.onchange = function () { cardSort = sortSel.value; cards(root); };
@@ -536,7 +538,7 @@
       { key: 'unmapped', title: t('health.unmapped'), hint: t('health.unmappedHint'), items: h.unmapped, render: function (c) { return cardLine(c, function () { CC.app.openCard(c.id); }); } },
       { key: 'isolated', title: t('health.isolated'), hint: t('health.isolatedHint'), items: h.isolated, render: function (it) { return nodeLine(it); } },
       { key: 'dubious', title: t('health.dubious'), hint: t('health.dubiousHint'), items: h.dubious, render: function (it) { return edgeLine(it); } },
-      { key: 'duplicates', title: t('health.duplicates'), hint: t('health.duplicatesHint'), items: h.duplicates, render: function (it) { return dupLine(it); } },
+      { key: 'duplicates', title: t('health.duplicates'), hint: t('health.duplicatesHint'), items: h.duplicates, more: Math.max(0, (h.duplicateTotal || 0) - h.duplicates.length), render: function (it) { return dupLine(it); } },
       { key: 'broken', title: t('health.broken'), hint: t('health.brokenHint'), items: h.broken, render: function (it) { return brokenLine(it); } }
     ];
 
@@ -552,6 +554,7 @@
           '<div class="hc-list">' + (healthAll[s.key] ? s.items : s.items.slice(0, 6)).map(s.render).join('') + '</div>' +
           (s.items.length > 6 ? '<button class="hc-more" data-expand="' + s.key + '">' +
             (healthAll[s.key] ? t('common.collapse') : '+' + (s.items.length - 6)) + '</button>' : '') +
+          (s.more ? '<div class="trunc-note">' + U.esc(t('common.moreHidden', { n: s.more })) + '</div>' : '') +
         '</section>';
       }).join('') + '</div>' :
         '<div class="panel">' + emptyState(t('health.allGood'), t('health.allGoodHint'), '', allGoodArt()) + '</div>');
@@ -563,7 +566,7 @@
       b.onclick = function () { CC.app.goMap(b.getAttribute('data-map'), b.getAttribute('data-card')); };
     });
     root.querySelectorAll('[data-merge]').forEach(function (b) {
-      b.onclick = function () { CC.app.mergeFlow(b.getAttribute('data-a'), b.getAttribute('data-b')); };
+      b.onclick = function () { CC.app.mergeFlow(b.getAttribute('data-merge'), b.getAttribute('data-b')); };
     });
     root.querySelectorAll('[data-expand]').forEach(function (b) {
       b.onclick = function () {

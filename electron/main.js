@@ -19,30 +19,68 @@ const isDev = !app.isPackaged;
 
 let win = null;
 const userDir = app.getPath('userData');
-const corpusPath = path.join(userDir, 'corpus.json');
-const securePath = path.join(userDir, 'secure.json');
-const backupDir = path.join(userDir, 'backups');
-const layoutDir = path.join(userDir, 'layout-cache');
-const attachDir = path.join(userDir, 'attachments');
-const aiLedgerPath = path.join(userDir, 'ai-ledger.json');
+const securePath = path.join(userDir, 'secure.json');          /* device-wide */
+const aiLedgerPath = path.join(userDir, 'ai-ledger.json');    /* device-wide */
+const librariesPath = path.join(userDir, 'libraries.json');   /* device-wide manifest */
+const FORMAT_VERSION = 2;
+
+/* Each library owns its own corpus, shards, backups, attachments and layout
+   cache. The 'default' library maps to the ORIGINAL root-level files, so
+   upgrading never moves, renames or rewrites existing data. */
+function pathsFor(id) {
+  const root = (!id || id === 'default')
+    ? userDir
+    : path.join(userDir, 'libraries', String(id).replace(/[^a-zA-Z0-9_-]/g, ''));
+  return {
+    id: id || 'default',
+    root: root,
+    corpusPath: path.join(root, 'corpus.json'),
+    backupDir: path.join(root, 'backups'),
+    layoutDir: path.join(root, 'layout-cache'),
+    attachDir: path.join(root, 'attachments')
+  };
+}
+
+function readLibraries() {
+  let m = null;
+  try { m = JSON.parse(fs.readFileSync(librariesPath, 'utf8')); } catch (e) { /* fresh install */ }
+  if (!m || !Array.isArray(m.libraries) || !m.libraries.length) {
+    m = { version: 1, activeId: 'default', libraries: [{ id: 'default', name: 'Default', createdAt: Date.now() }] };
+    try {
+      fs.mkdirSync(userDir, { recursive: true });
+      fs.writeFileSync(librariesPath, JSON.stringify(m, null, 2), 'utf8');
+    } catch (e) { /* ignore */ }
+  }
+  if (!m.libraries.some((l) => l.id === m.activeId)) m.activeId = 'default';
+  return m;
+}
+
+let libManifest = readLibraries();
+let active = pathsFor(libManifest.activeId);
+
+function activeName() {
+  const hit = libManifest.libraries.find((l) => l.id === libManifest.activeId);
+  return hit ? hit.name : 'Default';
+}
+
+function saveLibraries() { return writeJsonAtomic(librariesPath, libManifest); }
 
 function layoutFile(id) {
   const safe = String(id || '').replace(/[^a-zA-Z0-9_-]/g, '');
-  return safe ? path.join(layoutDir, safe + '.json') : null;
+  return safe ? path.join(active.layoutDir, safe + '.json') : null;
 }
-const FORMAT_VERSION = 2;
 
 async function autoBackup() {
   try {
-    const data = await corpusStore.assembled(userDir, corpusPath);
+    const data = await corpusStore.assembled(userDir, active.corpusPath);
     if (!data || !Array.isArray(data.cards) || !data.cards.length) return;
-    await fsp.mkdir(backupDir, { recursive: true });
+    await fsp.mkdir(active.backupDir, { recursive: true });
     const d = new Date();
     const pad = (n) => String(n).padStart(2, '0');
     const name = 'corpus-' + d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate()) + '-' + pad(d.getHours()) + pad(d.getMinutes()) + pad(d.getSeconds()) + '.json';
-    await fsp.writeFile(path.join(backupDir, name), JSON.stringify(data), 'utf8');
-    const files = (await fsp.readdir(backupDir)).filter((f) => /^corpus-\d{8}-\d{6}\.json$/.test(f)).sort();
-    while (files.length > 10) await fsp.rm(path.join(backupDir, files.shift()), { force: true });
+    await fsp.writeFile(path.join(active.backupDir, name), JSON.stringify(data), 'utf8');
+    const files = (await fsp.readdir(active.backupDir)).filter((f) => /^corpus-\d{8}-\d{6}\.json$/.test(f)).sort();
+    while (files.length > 10) await fsp.rm(path.join(active.backupDir, files.shift()), { force: true });
   } catch (e) { /* ignore */ }
 }
 const statePath = path.join(userDir, 'window.json');
@@ -224,7 +262,10 @@ app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) creat
 ipcMain.handle('app:info', async () => ({
   version: app.getVersion(),
   userDir,
-  corpusPath,
+  corpusPath: active.corpusPath,
+  libraryId: active.id,
+  libraryName: activeName(),
+  libraries: libManifest.libraries.map((l) => ({ id: l.id, name: l.name, createdAt: l.createdAt || 0 })),
   platform: process.platform,
   encrypted: canEncrypt(),
   dev: isDev,
@@ -232,7 +273,7 @@ ipcMain.handle('app:info', async () => ({
   systemLanguages: (() => { try { return app.getPreferredSystemLanguages(); } catch (e) { return []; } })()
 }));
 
-ipcMain.handle('corpus:load', async () => corpusStore.load(userDir, corpusPath));
+ipcMain.handle('corpus:load', async () => corpusStore.load(userDir, active.corpusPath));
 
 ipcMain.handle('layout:read', async (_e, id) => {
   const file = layoutFile(id);
@@ -247,7 +288,7 @@ ipcMain.handle('layout:write', async (_e, id, data) => {
   const file = layoutFile(id);
   if (!file) return { ok: false };
   try {
-    await fsp.mkdir(layoutDir, { recursive: true });
+    await fsp.mkdir(active.layoutDir, { recursive: true });
     await writeJsonAtomic(file, data);
     return { ok: true };
   } catch (e) { return { ok: false }; }
@@ -261,10 +302,10 @@ ipcMain.handle('layout:clear', async (_e, id) => {
 
 ipcMain.handle('backup:list', async () => {
   try {
-    const files = (await fsp.readdir(backupDir)).filter((f) => /^corpus-\d{8}-\d{6}\.json$/.test(f)).sort().reverse();
+    const files = (await fsp.readdir(active.backupDir)).filter((f) => /^corpus-\d{8}-\d{6}\.json$/.test(f)).sort().reverse();
     const out = [];
     for (const f of files.slice(0, 10)) {
-      const st = await fsp.stat(path.join(backupDir, f));
+      const st = await fsp.stat(path.join(active.backupDir, f));
       out.push({ name: f, at: st.mtimeMs, size: st.size });
     }
     return { ok: true, items: out };
@@ -273,29 +314,109 @@ ipcMain.handle('backup:list', async () => {
 
 ipcMain.handle('backup:restore', async (_e, name) => {
   if (!/^corpus-\d{8}-\d{6}\.json$/.test(String(name || ''))) return { ok: false, error: 'bad name' };
-  const file = path.join(backupDir, name);
+  const file = path.join(active.backupDir, name);
   let data;
   try { data = JSON.parse(await fsp.readFile(file, 'utf8')); }
   catch (e) { return { ok: false, error: 'invalid' }; }
   if (!data || !Array.isArray(data.cards) || !Array.isArray(data.maps)) return { ok: false, error: 'invalid' };
   if (data.formatVersion != null && Number(data.formatVersion) > FORMAT_VERSION) return { ok: false, error: 'version' };
   try {
-    await writeJsonAtomic(corpusPath, data);
+    /* go through the store so a large restore is re-sharded into THIS
+       library's shard dir instead of leaving orphan shards behind */
+    await corpusStore.save(userDir, active.corpusPath, data);
     return { ok: true };
   } catch (e) { return { ok: false, error: String(e.message || e) }; }
 });
 
-ipcMain.handle('corpus:save', async (_e, data) => corpusStore.save(userDir, corpusPath, data));
+ipcMain.handle('corpus:save', async (_e, data) => corpusStore.save(userDir, active.corpusPath, data));
 
 ipcMain.handle('corpus:stats', async () => {
-  const sharded = await corpusStore.isSharded(corpusPath);
-  const raw = await readJson(corpusPath);
+  const sharded = await corpusStore.isSharded(active.corpusPath);
+  const raw = await readJson(active.corpusPath);
   return { ok: true, sharded: sharded, shards: sharded && raw && raw.__shards ? raw.__shards.length : 0, cards: raw && raw.__shards ? raw.__shards.reduce((a, x) => a + x.count, 0) : (raw && raw.cards ? raw.cards.length : 0) };
 });
 
 ipcMain.handle('corpus:reveal', async () => {
-  shell.showItemInFolder(corpusPath);
+  shell.showItemInFolder(active.corpusPath);
   return { ok: true };
+});
+
+/* ------------------------------------------------------------------ */
+/* libraries                                                          */
+/* ------------------------------------------------------------------ */
+
+ipcMain.handle('library:list', async () => {
+  const items = [];
+  for (const l of libManifest.libraries) {
+    const p = pathsFor(l.id);
+    let cards = 0;
+    try {
+      const raw = await readJson(p.corpusPath);
+      cards = raw && raw.__shards ? raw.__shards.reduce((a, x) => a + x.count, 0)
+        : (raw && raw.cards ? raw.cards.length : 0);
+    } catch (e) { /* ignore */ }
+    items.push({ id: l.id, name: l.name, createdAt: l.createdAt || 0, cards: cards, corpusPath: p.corpusPath });
+  }
+  return { ok: true, activeId: libManifest.activeId, items: items };
+});
+
+ipcMain.handle('library:create', async (_e, payload) => {
+  const name = String((payload && payload.name) || '').trim().slice(0, 60) || 'New library';
+  const id = 'lib-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 7);
+  const p = pathsFor(id);
+  try {
+    await fsp.mkdir(p.root, { recursive: true });
+    libManifest.libraries.push({ id: id, name: name, createdAt: Date.now() });
+    await saveLibraries();
+    return { ok: true, id: id, name: name };
+  } catch (e) { return { ok: false, error: String(e.message || e) }; }
+});
+
+ipcMain.handle('library:switch', async (_e, payload) => {
+  const id = String((payload && payload.id) || '');
+  if (!libManifest.libraries.some((l) => l.id === id)) return { ok: false, error: 'not found' };
+  /* snapshot the library we are leaving while its paths are still active */
+  await autoBackup();
+  const oldPath = active.corpusPath;
+  libManifest.activeId = id;
+  await saveLibraries();
+  active = pathsFor(id);
+  corpusStore.forget(oldPath);
+  return { ok: true, activeId: id };
+});
+
+ipcMain.handle('library:rename', async (_e, payload) => {
+  const id = String((payload && payload.id) || '');
+  const name = String((payload && payload.name) || '').trim().slice(0, 60);
+  const hit = libManifest.libraries.find((l) => l.id === id);
+  if (!hit || !name) return { ok: false, error: 'invalid' };
+  hit.name = name;   /* only the label changes; the directory stays put */
+  await saveLibraries();
+  return { ok: true };
+});
+
+ipcMain.handle('library:delete', async (_e, payload) => {
+  const id = String((payload && payload.id) || '');
+  if (id === 'default') return { ok: false, error: 'default' };
+  const idx = libManifest.libraries.findIndex((l) => l.id === id);
+  if (idx < 0) return { ok: false, error: 'not found' };
+  const p = pathsFor(id);
+  try {
+    /* keep a recoverable copy instead of a hard delete */
+    const trash = path.join(userDir, '.trash', id + '-' + Date.now());
+    await fsp.mkdir(path.dirname(trash), { recursive: true });
+    await fsp.rename(p.root, trash).catch(() => {});
+    corpusStore.forget(p.corpusPath);
+    libManifest.libraries.splice(idx, 1);
+    if (libManifest.activeId === id) {
+      libManifest.activeId = 'default';
+      active = pathsFor('default');
+      await saveLibraries();
+      return { ok: true, switched: true };
+    }
+    await saveLibraries();
+    return { ok: true };
+  } catch (e) { return { ok: false, error: String(e.message || e) }; }
 });
 
 ipcMain.handle('key:get', async () => ({ key: await loadKey(), encrypted: canEncrypt() }));
@@ -391,9 +512,9 @@ function safeAttachName(id) {
 async function attachFile(id) {
   const safe = safeAttachName(id);
   if (!safe) return null;
-  const files = await fsp.readdir(attachDir).catch(() => []);
+  const files = await fsp.readdir(active.attachDir).catch(() => []);
   const hit = files.find((f) => f.startsWith(safe + '.'));
-  return hit ? path.join(attachDir, hit) : null;
+  return hit ? path.join(active.attachDir, hit) : null;
 }
 
 ipcMain.handle('file:pick-attachments', async (_e, kind) => {
@@ -406,7 +527,7 @@ ipcMain.handle('file:pick-attachments', async (_e, kind) => {
       : [{ name: 'All files', extensions: ['*'] }]
   });
   if (res.canceled || !res.filePaths.length) return { ok: false, canceled: true };
-  await fsp.mkdir(attachDir, { recursive: true });
+  await fsp.mkdir(active.attachDir, { recursive: true });
   const out = [];
   for (const src of res.filePaths) {
     const st = await fsp.stat(src).catch(() => null);
@@ -417,7 +538,7 @@ ipcMain.handle('file:pick-attachments', async (_e, kind) => {
     }
     const ext = path.extname(src).toLowerCase();
     const id = 'a' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
-    const dest = path.join(attachDir, id + ext);
+    const dest = path.join(active.attachDir, id + ext);
     try {
       await fsp.copyFile(src, dest);
     } catch (e) {

@@ -16,6 +16,8 @@
     var st = S.settings();
     var info = CC.app.info() || {};
     var ai = st.ai;
+    var profiles = st.aiProfiles || [];
+    var activeId = st.aiActiveId || (profiles[0] && profiles[0].id) || '';
     var themes = [
       { id: 'light', label: t('theme.light') },
       { id: 'dark', label: t('theme.dark') },
@@ -43,8 +45,7 @@
                 '<span class="lt-name">' + U.esc(l.label) + '</span>' +
                 (!st.langAuto && st.lang === l.code ? '<span class="lt-check">' + U.icon('check', 13) + '</span>' : '') +
               '</button>';
-            }).join('') + '</div>' +
-          '<p class="set-hint small">' + U.esc(t('settings.languageHint')) + '</p>') +
+            }).join('') + '</div>') +
 
         section('set-theme', 'palette', t('settings.theme'),
           '<p class="set-hint">' + U.esc(t('settings.themeHint')) + '</p>' +
@@ -56,6 +57,15 @@
           }).join('') + '</div>') +
 
         section('set-ai', 'sparkles', t('settings.ai'),
+          '<label class="field"><span>' + U.esc(t('settings.aiProfiles')) + '</span>' +
+            '<div class="key-row">' +
+              '<select class="input" id="ai-profile">' + profiles.map(function (p) {
+                return '<option value="' + U.esc(p.id) + '"' + (p.id === activeId ? ' selected' : '') + '>' + U.esc(p.name) + '</option>';
+              }).join('') + '</select>' +
+              '<button class="mini-btn" id="ai-profile-new">' + U.esc(t('settings.aiProfileNew')) + '</button>' +
+              '<button class="mini-btn" id="ai-profile-rename">' + U.esc(t('settings.aiProfileRename')) + '</button>' +
+              '<button class="mini-btn" id="ai-profile-delete">' + U.esc(t('settings.aiProfileDelete')) + '</button>' +
+            '</div><em>' + U.esc(t('settings.aiProfileSharedKey')) + '</em></label>' +
           '<div class="ai-status-bar">' +
             '<span class="ai-dot' + (ai.baseUrl && ai.model && (ai.hasKey || ai.local) ? ' on' : '') + '"></span>' +
             '<span>' + U.esc((ai.hasKey || ai.local) ? (ai.local ? t('settings.localModel') : t('settings.apiKeySaved')) : t('settings.aiOff')) + '</span>' +
@@ -107,6 +117,11 @@
             '<div class="net-row" aria-disabled="true" title="' + U.esc(t('settings.privacyFixed')) + '">' + U.icon('key', 15) + '<div><strong>' + U.esc(t('settings.apiKey')) + '</strong><p>' + U.esc(t('settings.networkKey')) + '</p></div><span class="net-tag off">' + U.esc(t('common.off')) + '</span></div>' +
           '</div>') +
 
+        section('set-library', 'folder', t('settings.library'),
+          '<p class="set-hint">' + U.esc(t('settings.libraryHint')) + '</p>' +
+          '<div class="lib-list" id="lib-list">' + U.esc(t('common.loading')) + '</div>' +
+          '<div class="backup-row"><button class="btn" id="lib-new"><span>' + U.esc(t('settings.libraryNew')) + '</span></button></div>') +
+
         section('set-data', 'folder', t('settings.data'),
           '<div class="kv-row"><span class="kv-key">' + U.esc(t('settings.dataPath')) + '</span>' +
             '<code class="kv-val">' + U.esc(info.corpusPath || '') + '</code>' +
@@ -119,7 +134,9 @@
             '<button class="btn" id="backup-export">' + U.icon('download', 15) + '<span>' + U.esc(t('settings.backupExport')) + '</span></button>' +
             '<button class="btn" id="backup-import">' + U.icon('upload', 15) + '<span>' + U.esc(t('settings.backupImport')) + '</span></button>' +
             '<button class="btn ghost" id="import-file">' + U.icon('upload', 15) + '<span>' + U.esc(t('import.title')) + '</span></button>' +
+            '<button class="btn ghost" id="export-corpus">' + U.icon('download', 15) + '<span>' + U.esc(t('settings.exportCorpus')) + '</span></button>' +
           '</div>' +
+          '<p class="set-hint small">' + U.esc(t('settings.exportCorpusHint')) + '</p>' +
           '<div class="auto-backup">' +
             '<div class="ab-head"><strong>' + U.esc(t('settings.autoBackup')) + '</strong>' +
               '<button class="mini-btn" id="ab-refresh">' + U.esc(t('common.refresh')) + '</button></div>' +
@@ -130,11 +147,15 @@
             '<button class="btn danger sm" id="clear-all">' + U.esc(t('settings.clearAll')) + '</button></div>') +
 
         section('set-keys', 'keyboard', t('settings.shortcuts'),
-          '<div class="shortcut-grid">' +
-            ['search', 'save', 'undo', 'delete', 'escape', 'focus', 'fit', 'edit', 'nav'].map(function (k) {
-              return '<div class="sc-row"><kbd>' + U.esc(t('shortcut.' + k).split(' ')[0]) + '</kbd><span>' + U.esc(t('shortcut.' + k).split(' ').slice(1).join(' ')) + '</span></div>';
+          '<p class="set-hint">' + U.esc(t('shortcut.customTitle')) + '</p>' +
+          '<div class="shortcut-grid sc-edit-grid">' +
+            ['search', 'save', 'undo', 'redo', 'fullscreen', 'delete', 'escape', 'focus', 'fit', 'edit'].map(function (k) {
+              return '<div class="sc-row"><span>' + U.esc(t('shortcut.' + k).split(' ').slice(1).join(' ')) + '</span>' +
+                '<button class="mini-btn sc-key" data-sc="' + k + '">' + U.esc(CC.app.getShortcuts()[k] || '') + '</button></div>';
             }).join('') +
-          '</div>') +
+            '<div class="sc-row"><span>' + U.esc(t('shortcut.nav').split(' ').slice(1).join(' ')) + '</span><kbd>' + U.esc(t('shortcut.fixed')) + '</kbd></div>' +
+          '</div>' +
+          '<button class="btn ghost sm" id="sc-reset">' + U.esc(t('shortcut.resetAll')) + '</button>') +
 
         section('set-about', 'info', t('settings.about'),
           '<p class="set-hint">' + U.esc(t('settings.aboutBody')) + '</p>' +
@@ -146,6 +167,27 @@
   }
 
   function bind(root) {
+    function activeProfile() {
+      var s = S.settings();
+      var list = s.aiProfiles || [];
+      return list.find(function (p) { return p.id === s.aiActiveId; }) || list[0] || null;
+    }
+    function syncAI(patch) {
+      var a = S.settings().ai;
+      Object.assign(a, patch);
+      var p = activeProfile();
+      if (p) Object.assign(p, patch);
+      S.saveSoon(); S.emit();
+    }
+    function newProfile(name) {
+      var s = S.settings();
+      if (!Array.isArray(s.aiProfiles)) s.aiProfiles = [];
+      var p = { id: U.uid('ai'), name: name, baseUrl: s.ai.baseUrl, model: s.ai.model, local: s.ai.local, preset: '' };
+      s.aiProfiles.push(p);
+      s.aiActiveId = p.id;
+      S.saveSoon();
+      return p;
+    }
     root.querySelectorAll('[data-lang]').forEach(function (b) {
       b.onclick = function () { CC.app.setLang(b.getAttribute('data-lang')); };
     });
@@ -159,7 +201,7 @@
       openai: { base: 'https://api.openai.com/v1', model: 'gpt-4o-mini', local: false },
       deepseek: { base: 'https://api.deepseek.com/v1', model: 'deepseek-chat', local: false },
       moonshot: { base: 'https://api.moonshot.cn/v1', model: 'moonshot-v1-8k', local: false },
-      zhipu: { base: 'https://open.bigmodel.cn/api/paas/v4', model: 'glm-4-flash', local: false },
+      zhipu: { base: 'https://open.bigmodel.cn/api/paas/v4', model: 'glm-4.6v-flash', local: false },
       bailian: { base: 'https://dashscope.aliyuncs.com/compatible-mode/v1', model: 'qwen-plus', local: false },
       openrouter: { base: 'https://openrouter.ai/api/v1', model: 'openai/gpt-4o-mini', local: false },
       ollama: { base: 'http://127.0.0.1:11434/v1', model: 'qwen2.5', local: true },
@@ -169,9 +211,9 @@
     if (preset) preset.onchange = function () {
       var p = PRESETS[preset.value];
       if (!p) return;
-      var a = S.settings().ai;
-      a.baseUrl = p.base; a.model = p.model; a.local = p.local;
-      S.saveSoon(); S.emit();
+      syncAI({ baseUrl: p.base, model: p.model, local: p.local });
+      var ap = activeProfile();
+      if (ap) { ap.preset = preset.value; S.saveSoon(); }
       mount(root);
     };
     var modelsBtn = root.querySelector('#ai-models');
@@ -183,7 +225,7 @@
         if (!r || !r.ok || !r.models || !r.models.length) { U.toast(t('settings.modelsFail'), 'bad'); return; }
         var rect = modelsBtn.getBoundingClientRect();
         U.showMenu(rect.left, rect.bottom + 4, r.models.slice(0, 80).map(function (id) {
-          return { label: id, onClick: function () { S.settings().ai.model = id; S.saveSoon(); S.emit(); mount(root); } };
+          return { label: id, onClick: function () { syncAI({ model: id }); mount(root); } };
         }));
       });
     };
@@ -191,24 +233,16 @@
     var base = root.querySelector('#ai-base');
     var model = root.querySelector('#ai-model');
     var local = root.querySelector('#ai-local');
-    if (base) base.onchange = function () {
-      S.settings().ai.baseUrl = base.value.trim();
-      S.saveSoon(); S.emit();
-    };
-    if (model) model.onchange = function () {
-      S.settings().ai.model = model.value.trim();
-      S.saveSoon(); S.emit();
-    };
-    if (local) local.onchange = function () {
-      S.settings().ai.local = local.checked;
-      S.saveSoon(); S.emit();
-    };
+    if (base) base.onchange = function () { syncAI({ baseUrl: base.value.trim() }); };
+    if (model) model.onchange = function () { syncAI({ model: model.value.trim() }); };
+    if (local) local.onchange = function () { syncAI({ local: local.checked }); };
 
     var keyInput = root.querySelector('#ai-key');
     if (keyInput) {
       var saveKey = U.debounce(function (value) {
         window.api.setKey(value).then(function (r) {
           S.settings().ai.hasKey = !!value;
+          if (CC.app.setKey) CC.app.setKey(value);
           S.saveSoon();
           CC.app.syncChrome();
           var st = document.getElementById('ai-key-status');
@@ -225,6 +259,7 @@
     if (kc) kc.onclick = function () {
       window.api.clearKey().then(function () {
         S.settings().ai.hasKey = false;
+        if (CC.app.setKey) CC.app.setKey('');
         S.saveSoon();
         if (keyInput) keyInput.value = '';
         CC.app.syncChrome();
@@ -246,6 +281,134 @@
       });
     };
 
+    /* ---- AI profiles ---- */
+    var profSel = root.querySelector('#ai-profile');
+    if (profSel) profSel.onchange = function () {
+      var s = S.settings();
+      s.aiActiveId = profSel.value;
+      var p = activeProfile();
+      if (p) Object.assign(s.ai, { baseUrl: p.baseUrl, model: p.model, local: p.local });
+      S.saveSoon(); S.emit();
+      mount(root);
+    };
+    var pn = root.querySelector('#ai-profile-new');
+    if (pn) pn.onclick = function () {
+      U.prompt(t('settings.aiProfileNew'), '', { placeholder: t('common.name') }).then(function (name) {
+        if (!name) return;
+        newProfile(String(name).trim());
+        mount(root);
+      });
+    };
+    var pr = root.querySelector('#ai-profile-rename');
+    if (pr) pr.onclick = function () {
+      var p = activeProfile();
+      if (!p) return;
+      U.prompt(t('settings.aiProfileRename'), p.name, { placeholder: t('common.name') }).then(function (name) {
+        if (!name) return;
+        p.name = String(name).trim();
+        S.saveSoon();
+        mount(root);
+      });
+    };
+    var pd = root.querySelector('#ai-profile-delete');
+    if (pd) pd.onclick = function () {
+      var s = S.settings();
+      if ((s.aiProfiles || []).length < 2) { U.toast(t('settings.aiProfileDeleteConfirm'), 'bad'); return; }
+      U.confirm(t('settings.aiProfileDelete'), t('settings.aiProfileDeleteConfirm'), { danger: true }).then(function (ok) {
+        if (!ok) return;
+        var list = s.aiProfiles;
+        var idx = list.findIndex(function (p) { return p.id === s.aiActiveId; });
+        if (idx < 0) return;
+        list.splice(idx, 1);
+        s.aiActiveId = list[0].id;
+        Object.assign(s.ai, { baseUrl: list[0].baseUrl, model: list[0].model, local: list[0].local });
+        S.saveSoon(); S.emit();
+        mount(root);
+      });
+    };
+
+    /* ---- libraries ---- */
+    function renderLibraries() {
+      var host = root.querySelector('#lib-list');
+      if (!host || !window.api || !window.api.listLibraries) return;
+      window.api.listLibraries().then(function (r) {
+        if (!r || !r.ok) { host.innerHTML = ''; return; }
+        host.innerHTML = r.items.map(function (l) {
+          var on = l.id === r.activeId;
+          return '<div class="lib-row' + (on ? ' active' : '') + '">' +
+            '<div class="lib-main"><strong>' + U.esc(l.name) + '</strong>' +
+              (on ? ' <span class="lib-badge">' + U.esc(t('settings.libraryActive')) + '</span>' : '') +
+              '<span class="lib-count">' + U.esc(t('settings.libraryCards', { n: l.cards || 0 })) + '</span></div>' +
+            '<div class="lib-acts">' +
+              (on ? '' : '<button class="mini-btn" data-lib-switch="' + U.esc(l.id) + '">' + U.esc(t('settings.librarySwitch')) + '</button>') +
+              '<button class="mini-btn" data-lib-rename="' + U.esc(l.id) + '">' + U.esc(t('settings.libraryRename')) + '</button>' +
+              (l.id === 'default' ? '' : '<button class="mini-btn danger" data-lib-delete="' + U.esc(l.id) + '">' + U.esc(t('settings.libraryDelete')) + '</button>') +
+            '</div></div>';
+        }).join('');
+        host.querySelectorAll('[data-lib-switch]').forEach(function (b) {
+          b.onclick = function () { CC.app.switchLibrary(b.getAttribute('data-lib-switch')); };
+        });
+        host.querySelectorAll('[data-lib-rename]').forEach(function (b) {
+          b.onclick = function () {
+            var id = b.getAttribute('data-lib-rename');
+            var item = (r.items || []).find(function (x) { return x.id === id; });
+            U.prompt(t('settings.libraryRename'), item ? item.name : '', { placeholder: t('common.name') }).then(function (name) {
+              if (!name || !window.api.renameLibrary) return;
+              window.api.renameLibrary({ id: id, name: String(name).trim() }).then(renderLibraries);
+            });
+          };
+        });
+        host.querySelectorAll('[data-lib-delete]').forEach(function (b) {
+          b.onclick = function () {
+            var id = b.getAttribute('data-lib-delete');
+            U.confirm(t('settings.libraryDelete'), t('settings.libraryDeleteConfirm'), { danger: true }).then(function (ok) {
+              if (!ok || !window.api.deleteLibrary) return;
+              window.api.deleteLibrary({ id: id }).then(function (res) {
+                if (res && res.switched) { location.reload(); return; }
+                renderLibraries();
+              });
+            });
+          };
+        });
+      });
+    }
+    renderLibraries();
+    var ln = root.querySelector('#lib-new');
+    if (ln) ln.onclick = function () {
+      U.prompt(t('settings.libraryNew'), '', { placeholder: t('common.name') }).then(function (name) {
+        if (!name || !window.api.createLibrary) return;
+        window.api.createLibrary({ name: String(name).trim() }).then(function (res) {
+          if (res && res.ok) renderLibraries();
+        });
+      });
+    };
+
+    /* ---- shortcut capture ---- */
+    function recordShortcut(action, btn) {
+      var old = btn.textContent;
+      btn.textContent = t('shortcut.recording');
+      btn.classList.add('recording');
+      function handler(ev) {
+        ev.preventDefault(); ev.stopPropagation();
+        window.removeEventListener('keydown', handler, true);
+        btn.classList.remove('recording');
+        if (ev.key === 'Escape') { btn.textContent = old; return; }
+        var token = CC.app.keyToken ? CC.app.keyToken(ev) : '';
+        if (!token) { btn.textContent = old; return; }
+        var conflict = null, sc = CC.app.getShortcuts();
+        Object.keys(sc).forEach(function (a) { if (a !== action && sc[a] === token) conflict = a; });
+        if (conflict) { U.toast(t('shortcut.conflict'), 'bad'); btn.textContent = old; return; }
+        CC.app.setShortcut(action, token);
+        btn.textContent = token;
+      }
+      window.addEventListener('keydown', handler, true);
+    }
+    root.querySelectorAll('[data-sc]').forEach(function (b) {
+      b.onclick = function () { recordShortcut(b.getAttribute('data-sc'), b); };
+    });
+    var sr = root.querySelector('#sc-reset');
+    if (sr) sr.onclick = function () { CC.app.resetShortcuts(); mount(root); };
+
     var reveal = root.querySelector('#reveal');
     if (reveal) reveal.onclick = function () { window.api.revealCorpus(); };
 
@@ -264,6 +427,8 @@
     if (bi) bi.onclick = function () { importBackup(); };
     var ifile = root.querySelector('#import-file');
     if (ifile) ifile.onclick = function () { CC.importer.open(); };
+    var ec = root.querySelector('#export-corpus');
+    if (ec) ec.onclick = function () { exportCorpus(); };
 
     function renderBackups() {
       var host = root.querySelector('#ab-list');
@@ -313,6 +478,42 @@
     };
   }
 
+  /* Export the whole corpus as one readable Markdown document: every map in
+     order, then the cards that are not on any map. No settings or keys. */
+  function exportCorpus() {
+    var db = S.state();
+    var lines = ['# ' + t('app.name') + ' · ' + t('settings.exportCorpus'), '',
+      '> ' + t('settings.exportCorpusHint'), ''];
+    var used = {};
+    (db.maps || []).forEach(function (m) {
+      var cs = S.mapCards(m);
+      if (!cs.length) return;
+      lines.push('## ' + m.name, '');
+      cs.forEach(function (c) { used[c.id] = 1; pushCorpusCard(lines, c); });
+      lines.push('');
+    });
+    var rest = S.cards().filter(function (c) { return !used[c.id]; });
+    if (rest.length) {
+      lines.push('## ' + t('settings.exportCorpusOrphans'), '');
+      rest.forEach(function (c) { pushCorpusCard(lines, c); });
+      lines.push('');
+    }
+    if (!window.api || !window.api.saveText) return;
+    window.api.saveText({ text: lines.join('\n'), suggested: 'corpus-all.md', ext: 'md' }).then(function (r) {
+      if (r && r.ok) U.toast(t('map.exportDone', { path: r.path }), 'ok');
+      else if (r && !r.canceled && r.error) U.toast(t('map.exportFail', { msg: r.error }), 'bad');
+    });
+  }
+
+  function pushCorpusCard(lines, c) {
+    lines.push('- **' + (c.title || t('common.untitled')) + '**');
+    if (c.body) String(c.body).split(/\r?\n/).forEach(function (l) { lines.push('    ' + l); });
+    if (c.summary) lines.push('    > ' + c.summary);
+    if (c.note) lines.push('    > ' + String(c.note).replace(/\r?\n/g, ' '));
+    if (c.category) lines.push('    · ' + c.category);
+    if ((c.tags || []).length) lines.push('    ' + c.tags.map(function (x) { return '#' + x; }).join(' '));
+  }
+
   function exportBackup() {
     var st = S.state();
     var payload = {
@@ -330,7 +531,10 @@
         settings: {
           lang: st.settings.lang,
           theme: st.settings.theme,
-          ai: { baseUrl: st.settings.ai.baseUrl, model: st.settings.ai.model, hasKey: false, local: st.settings.ai.local }
+          ai: { baseUrl: st.settings.ai.baseUrl, model: st.settings.ai.model, hasKey: false, local: st.settings.ai.local },
+          shortcuts: st.settings.shortcuts || {},
+          aiProfiles: st.settings.aiProfiles || [],
+          aiActiveId: st.settings.aiActiveId || ''
         }
       }
     };
@@ -393,6 +597,27 @@
       var added = 0, updated = 0;
       S.commit('restore', t('settings.backupImport'), function () {
         var db = S.state();
+        /* backups carry language/theme/AI preferences (never the key) */
+        if (data.settings) {
+          var set = S.settings();
+          if (data.settings.lang) set.lang = data.settings.lang;
+          if (data.settings.theme) set.theme = data.settings.theme;
+          var ai = data.settings.ai;
+          if (ai) {
+            if (ai.baseUrl) set.ai.baseUrl = ai.baseUrl;
+            if (ai.model) set.ai.model = ai.model;
+            if (typeof ai.local === 'boolean') set.ai.local = ai.local;
+          }
+          if (data.settings.shortcuts && typeof data.settings.shortcuts === 'object') {
+            set.shortcuts = Object.assign({}, data.settings.shortcuts);
+          }
+          if (Array.isArray(data.settings.aiProfiles) && data.settings.aiProfiles.length) {
+            set.aiProfiles = data.settings.aiProfiles.map(function (p) { return Object.assign({}, p); });
+            set.aiActiveId = data.settings.aiActiveId || set.aiProfiles[0].id;
+            var ap = set.aiProfiles.find(function (p) { return p.id === set.aiActiveId; });
+            if (ap) { set.ai.baseUrl = ap.baseUrl; set.ai.model = ap.model; set.ai.local = ap.local; }
+          }
+        }
         if (mode === 'replace') {
           db.cards = data.cards.map(function (c) { return Object.assign({ tags: [], langs: [], sources: [] }, c); });
           db.maps = data.maps || [];
@@ -420,6 +645,10 @@
         db.settings.lastMapId = db.maps[0] ? db.maps[0].id : null;
       });
       U.toast(t('settings.importDone', { added: added, updated: updated }), 'ok');
+      if (data.settings) {
+        if (data.settings.lang) { CC.i18n.setLang(data.settings.lang); CC.i18n.apply(document); }
+        if (data.settings.theme && CC.app.setTheme) CC.app.setTheme(data.settings.theme);
+      }
       CC.app.nav(CC.app.view());
     });
   }

@@ -155,8 +155,10 @@
 
       function onKey(e) {
         if (e.key === 'Escape') { e.stopPropagation(); close(null); }
-        if (e.key === 'Enter' && opts.enterOk !== false && e.target.tagName !== 'TEXTAREA') {
-          var primary = foot.querySelector('.btn.primary');
+        if (e.key === 'Enter' && opts.enterOk !== false && e.target.tagName !== 'TEXTAREA' &&
+            !(e.target.closest && e.target.closest('.modal-foot'))) {
+          /* danger confirms have no .primary, only a .danger OK button */
+          var primary = foot.querySelector('.btn.primary') || foot.querySelector('.btn.danger');
           if (primary) { e.preventDefault(); primary.click(); }
         }
       }
