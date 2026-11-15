@@ -1,0 +1,873 @@
+/* App shell: boot, routing, chrome, keyboard, flows */
+(function () {
+  'use strict';
+  var CC = window.CC = window.CC || {};
+  var U = CC.util, S = CC.store;
+  var t = function () { return window.t.apply(null, arguments); };
+
+  /* Browser preview mode: no Electron preload available. */
+  var PREVIEW = !window.api;
+  if (PREVIEW) {
+    var ls = window.localStorage;
+    window.api = {
+      info: function () { return Promise.resolve({ version: '1.0.0-preview', userDir: '', corpusPath: 'localStorage', platform: 'web', encrypted: false, dev: true }); },
+      loadCorpus: function () { try { return Promise.resolve(JSON.parse(ls.getItem('cc-corpus') || 'null')); } catch (e) { return Promise.resolve(null); } },
+      saveCorpus: function (d) { ls.setItem('cc-corpus', JSON.stringify(d)); return Promise.resolve({ ok: true }); },
+      revealCorpus: function () { return Promise.resolve({ ok: true }); },
+      getKey: function () { return Promise.resolve({ key: ls.getItem('cc-key') || '', encrypted: false }); },
+      setKey: function (k) { ls.setItem('cc-key', k || ''); return Promise.resolve({ ok: true }); },
+      clearKey: function () { ls.removeItem('cc-key'); return Promise.resolve({ ok: true }); },
+      exportBackup: function () { return Promise.resolve({ ok: false, canceled: true }); },
+      importBackup: function () { return Promise.resolve({ ok: false, canceled: true }); },
+      importDialog: function () { return Promise.resolve({ ok: false, canceled: true }); },
+      saveImage: function () { return Promise.resolve({ ok: false, canceled: true }); },
+      parseXmind: function () { return Promise.resolve({ ok: false, error: 'preview' }); },
+      chat: function () { return Promise.resolve({ ok: false, error: 'preview mode' }); },
+      smokeDone: function () { return Promise.resolve({ ok: true }); },
+      quit: function () { }
+    };
+  }
+
+  var st = { view: 'home', info: null, aiKey: '', lightTimer: null, ready: false };
+
+  function viewRoot() { return document.getElementById('view'); }
+
+  /* ------------------------------------------------------------------ */
+  /* boot                                                               */
+  /* ------------------------------------------------------------------ */
+
+  function boot() {
+    window.api.info().then(function (info) {
+      st.info = info;
+      return window.api.loadCorpus();
+    }).then(function (raw) {
+      S.init(raw, st.info);
+      return window.api.getKey();
+    }).then(function (k) {
+      st.aiKey = (k && k.key) || '';
+      S.settings().ai.hasKey = !!st.aiKey;
+      var s0 = S.settings();
+      var sysLang = CC.i18n.resolveSystem((st.info && st.info.locale) || (window.navigator && navigator.language) || 'en');
+      var bootLang = (s0.langAuto === false && s0.lang) ? s0.lang : sysLang;
+      s0.lang = bootLang;
+      CC.i18n.setLang(bootLang);
+      applyTheme(S.settings().theme || 'light');
+      CC.i18n.apply(document);
+      bindChrome();
+      S.onChange(onStoreChange);
+      st.ready = true;
+      var bootQ = new URLSearchParams(location.search);
+      var firstId = (bootQ.get('nofirst') === '1' || bootQ.get('demo') === '1') ? null : ensureFirstNode();
+      nav(S.resolveView(), { silent: true });
+      if (firstId) {
+        setTimeout(function () {
+          if (CC.graph && CC.graph.selectCard) CC.graph.selectCard(firstId);
+          openCard(firstId, { focusTitle: true });
+        }, 120);
+      }
+      syncChrome();
+      if (PREVIEW) applyPreviewQuery();
+      if (location.search.indexOf('smoke=1') >= 0) runSmoke();
+    }).catch(function (err) {
+      console.error(err);
+      U.alert('Error', U.esc(String(err && err.message || err)));
+    });
+  }
+
+  function applyPreviewQuery() {
+    var q = new URLSearchParams(location.search);
+    var lang = q.get('lang');
+    if (lang) { S.settings().lang = lang; CC.i18n.setLang(lang); }
+    var theme = q.get('theme');
+    if (theme) { S.settings().theme = theme; applyTheme(theme); }
+    if (q.get('demo') === '1' && !S.cards().length) CC.demo.load();
+    var v = q.get('view');
+    if (v) nav(v, { silent: true });
+    CC.i18n.apply(document);
+    syncChrome();
+    if (q.get('focus') === 'card' && S.cards().length) openCard(S.cards()[0].id);
+  }
+
+  /* A brand-new install opens on a map with one central topic, ready to rename. */
+  /* Every empty map gets one central topic: an empty canvas is never a useful start. */
+  function ensureFirstNode() {
+    var db = S.state();
+    var m = S.currentMap();
+    if (m && S.mapCards(m).length) {
+      db.meta = db.meta || {};
+      db.meta.onboarded = true;
+      return null;
+    }
+    var root = null;
+    S.commit('create', t('onboard.firstNode'), function () {
+      if (!m) m = S.newMap(t('common.untitledMap'), { silent: true });
+      root = S.newCard({ title: t('onboard.centerNode') }, true);
+      m.positions = m.positions || {};
+      m.positions[root.id] = { x: 0, y: 0 };
+      m.rev = (m.rev || 0) + 1;
+      m.updatedAt = Date.now();
+      S.settings().lastMapId = m.id;
+    });
+    db.meta = db.meta || {};
+    db.meta.onboarded = true;
+    S.settings().lastView = 'map';
+    S.saveSoon();
+    return root ? root.id : null;
+  }
+
+  function onStoreChange() {
+    clearTimeout(st.lightTimer);
+    st.lightTimer = setTimeout(refreshLight, 140);
+    syncChrome();
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* routing                                                            */
+  /* ------------------------------------------------------------------ */
+
+  var VIEWS = ['home', 'map', 'outline', 'cards', 'search', 'health', 'history', 'trash', 'help', 'settings'];
+
+  function nav(view, opts) {
+    opts = opts || {};
+    if (VIEWS.indexOf(view) < 0) view = 'home';
+    var prev = st.view;
+    st.view = view;
+    if (!opts.silent) {
+      S.settings().lastView = view;
+      S.saveSoon();
+    }
+    if (prev === 'map' && view !== 'map') CC.graph.unmount();
+    if (prev === 'outline' && view !== 'outline') CC.graph.resetState();
+
+    var root = viewRoot();
+    root.scrollTop = 0;
+    root.className = 'view view-' + view;
+
+    if (view === 'home') CC.views.home(root);
+    else if (view === 'map') { CC.graph.resetState(); CC.graph.mount(root); }
+    else if (view === 'outline') CC.views.outline(root);
+    else if (view === 'cards') CC.views.cards(root);
+    else if (view === 'search') CC.search.mount(root);
+    else if (view === 'health') CC.views.health(root);
+    else if (view === 'history') CC.views.history(root);
+    else if (view === 'trash') CC.views.trash(root);
+    else if (view === 'help') CC.help.mount(root, 'guide');
+    else if (view === 'settings') CC.settings.mount(root);
+
+    if (view !== 'map' && view !== 'cards' && view !== 'outline') CC.inspector.close();
+    syncChrome();
+  }
+
+  function view() { return st.view; }
+
+  function refreshLight() {
+    if (!st.ready) return;
+    if (st.view === 'map') { CC.graph.refresh(); return; }
+    var ae = document.activeElement;
+    if (ae && viewRoot() && viewRoot().contains(ae)) return;
+    if (st.view === 'cards' || st.view === 'outline' || st.view === 'health' || st.view === 'home') {
+      if (st.view === 'home') CC.views.home(viewRoot());
+      else if (st.view === 'cards') CC.views.cards(viewRoot());
+      else if (st.view === 'outline') CC.views.outline(viewRoot());
+      else CC.views.health(viewRoot());
+    }
+  }
+
+  function refreshView() {
+    nav(st.view, { silent: true });
+  }
+
+  function refreshInspector() {
+    if (CC.inspector.isOpen()) CC.inspector.refresh();
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* chrome                                                             */
+  /* ------------------------------------------------------------------ */
+
+  function bindChrome() {
+    document.querySelectorAll('[data-icon]').forEach(function (el) {
+      el.innerHTML = U.icon(el.getAttribute('data-icon'), 19);
+    });
+    document.querySelectorAll('[data-nav]').forEach(function (b) {
+      b.onclick = function () { nav(b.getAttribute('data-nav')); };
+    });
+    document.getElementById('brand').onclick = function () { nav('home'); };
+    document.getElementById('tb-search').onclick = function () { nav('search'); setTimeout(function () {
+      var q = document.getElementById('q');
+      if (q) { q.focus(); q.select(); }
+    }, 60); };
+    document.getElementById('tb-undo').onclick = function () { if (S.undo()) U.toast(t('history.undo'), 'ok'); };
+    document.getElementById('tb-redo').onclick = function () { if (S.redo()) U.toast(t('history.redo'), 'ok'); };
+    document.getElementById('tb-ai').onclick = function () { CC.ai.open('draft'); };
+    var helpBtn = document.getElementById('tb-help');
+    if (helpBtn) {
+      helpBtn.innerHTML = U.icon('help', 17);
+      helpBtn.title = t('nav.help');
+      helpBtn.onclick = function () { nav('help'); };
+    }
+    document.getElementById('tb-theme').onclick = function () {
+      var order = ['light', 'paper', 'dark', 'ink'];
+      var cur = S.settings().theme;
+      setTheme(order[(order.indexOf(cur) + 1) % order.length]);
+      U.toast(t('theme.' + S.settings().theme));
+    };
+    document.getElementById('rail-lang').onclick = function (e) {
+      var r = e.currentTarget.getBoundingClientRect();
+      U.showMenu(r.right + 8, r.top - 260, [{ label: t('lang.auto'), hint: S.settings().langAuto ? '✓' : '', onClick: function () { setLang('auto'); } }, { sep: true }].concat(CC.i18n.langs.map(function (l) {
+        return {
+          label: l.label,
+          hint: S.settings().lang === l.code ? '✓' : '',
+          onClick: function () { setLang(l.code); }
+        };
+      })));
+    };
+    document.getElementById('tb-undo').innerHTML = U.icon('undo', 17);
+    document.getElementById('tb-redo').innerHTML = U.icon('redo', 17);
+    document.getElementById('tb-theme').innerHTML = U.icon('palette', 17);
+    document.getElementById('tb-undo').title = t('history.undo');
+    document.getElementById('tb-redo').title = t('history.redo');
+    document.getElementById('drop-veil-text').textContent = t('import.dropHint');
+
+    window.addEventListener('keydown', onKey);
+    bindDragDrop();
+    window.addEventListener('beforeunload', function () { S.flush(); });
+  }
+
+  function syncChrome() {
+    var s = S.settings();
+    document.querySelectorAll('.rail-btn[data-nav]').forEach(function (b) {
+      var k = b.getAttribute('data-nav');
+      b.classList.toggle('active', k === st.view);
+      b.title = t('nav.' + k);
+    });
+    var undo = document.getElementById('tb-undo');
+    var redo = document.getElementById('tb-redo');
+    if (undo) undo.disabled = !S.canUndo();
+    if (redo) redo.disabled = !S.canRedo();
+
+    var aiPill = document.getElementById('tb-ai');
+    if (aiPill) aiPill.classList.toggle('off', !CC.ai.ready());
+
+    var lang = document.getElementById('lang-label');
+    var labels = { 'zh-CN': '简', 'zh-TW': '繁', en: 'EN', ja: '日', ko: 'KO', es: 'ES', fr: 'FR', de: 'DE' };
+    if (lang) lang.textContent = labels[s.lang] || String(s.lang || 'EN').toUpperCase();
+
+    var sp = document.getElementById('sp-text');
+    if (sp) sp.textContent = t('common.search') + '…';
+
+    buildCrumb();
+    renderTabs();
+  }
+
+  function renderTabs() {
+    var bar = document.getElementById('map-tabs');
+    if (!bar) return;
+    if (st.view !== 'map' && st.view !== 'outline') { bar.hidden = true; return; }
+    var maps = S.maps();
+    bar.hidden = false;
+    var active = S.currentMap();
+    bar.innerHTML = maps.map(function (m) {
+      var on = active && m.id === active.id;
+      return '<button class="map-tab' + (on ? ' active' : '') + '" data-map="' + m.id + '">' +
+        '<span class="mt-name">' + U.esc(m.name) + '</span>' +
+        (on ? '<span class="mt-close" data-close="' + m.id + '">' + U.icon('close', 10) + '</span>' : '') +
+        '</button>';
+    }).join('') +
+      '<button class="map-tab add" data-new="1">' + U.icon('plus', 13) + '</button>';
+
+    bar.querySelectorAll('[data-map]').forEach(function (b) {
+      b.onclick = function (e) {
+        if (e.target.closest('[data-close]')) return;
+        CC.app.goMap(b.getAttribute('data-map'));
+      };
+    });
+    bar.querySelectorAll('[data-close]').forEach(function (b) {
+      b.onclick = function (e) {
+        e.stopPropagation();
+        var m = S.map(b.getAttribute('data-close'));
+        if (m) CC.app.deleteMapFlow(m);
+      };
+    });
+    bar.querySelectorAll('.map-tab[data-map]').forEach(function (b) {
+      b.addEventListener('contextmenu', function (e) {
+        e.preventDefault();
+        var m = S.map(b.getAttribute('data-map'));
+        if (!m) return;
+        U.showMenu(e.clientX, e.clientY, [
+          { label: t('map.rename'), onClick: function () { CC.app.renameMapFlow(m); } },
+          { label: t('map.duplicate'), onClick: function () { CC.app.duplicateMap(m); } },
+          { label: t('map.template'), onClick: function () { CC.app.saveTemplate(m); } },
+          { sep: true },
+          { label: t('map.delete'), danger: true, onClick: function () { CC.app.deleteMapFlow(m); } }
+        ]);
+      });
+    });
+    var add = bar.querySelector('[data-new]');
+    if (add) add.onclick = function () { CC.app.newMapFlow(); };
+  }
+
+  function buildCrumb() {
+    var el = document.getElementById('crumb');
+    if (!el) return;
+    var mapName = S.currentMap() ? S.currentMap().name : '';
+    var titles = {
+      home: t('nav.home'), map: t('nav.map'), outline: t('nav.outline'), cards: t('nav.cards'),
+      search: t('nav.search'), health: t('nav.health'), history: t('nav.history'),
+      trash: t('nav.trash'), settings: t('nav.settings')
+    };
+    var html = '<span class="crumb-view">' + U.esc(titles[st.view] || '') + '</span>';
+    if (st.view === 'map' || st.view === 'outline') {
+      html += '<span class="crumb-meta">' + U.esc(mapName || t('common.untitledMap')) + '</span>' +
+        (st.view === 'map' ? '<span class="crumb-hint">' + U.esc(t('map.nodeCount', { n: S.mapCards(S.currentMap() || { id: 'x', edges: [], positions: {}, rev: 0 }).length })) + '</span>' : '');
+    } else if (st.view === 'cards') {
+      html += '<span class="crumb-meta">' + S.cards().length + '</span>';
+    } else if (st.view === 'health') {
+      html += '<span class="crumb-meta">' + t('nav.health') + '</span>';
+    }
+    el.innerHTML = html;
+
+    var picker = document.getElementById('map-picker');
+    if (picker) picker.onclick = function () {
+      var r = picker.getBoundingClientRect();
+      var items = S.maps().map(function (m) {
+        return {
+          label: m.name,
+          hint: m.id === S.settings().lastMapId ? '✓' : String(S.mapCards(m).length),
+          onClick: function () { goMap(m.id); }
+        };
+      });
+      items.push({ sep: true });
+      items.push({ label: t('map.new'), icon: '＋', onClick: function () { newMapFlow(); } });
+      if (S.state().templates.length) {
+        items.push({
+          label: t('map.fromTemplate'), icon: '▤', onClick: function () {
+            U.showMenu(r.left, r.bottom + 8, S.state().templates.map(function (tpl) {
+              return { label: tpl.name, onClick: function () { applyTemplate(tpl); } };
+            }));
+          }
+        });
+      }
+      if (S.currentMap()) {
+        items.push({ sep: true });
+        items.push({ label: t('map.rename'), onClick: function () { renameMapFlow(S.currentMap()); } });
+        items.push({ label: t('map.duplicate'), onClick: function () { duplicateMap(S.currentMap()); } });
+        items.push({ label: t('map.delete'), danger: true, onClick: function () { deleteMapFlow(S.currentMap()); } });
+      }
+      U.showMenu(r.left, r.bottom + 6, items);
+    };
+    var add = document.getElementById('map-add');
+    if (add) add.onclick = function () { newMapFlow(); };
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* settings                                                           */
+  /* ------------------------------------------------------------------ */
+
+  function setLang(code) {
+    if (code === 'auto') {
+      S.settings().langAuto = true;
+      code = CC.i18n.resolveSystem((st.info && st.info.locale) || (window.navigator && navigator.language) || 'en');
+    } else {
+      S.settings().langAuto = false;
+    }
+    S.settings().lang = code;
+    CC.i18n.setLang(code);
+    CC.i18n.apply(document);
+    S.saveSoon();
+    nav(st.view, { silent: true });
+    if (CC.inspector.isOpen()) CC.inspector.refresh();
+    syncChrome();
+  }
+
+  function setTheme(name) {
+    S.settings().theme = name;
+    applyTheme(name);
+    S.saveSoon();
+    syncChrome();
+    if (st.view === 'settings') CC.settings.mount(viewRoot());
+  }
+
+  function applyTheme(name) {
+    document.documentElement.setAttribute('data-theme', name);
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* flows                                                              */
+  /* ------------------------------------------------------------------ */
+
+  function quickNewCard() {
+    var c = null;
+    S.commit('create', t('cards.new'), function () { c = S.newCard({ title: '' }, true); });
+    openCard(c.id, { focusTitle: true });
+    U.toast(t('cards.new'), 'ok');
+  }
+
+  function openCard(id, opts) {
+    if (st.view !== 'map' && st.view !== 'cards' && st.view !== 'outline') {
+      nav('cards');
+    }
+    if (st.view === 'map') CC.graph.selectCard(id);
+    CC.inspector.open(id, opts || {});
+  }
+
+  function newMapFlow(name) {
+    return new Promise(function (resolve) {
+      var go = function (n) {
+        var m = S.newMap(n || t('common.untitledMap'), { silent: true });
+        S.commit('map', t('map.new'), function () {
+          if (!S.mapCards(m).length) {
+            var c = S.newCard({ title: t('onboard.centerNode') }, true);
+            m.positions = m.positions || {};
+            m.positions[c.id] = { x: 0, y: 0 };
+            m.updatedAt = Date.now();
+          }
+        });
+        nav('map');
+        resolve(m);
+      };
+      if (name) return go(name);
+      U.prompt(t('map.new'), '', { placeholder: t('map.newPrompt') }).then(function (v) {
+        if (!v) return resolve(null);
+        go(v);
+      });
+    });
+  }
+
+  function renameMapFlow(m) {
+    U.prompt(t('map.rename'), m.name).then(function (v) {
+      if (!v) return;
+      S.commit('map', t('map.rename'), function () { m.name = v; m.updatedAt = Date.now(); });
+    });
+  }
+
+  function duplicateMap(m) {
+    S.commit('map', t('map.duplicate'), function () {
+      var copy = JSON.parse(JSON.stringify(m));
+      copy.id = U.uid('m');
+      copy.name = m.name + ' · 2';
+      copy.createdAt = Date.now(); copy.updatedAt = Date.now();
+      copy.edges = copy.edges.map(function (e) { return Object.assign({}, e, { id: U.uid('e') }); });
+      S.state().maps.unshift(copy);
+      S.settings().lastMapId = copy.id;
+    });
+    nav('map', { silent: true });
+    CC.graph.refresh();
+  }
+
+  function deleteMapFlow(m) {
+    U.confirm(t('map.delete'), t('map.deleteConfirm', { name: m.name }), { danger: true }).then(function (ok) {
+      if (!ok) return;
+      S.commit('map', t('map.delete'), function () { S.deleteMap(m.id); });
+      nav('map', { silent: true });
+      CC.graph.refresh();
+      syncChrome();
+    });
+  }
+
+  function goMap(mapId, cardId) {
+    if (mapId) S.settings().lastMapId = mapId;
+    nav('map');
+    if (cardId) {
+      setTimeout(function () {
+        CC.graph.selectCard(cardId);
+        CC.graph.centerOn(cardId);
+        CC.inspector.open(cardId);
+      }, 80);
+    }
+  }
+
+  function locateCard(id) {
+    var maps = S.mapsOfCard(id);
+    if (!maps.length) { U.toast(t('cards.reverseNone')); return; }
+    goMap(maps[0].id, id);
+  }
+
+  function deleteCardFlow(id) {
+    var c = S.card(id);
+    if (!c) return;
+    U.confirm(t('cards.delete'), t('cards.deleteConfirm', { name: S.cardTitle(c) }), { danger: true }).then(function (ok) {
+      if (!ok) return;
+      S.commit('delete', t('cards.delete'), function () { S.trashCard(id); });
+      if (CC.inspector.currentCardId() === id) CC.inspector.close();
+      U.toast(t('cards.delete'), 'ok');
+    });
+  }
+
+  function mergeFlow(a, b) {
+    var ca = S.card(a), cb = S.card(b);
+    if (!ca || !cb) return;
+    U.confirm(t('common.merge'), t('cards.mergeConfirm', { a: S.cardTitle(ca), b: S.cardTitle(cb) })).then(function (ok) {
+      if (!ok) return;
+      S.commit('merge', t('common.merge'), function () { S.mergeCards(a, b); });
+      U.toast(t('cards.mergeDone'), 'ok');
+      if (CC.inspector.currentCardId() === a) CC.inspector.open(b);
+      refreshLight();
+    });
+  }
+
+  function createMapFromCards(ids, name) {
+    if (!ids.length) return;
+    var m = null;
+    S.commit('create', t('map.newFromSelection'), function () {
+      m = S.newMap((name || t('map.newFromSelection')).slice(0, 40));
+      ids.forEach(function (id, i) {
+        m.positions[id] = { x: (i % 4) * 250, y: Math.floor(i / 4) * 130 };
+        S.addCardToMap(m, id);
+      });
+    });
+    U.toast(t('search.mapCreated', { name: m.name }), 'ok');
+    goMap(m.id);
+  }
+
+  function outlineAddChild(m, parentId) {
+    var c = null;
+    S.commit('create', t('outline.addChild'), function () {
+      c = S.newCard({ title: '' }, true);
+      m.positions[c.id] = { x: 0, y: 0 };
+      m.edges.push({ id: U.uid('e'), from: parentId, to: c.id, type: 'hierarchy', color: '', label: '', uncertain: false });
+      if (m.collapsed.indexOf(parentId) >= 0) m.collapsed = m.collapsed.filter(function (x) { return x !== parentId; });
+    });
+    setTimeout(function () {
+      var rows = document.querySelectorAll('.ol-row[data-id="' + c.id + '"] .ol-title');
+      if (rows[0]) { rows[0].focus(); rows[0].select(); }
+    }, 60);
+    refreshLight();
+  }
+
+  function outlineAddSibling(m, id) {
+    var pid = S.parentOf(m, id);
+    if (!pid) { outlineAddChild(m, id); return; }
+    var c = null;
+    S.commit('create', t('outline.addSibling'), function () {
+      c = S.newCard({ title: '' }, true);
+      m.positions[c.id] = { x: 0, y: 0 };
+      m.edges.push({ id: U.uid('e'), from: pid, to: c.id, type: 'hierarchy', color: '', label: '', uncertain: false });
+    });
+    setTimeout(function () {
+      var input = document.querySelector('.ol-row[data-id="' + c.id + '"] .ol-title');
+      if (input) { input.focus(); input.select(); }
+    }, 60);
+    refreshLight();
+  }
+
+  function searchTag(tag, field) {
+    CC.search.setTag(tag, field);
+    nav('search');
+  }
+
+  function pickCard(title) {
+    return new Promise(function (resolve) {
+      var wrap = document.createElement('div');
+      wrap.className = 'pick-panel';
+      var cards = S.cards();
+      wrap.innerHTML =
+        '<input class="input" id="pick-q" placeholder="' + U.esc(t('common.search')) + '" autofocus>' +
+        '<div class="pick-list" id="pick-list"></div>';
+      var picked = null;
+      var modal = U.openModal({
+        title: title || t('common.select'),
+        body: wrap,
+        actions: [
+          { id: 'cancel', label: t('common.cancel'), ghost: true },
+          { id: 'ok', label: t('common.ok'), primary: true, onClick: function () { return picked || false; } }
+        ]
+      }).then(function (r) { resolve(typeof r === 'string' ? r : null); });
+
+      function draw(q) {
+        var list = cards.filter(function (c) {
+          if (!q) return true;
+          return ((c.title || '') + ' ' + (c.body || '') + ' ' + (c.tags || []).join(' ')).toLowerCase().indexOf(q.toLowerCase()) >= 0;
+        }).slice(0, 100);
+        var host = wrap.querySelector('#pick-list');
+        host.innerHTML = list.map(function (c) {
+          return '<button class="pick-row' + (picked === c.id ? ' active' : '') + '" data-pick="' + c.id + '">' +
+            '<span class="pr-title">' + U.esc(c.title || t('common.untitled')) + '</span>' +
+            '<span class="pr-meta">' + U.esc((c.tags || []).join(' ')) + '</span></button>';
+        }).join('') || '<div class="mini-empty pad">' + U.esc(t('common.noResults')) + '</div>';
+        host.querySelectorAll('[data-pick]').forEach(function (b) {
+          b.onclick = function () {
+            picked = b.getAttribute('data-pick');
+            draw(q);
+          };
+        });
+      }
+      var qi = wrap.querySelector('#pick-q');
+      qi.oninput = function () { draw(qi.value); };
+      qi.onkeydown = function (e) {
+        if (e.key === 'Enter') {
+          if (!picked) {
+            var first = wrap.querySelector('[data-pick]');
+            if (first) picked = first.getAttribute('data-pick');
+          }
+          if (picked) {
+            var ov = Array.prototype.slice.call(document.querySelectorAll('.overlay')).pop();
+            var okBtn = ov && ov.querySelector('.modal-foot .btn.primary');
+            if (okBtn) okBtn.click();
+          }
+        }
+      };
+      draw('');
+    });
+  }
+
+  function startLinkFrom(id) {
+    if (st.view !== 'map') nav('map');
+    setTimeout(function () {
+      CC.graph.beginLink(id);
+      U.toast(t('map.connectHint'));
+    }, 80);
+  }
+
+  function saveTemplate(m) {
+    U.prompt(t('map.template'), m.name, { placeholder: t('common.name') }).then(function (name) {
+      if (!name) return;
+      var cards = S.mapCards(m);
+      var payload = {
+        name: name,
+        cards: cards.map(function (c) {
+          return { title: c.title, body: c.body, note: c.note, tags: c.tags, langs: c.langs };
+        }),
+        edges: m.edges.filter(function (e) {
+          return cards.some(function (c) { return c.id === e.from; }) && cards.some(function (c) { return c.id === e.to; });
+        }).map(function (e) {
+          return {
+            from: cards.findIndex(function (c) { return c.id === e.from; }),
+            to: cards.findIndex(function (c) { return c.id === e.to; }),
+            type: e.type, label: e.label, color: e.color, uncertain: e.uncertain
+          };
+        }),
+        structure: m.structure
+      };
+      S.commit('template', t('map.template'), function () {
+        S.state().templates.unshift({ id: U.uid('tpl'), name: name, at: Date.now(), payload: payload });
+      });
+      U.toast(t('map.templateSaved', { name: name }), 'ok');
+    });
+  }
+
+  function applyTemplate(tpl) {
+    var p = tpl.payload;
+    var m = null;
+    S.commit('create', t('map.fromTemplate'), function () {
+      m = S.newMap(tpl.name, { structure: p.structure || 'tree' });
+      var ids = p.cards.map(function (c) {
+        var card = S.newCard({ title: c.title, body: c.body, note: c.note, tags: c.tags, langs: c.langs }, true);
+        m.positions[card.id] = { x: 0, y: 0 };
+        S.addCardToMap(m, card.id);
+        return card.id;
+      });
+      p.edges.forEach(function (e) {
+        if (ids[e.from] && ids[e.to]) {
+          m.edges.push({ id: U.uid('e'), from: ids[e.from], to: ids[e.to], type: e.type, label: e.label, color: e.color, uncertain: e.uncertain });
+        }
+      });
+    });
+    U.toast(t('map.templateSaved', { name: tpl.name }), 'ok');
+    goMap(m.id);
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* keyboard + drop                                                    */
+  /* ------------------------------------------------------------------ */
+
+  function onKey(e) {
+    var tag = (e.target && e.target.tagName) || '';
+    var typing = /INPUT|TEXTAREA|SELECT/.test(tag) || (e.target && e.target.isContentEditable);
+    var mod = e.ctrlKey || e.metaKey;
+
+    if (mod && (e.key === 'k' || e.key === 'K')) { e.preventDefault(); nav('search'); setTimeout(function () { var q = document.getElementById('q'); if (q) q.focus(); }, 50); return; }
+    if (mod && (e.key === 's' || e.key === 'S')) {
+      e.preventDefault();
+      S.flush().then(function () { U.toast(t('common.saved'), 'ok'); });
+      return;
+    }
+    if (mod && (e.key === 'z' || e.key === 'Z')) {
+      e.preventDefault();
+      if (e.shiftKey) { if (S.redo()) U.toast(t('history.redo'), 'ok'); }
+      else if (S.undo()) U.toast(t('history.undo'), 'ok');
+      return;
+    }
+    if (mod && (e.key === 'n' || e.key === 'N')) { e.preventDefault(); quickNewCard(); return; }
+    if (e.key === 'F11') {
+      e.preventDefault();
+      if (window.api && window.api.toggleFullScreen) window.api.toggleFullScreen();
+      return;
+    }
+    if (mod) return;
+
+    if (typing) {
+      if (e.key === 'Escape' && e.target.blur) e.target.blur();
+      return;
+    }
+    if (document.querySelector('.overlay')) return;
+
+    if (e.key === 'Escape') {
+      if (CC.inspector.isOpen()) { CC.inspector.close(); return; }
+      U.closeMenus();
+      return;
+    }
+    if (e.key === 'n' || e.key === 'N') { e.preventDefault(); quickNewCard(); return; }
+    if (/^[1-9]$/.test(e.key)) {
+      var target = VIEWS[Number(e.key) - 1];
+      if (target) { e.preventDefault(); nav(target); }
+      return;
+    }
+    if (st.view === 'map') {
+      if (e.key === 'f' || e.key === 'F') { CC.graph.toggleFocus(); return; }
+      if (e.key === 'g' || e.key === 'G') { CC.graph.zoomFit(); return; }
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        var sel = CC.graph.selection();
+        if (sel.length === 1) { e.preventDefault(); deleteCardFlow(sel[0]); }
+        else if (sel.length > 1) {
+          e.preventDefault();
+          U.confirm(t('cards.delete'), t('cards.batchHint', { n: sel.length }), { danger: true }).then(function (ok) {
+            if (!ok) return;
+            S.commit('delete', t('cards.delete'), function () { sel.forEach(function (id) { S.trashCard(id); }); });
+          });
+        }
+        return;
+      }
+      if (e.key === 'Enter' && CC.graph.selection().length === 1) {
+        e.preventDefault();
+        openCard(CC.graph.selection()[0], { focusTitle: true });
+        return;
+      }
+    }
+  }
+
+  function bindDragDrop() {
+    var veil = document.getElementById('drop-veil');
+    var depth = 0;
+    window.addEventListener('dragenter', function (e) {
+      if (!e.dataTransfer || Array.prototype.indexOf.call(e.dataTransfer.types || [], 'Files') < 0) return;
+      depth++;
+      veil.classList.add('on');
+    });
+    window.addEventListener('dragover', function (e) { e.preventDefault(); });
+    window.addEventListener('dragleave', function () {
+      depth = Math.max(0, depth - 1);
+      if (!depth) veil.classList.remove('on');
+    });
+    window.addEventListener('drop', function (e) {
+      e.preventDefault();
+      depth = 0;
+      veil.classList.remove('on');
+      var files = Array.prototype.slice.call(e.dataTransfer.files || []);
+      if (!files.length) return;
+      CC.importer.importFileObject(files[0]);
+    });
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* smoke test                                                         */
+  /* ------------------------------------------------------------------ */
+
+  function runSmoke() {
+    var errors = [];
+    var steps = [];
+
+    function step(name, fn) {
+      try { var r = fn(); steps.push({ name: name, ok: true, info: r || '' }); }
+      catch (e) { steps.push({ name: name, ok: false, info: String(e && e.stack || e) }); errors.push(name + ': ' + (e && e.message)); }
+    }
+
+    step('modules', function () {
+      return ['store', 'layout', 'graph', 'views', 'search', 'settings', 'ai', 'importer', 'inspector'].filter(function (k) { return !CC[k]; }).join(',');
+    });
+
+    step('create-card', function () {
+      var c = S.newCard({ title: 'smoke card', body: 'hello world 测试' }, true);
+      S.saveSoon();
+      return c.id;
+    });
+
+    step('create-map', function () {
+      var m = S.newMap('smoke map', { silent: true });
+      var cs = S.cards();
+      m.positions[cs[0].id] = { x: 0, y: 0 };
+      if (cs[1]) {
+        m.positions[cs[1].id] = { x: 100, y: 100 };
+        m.edges.push({ id: U.uid('e'), from: cs[0].id, to: cs[1].id, type: 'hierarchy' });
+      }
+      S.settings().lastMapId = m.id;
+      return m.id;
+    });
+
+    step('layout', function () {
+      var m = S.currentMap();
+      var model = CC.layout.compute(m, {});
+      return Object.keys(model.nodes).length + ' nodes';
+    });
+
+    step('health', function () { return JSON.stringify(S.health()).length; });
+    step('duplicates', function () { return S.similarTo(S.cards()[0]).length; });
+
+    step('views', function () {
+      var out = [];
+      VIEWS.forEach(function (v) {
+        nav(v, { silent: true });
+        out.push(v);
+      });
+      nav('map', { silent: true });
+      return out.join(',');
+    });
+
+    step('search', function () {
+      CC.search.setQuery('hello');
+      nav('search', { silent: true });
+      return document.querySelectorAll('.result-row').length;
+    });
+
+    step('i18n-keys', function () {
+      var missing = [];
+      Object.keys(CC.i18n.dicts).forEach(function (lang) {
+        var d = CC.i18n.dicts[lang];
+        var base = CC.i18n.dicts['zh-CN'];
+        Object.keys(base).forEach(function (k) { if (!d[k]) missing.push(lang + ':' + k); });
+      });
+      return missing.length ? missing.slice(0, 20).join(',') : 'all present';
+    });
+
+    step('persist', function () { return 'ok'; });
+
+    window.addEventListener('error', function (e) {
+      errors.push('runtime: ' + e.message);
+    });
+
+    setTimeout(function () {
+      window.api.smokeDone({
+        ok: errors.length === 0 && steps.every(function (s) { return s.ok; }),
+        errors: errors,
+        steps: steps,
+        cards: S.cards().length,
+        maps: S.maps().length
+      });
+    }, 500);
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* public                                                             */
+  /* ------------------------------------------------------------------ */
+
+  CC.app = {
+    nav: nav, view: view, goMap: goMap, openCard: openCard, locateCard: locateCard,
+    newMapFlow: newMapFlow, renameMapFlow: renameMapFlow, duplicateMap: duplicateMap,
+    deleteMapFlow: deleteMapFlow, saveTemplate: saveTemplate, applyTemplate: applyTemplate,
+    createMapFromCards: createMapFromCards, mergeFlow: mergeFlow, deleteCardFlow: deleteCardFlow,
+    quickNewCard: quickNewCard, outlineAddChild: outlineAddChild, outlineAddSibling: outlineAddSibling,
+    searchTag: searchTag, pickCard: pickCard, startLinkFrom: startLinkFrom,
+    openAI: function (k) { CC.ai.open(k); }, openReviewPanel: function () { CC.ai.openReviewPanel(); },
+    setLang: setLang, setTheme: setTheme, syncChrome: syncChrome, info: function () { return st.info; },
+    getKey: function () { return st.aiKey; },
+    refreshLight: refreshLight, refreshView: refreshView, refreshInspector: refreshInspector,
+    ensureFirstNode: ensureFirstNode,
+    onSelectionChange: function (sel) {
+      if (sel && sel.length === 1) CC.inspector.open(sel[0]);
+      else CC.inspector.close();
+    },
+    runSmoke: runSmoke
+  };
+
+  document.addEventListener('DOMContentLoaded', boot);
+})();

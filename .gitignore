@@ -1,0 +1,17 @@
+node_modules/
+dist/
+versions/
+mini/
+.smoke*/
+*.log
+test/shot-*.png
+test/out.txt
+test/result.json
+test/ai.txt
+test/scale.txt
+test/dom-map.html
+tools/i18n-cache.json
+patch*.py
+FEATURE-BACKLOG.md
+
+.workbuddy/

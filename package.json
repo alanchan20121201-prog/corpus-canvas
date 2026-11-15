@@ -1,0 +1,60 @@
+{
+  "name": "corpus-canvas",
+  "productName": "CorpusCanvas",
+  "version": "1.1.5",
+  "description": "Corpus Canvas - one corpus, many maps",
+  "main": "electron/main.js",
+  "author": "CorpusCanvas",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "test": "node test/headless.js",
+    "test:ai": "node test/ai-test.js",
+    "test:scale": "node test/scale.js 30000",
+    "build:win": "electron-builder --win portable -c.win.signAndEditExecutable=false",
+    "dist": "electron-builder --win portable -c.win.signAndEditExecutable=false"
+  },
+  "devDependencies": {
+    "electron": "33.4.11",
+    "electron-builder": "25.1.8",
+    "jsdom": "^31.0.1"
+  },
+  "build": {
+    "appId": "com.corpuscanvas.app",
+    "productName": "CorpusCanvas",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "electron/**/*",
+      "src/**/*",
+      "build/icon.ico",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.ico"
+    },
+    "portable": {
+      "artifactName": "CorpusCanvas-Portable-${version}.exe"
+    },
+    "afterPack": "build/afterpack.js",
+    "nsis": {
+      "installerIcon": "build/icon.ico",
+      "installerHeaderIcon": "build/icon.ico"
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/alanchan20121201-prog/corpus-canvas.git"
+  }
+}
