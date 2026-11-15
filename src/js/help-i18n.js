@@ -34,7 +34,7 @@
       { id: 'setup', title: 'Set it up', html:
         '<p>1. Create an API key in the provider console. 2. Copy its Base URL and model id. 3. Paste address, model and key in Settings → AI, then press Test connection.</p>' },
       { id: 'providers', title: 'Common providers', html:
-        '<p><b>OpenAI</b> <code>https://api.openai.com/v1</code> · <b>DeepSeek</b> <code>https://api.deepseek.com/v1</code> · <b>Moonshot</b> <code>https://api.moonshot.cn/v1</code> · <b>Ollama</b> <code>http://127.0.0.1:11434/v1</code> (no key, tick local model).</p>' +
+        '<p>The Base URL is for the app, not a website to open. Use the official sites below.</p><p><b>OpenAI</b> <code>https://api.openai.com/v1</code> · <b>DeepSeek</b> <code>https://api.deepseek.com/v1</code> · <b>Moonshot</b> <code>https://api.moonshot.cn/v1</code> · <b>Ollama</b> <code>http://127.0.0.1:11434/v1</code> (no key, tick local model).</p>' +
         '<p>Official sites: OpenAI <code>https://openai.com</code> · DeepSeek <code>https://www.deepseek.com</code> · Moonshot <code>https://www.moonshot.cn</code> · Zhipu <code>https://www.zhipuai.cn</code> · Alibaba Bailian <code>https://www.aliyun.com/product/bailian</code> · OpenRouter <code>https://openrouter.ai</code> · Ollama <code>https://ollama.com</code> · LM Studio <code>https://lmstudio.ai</code>.</p>' +
         '<p class="help-warn">Use only these official domains. Mirror or top-up sites found in search may be impostors; check the domain before pasting a key.</p>' },
       { id: 'errors', title: 'Errors and cost', html:
@@ -74,7 +74,7 @@
         '<p>1. 事業者のコンソールで API キーを作成。2. Base URL とモデル名を控える。3. 設定 → AI に3つを貼り、「接続テスト」を押す。</p>' },
       { id: 'providers', title: '主なサービス', html:
         '<p><b>OpenAI</b> <code>https://api.openai.com/v1</code> · <b>DeepSeek</b> <code>https://api.deepseek.com/v1</code> · <b>Moonshot</b> <code>https://api.moonshot.cn/v1</code> · <b>Ollama</b> <code>http://127.0.0.1:11434/v1</code>（キー不要・ローカルモデルにチェック）。</p>' +
-        '<p>公式サイト：OpenAI <code>https://openai.com</code> · DeepSeek <code>https://www.deepseek.com</code> · Moonshot <code>https://www.moonshot.cn</code> · Zhipu <code>https://www.zhipuai.cn</code> · Alibaba Bailian <code>https://www.aliyun.com/product/bailian</code> · OpenRouter <code>https://openrouter.ai</code> · Ollama <code>https://ollama.com</code> · LM Studio <code>https://lmstudio.ai</code>。</p>' +
+        '<p>Base URL はアプリ用で、ウェブサイトではありません。下の公式サイトを開いてください。</p><p>公式サイト：OpenAI <code>https://openai.com</code> · DeepSeek <code>https://www.deepseek.com</code> · Moonshot <code>https://www.moonshot.cn</code> · Zhipu <code>https://www.zhipuai.cn</code> · Alibaba Bailian <code>https://www.aliyun.com/product/bailian</code> · OpenRouter <code>https://openrouter.ai</code> · Ollama <code>https://ollama.com</code> · LM Studio <code>https://lmstudio.ai</code>。</p>' +
         '<p class="help-warn">上記の公式ドメインだけを使ってください。検索で出るミラーや代行チャージは偽サイトの可能性があります。キーを貼る前にドメインを確認してください。</p>' },
       { id: 'errors', title: 'エラーと費用', html:
         '<p>401 キー、404 アドレス、429 枠、タイムアウト、接続不可。自動再試行はしません。</p>' +
@@ -113,7 +113,7 @@
         '<p>1. Crea una clave en la consola del proveedor. 2. Copia su Base URL y el modelo. 3. Pega los tres en Ajustes → IA y pulsa Probar conexión.</p>' },
       { id: 'providers', title: 'Proveedores habituales', html:
         '<p><b>OpenAI</b> <code>https://api.openai.com/v1</code> · <b>DeepSeek</b> <code>https://api.deepseek.com/v1</code> · <b>Moonshot</b> <code>https://api.moonshot.cn/v1</code> · <b>Ollama</b> <code>http://127.0.0.1:11434/v1</code> (sin clave, marca modelo local).</p>' +
-        '<p>Sitios oficiales: OpenAI <code>https://openai.com</code> · DeepSeek <code>https://www.deepseek.com</code> · Moonshot <code>https://www.moonshot.cn</code> · Zhipu <code>https://www.zhipuai.cn</code> · Alibaba Bailian <code>https://www.aliyun.com/product/bailian</code> · OpenRouter <code>https://openrouter.ai</code> · Ollama <code>https://ollama.com</code> · LM Studio <code>https://lmstudio.ai</code>.</p>' +
+        '<p>La Base URL es para la app, no un sitio web. Abre los sitios oficiales de abajo.</p><p>Sitios oficiales: OpenAI <code>https://openai.com</code> · DeepSeek <code>https://www.deepseek.com</code> · Moonshot <code>https://www.moonshot.cn</code> · Zhipu <code>https://www.zhipuai.cn</code> · Alibaba Bailian <code>https://www.aliyun.com/product/bailian</code> · OpenRouter <code>https://openrouter.ai</code> · Ollama <code>https://ollama.com</code> · LM Studio <code>https://lmstudio.ai</code>.</p>' +
         '<p class="help-warn">Usa solo estos dominios oficiales. Los sitios espejo o de recarga que aparecen en búsquedas pueden ser falsos; comprueba el dominio antes de pegar una clave.</p>' },
       { id: 'errors', title: 'Errores y coste', html:
         '<p>401 clave, 404 dirección, 429 cuota, tiempo agotado, sin conexión. No hay reintentos silenciosos.</p>' +
@@ -152,7 +152,7 @@
         '<p>1. Créez une clé dans la console du fournisseur. 2. Copiez l’URL de base et le modèle. 3. Collez les trois dans Réglages → IA, puis Testez la connexion.</p>' },
       { id: 'providers', title: 'Fournisseurs courants', html:
         '<p><b>OpenAI</b> <code>https://api.openai.com/v1</code> · <b>DeepSeek</b> <code>https://api.deepseek.com/v1</code> · <b>Moonshot</b> <code>https://api.moonshot.cn/v1</code> · <b>Ollama</b> <code>http://127.0.0.1:11434/v1</code> (sans clé, cochez modèle local).</p>' +
-        '<p>Sites officiels : OpenAI <code>https://openai.com</code> · DeepSeek <code>https://www.deepseek.com</code> · Moonshot <code>https://www.moonshot.cn</code> · Zhipu <code>https://www.zhipuai.cn</code> · Alibaba Bailian <code>https://www.aliyun.com/product/bailian</code> · OpenRouter <code>https://openrouter.ai</code> · Ollama <code>https://ollama.com</code> · LM Studio <code>https://lmstudio.ai</code>.</p>' +
+        '<p>L’URL de base sert à l’app, ce n’est pas un site web. Ouvrez les sites officiels ci-dessous.</p><p>Sites officiels : OpenAI <code>https://openai.com</code> · DeepSeek <code>https://www.deepseek.com</code> · Moonshot <code>https://www.moonshot.cn</code> · Zhipu <code>https://www.zhipuai.cn</code> · Alibaba Bailian <code>https://www.aliyun.com/product/bailian</code> · OpenRouter <code>https://openrouter.ai</code> · Ollama <code>https://ollama.com</code> · LM Studio <code>https://lmstudio.ai</code>.</p>' +
         '<p class="help-warn">N’utilisez que ces domaines officiels. Les sites miroirs ou de recharge trouvés dans une recherche peuvent être des imposteurs ; vérifiez le domaine avant de coller une clé.</p>' },
       { id: 'errors', title: 'Erreurs et coût', html:
         '<p>401 clé, 404 adresse, 429 quota, délai dépassé, connexion impossible. Aucun nouvel essai silencieux.</p>' +
@@ -191,7 +191,7 @@
         '<p>1. 제공자 콘솔에서 API 키를 만듭니다. 2. Base URL과 모델명을 복사합니다. 3. 설정 → AI에 셋을 붙이고 「연결 테스트」를 누릅니다.</p>' },
       { id: 'providers', title: '주요 서비스', html:
         '<p><b>OpenAI</b> <code>https://api.openai.com/v1</code> · <b>DeepSeek</b> <code>https://api.deepseek.com/v1</code> · <b>Moonshot</b> <code>https://api.moonshot.cn/v1</code> · <b>Ollama</b> <code>http://127.0.0.1:11434/v1</code> (키 없음, 로컬 모델 체크).</p>' +
-        '<p>공식 사이트: OpenAI <code>https://openai.com</code> · DeepSeek <code>https://www.deepseek.com</code> · Moonshot <code>https://www.moonshot.cn</code> · Zhipu <code>https://www.zhipuai.cn</code> · Alibaba Bailian <code>https://www.aliyun.com/product/bailian</code> · OpenRouter <code>https://openrouter.ai</code> · Ollama <code>https://ollama.com</code> · LM Studio <code>https://lmstudio.ai</code>.</p>' +
+        '<p>Base URL은 앱용이며 웹사이트가 아닙니다. 아래 공식 사이트를 여세요.</p><p>공식 사이트: OpenAI <code>https://openai.com</code> · DeepSeek <code>https://www.deepseek.com</code> · Moonshot <code>https://www.moonshot.cn</code> · Zhipu <code>https://www.zhipuai.cn</code> · Alibaba Bailian <code>https://www.aliyun.com/product/bailian</code> · OpenRouter <code>https://openrouter.ai</code> · Ollama <code>https://ollama.com</code> · LM Studio <code>https://lmstudio.ai</code>.</p>' +
         '<p class="help-warn">위의 공식 도메인만 사용하세요. 검색에 나오는 미러나 대리 충전 사이트는 사칭일 수 있습니다. 키를 붙이기 전에 도메인을 확인하세요.</p>' },
       { id: 'errors', title: '오류와 비용', html:
         '<p>401 키, 404 주소, 429 한도, 시간 초과, 연결 불가. 자동 재시도는 없습니다.</p>' +

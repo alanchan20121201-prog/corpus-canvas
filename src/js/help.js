@@ -148,16 +148,25 @@
     },
     {
       id: 'ai-providers', title: '常见服务商对照',
-      html: '<table class="help-table"><tr><th>服务</th><th>Base URL</th><th>模型名示例</th><th>说明</th></tr>' +
-        '<tr><td>OpenAI</td><td><code>https://api.openai.com/v1</code></td><td><code>gpt-4o-mini</code></td><td>需海外支付方式，国内访问可能受限</td></tr>' +
-        '<tr><td>DeepSeek</td><td><code>https://api.deepseek.com/v1</code></td><td><code>deepseek-chat</code></td><td>国内可直连，价格低，中文好</td></tr>' +
-        '<tr><td>月之暗面 Kimi</td><td><code>https://api.moonshot.cn/v1</code></td><td><code>moonshot-v1-8k</code></td><td>国内直连</td></tr>' +
-        '<tr><td>智谱</td><td><code>https://open.bigmodel.cn/api/paas/v4</code></td><td><code>glm-4-flash</code></td><td>有免费模型，注意地址不带 /v1</td></tr>' +
-        '<tr><td>阿里百炼</td><td><code>https://dashscope.aliyuncs.com/compatible-mode/v1</code></td><td><code>qwen-plus</code></td><td>兼容模式地址较长</td></tr>' +
-        '<tr><td>OpenRouter</td><td><code>https://openrouter.ai/api/v1</code></td><td><code>openai/gpt-4o-mini</code></td><td>一个密钥调用多家模型</td></tr>' +
-        '<tr><td>本机 Ollama</td><td><code>http://127.0.0.1:11434/v1</code></td><td><code>llama3.1</code> / <code>qwen2.5</code></td><td>不填密钥，勾「使用本机模型」</td></tr>' +
-        '<tr><td>本机 LM Studio</td><td><code>http://127.0.0.1:1234/v1</code></td><td>以 LM Studio 显示为准</td><td>需在 LM Studio 里启动 Local Server</td></tr></table>' +
-        '<p>地址一般填到 <code>/v1</code> 为止，软件会自动补 <code>/chat/completions</code>。填错了也能自动纠正一次。</p>'
+      html: '<p class="help-warn">第二列是官网，第三列才是给软件用的 API 地址。API 地址粘到浏览器里不会有网页，别当成官网。</p>' +
+        '<table class="help-table"><tr><th>服务</th><th>官网</th><th>API 地址（Base URL）</th><th>模型名示例</th><th>说明</th></tr>' +
+        '<tr><td>OpenAI</td><td><a href="https://openai.com" target="_blank" rel="noreferrer">https://openai.com</a></td><td><code>https://api.openai.com/v1</code></td><td><code>gpt-4o-mini</code></td><td>需海外支付方式，国内访问可能受限</td></tr>' +
+        '<tr><td>DeepSeek</td><td><a href="https://www.deepseek.com" target="_blank" rel="noreferrer">https://www.deepseek.com</a></td><td><code>https://api.deepseek.com/v1</code></td><td><code>deepseek-chat</code></td><td>国内可直连，价格低，中文好</td></tr>' +
+        '<tr><td>月之暗面 Kimi</td><td><a href="https://www.moonshot.cn" target="_blank" rel="noreferrer">https://www.moonshot.cn</a></td><td><code>https://api.moonshot.cn/v1</code></td><td><code>moonshot-v1-8k</code></td><td>国内直连</td></tr>' +
+        '<tr><td>智谱</td><td><a href="https://www.zhipuai.cn" target="_blank" rel="noreferrer">https://www.zhipuai.cn</a></td><td><code>https://open.bigmodel.cn/api/paas/v4</code></td><td><code>glm-4-flash</code></td><td>有免费模型，注意地址不带 /v1</td></tr>' +
+        '<tr><td>阿里百炼</td><td><a href="https://www.aliyun.com/product/bailian" target="_blank" rel="noreferrer">https://www.aliyun.com/product/bailian</a></td><td><code>https://dashscope.aliyuncs.com/compatible-mode/v1</code></td><td><code>qwen-plus</code></td><td>兼容模式地址较长</td></tr>' +
+        '<tr><td>OpenRouter</td><td><a href="https://openrouter.ai" target="_blank" rel="noreferrer">https://openrouter.ai</a></td><td><code>https://openrouter.ai/api/v1</code></td><td><code>openai/gpt-4o-mini</code></td><td>一个密钥调用多家模型</td></tr>' +
+        '<tr><td>本机 Ollama</td><td><a href="https://ollama.com" target="_blank" rel="noreferrer">https://ollama.com</a></td><td><code>http://127.0.0.1:11434/v1</code></td><td><code>llama3.1</code> / <code>qwen2.5</code></td><td>不填密钥，勾「使用本机模型」</td></tr>' +
+        '<tr><td>本机 LM Studio</td><td><a href="https://lmstudio.ai" target="_blank" rel="noreferrer">https://lmstudio.ai</a></td><td><code>http://127.0.0.1:1234/v1</code></td><td>以 LM Studio 显示为准</td><td>需在 LM Studio 里启动 Local Server</td></tr></table>' +
+        '<p>API 地址一般填到 <code>/v1</code> 为止（智谱是 <code>/api/paas/v4</code>），软件会自动补 <code>/chat/completions</code>。填错了也能自动纠正一次。</p>' +
+        '<h3>密钥页（复制密钥用）</h3>' +
+        '<p>OpenAI <a href="https://platform.openai.com/api-keys" target="_blank" rel="noreferrer">platform.openai.com/api-keys</a> · ' +
+        'DeepSeek <a href="https://platform.deepseek.com/api_keys" target="_blank" rel="noreferrer">platform.deepseek.com/api_keys</a> · ' +
+        '月之暗面 <a href="https://platform.moonshot.cn/console/api-keys" target="_blank" rel="noreferrer">platform.moonshot.cn/console/api-keys</a> · ' +
+        '智谱 <a href="https://open.bigmodel.cn/usercenter/apikeys" target="_blank" rel="noreferrer">open.bigmodel.cn/usercenter/apikeys</a> · ' +
+        '阿里百炼 <a href="https://bailian.console.aliyun.com" target="_blank" rel="noreferrer">bailian.console.aliyun.com</a> · ' +
+        'OpenRouter <a href="https://openrouter.ai/keys" target="_blank" rel="noreferrer">openrouter.ai/keys</a></p>' +
+        '<p class="help-warn">只使用这些官方域名。搜索里的「镜像站」「代充站」可能是仿冒站点，输入密钥前先核对域名。</p>'
     },
     {
       id: 'ai-local', title: '用本机模型（不花钱）',

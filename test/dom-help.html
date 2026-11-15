@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="zh-TW" data-theme="light"><head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; script-src 'self'; connect-src 'none'; font-src 'self';">
+  <title>Corpus Canvas</title>
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+  <svg class="sprite" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <symbol id="i-home" viewBox="0 0 24 24"><path d="M4 10.5 12 4l8 6.5V19a1 1 0 0 1-1 1h-4.5v-6h-5v6H5a1 1 0 0 1-1-1z"></path></symbol>
+      <symbol id="i-map" viewBox="0 0 24 24"><circle cx="6" cy="6" r="2.2"></circle><circle cx="18" cy="6" r="2.2"></circle><circle cx="12" cy="18" r="2.2"></circle><path d="M8.2 6h7.6M7 8l4 8M17 8l-4 8"></path></symbol>
+      <symbol id="i-outline" viewBox="0 0 24 24"><path d="M4 6h3M4 12h3M4 18h3"></path><path d="M9.5 6h10.5M9.5 12h8M9.5 18h10"></path></symbol>
+      <symbol id="i-cards" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="3"></rect><path d="M7 9h10M7 13h7"></path></symbol>
+      <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4.5 4.5"></path></symbol>
+      <symbol id="i-health" viewBox="0 0 24 24"><path d="M3 12h4l2-6 4 12 2-6h6"></path></symbol>
+      <symbol id="i-history" viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.5-5.8"></path><path d="M4 4v4h4"></path><path d="M12 8v4l3 2"></path></symbol>
+      <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V5h6v2M6.5 7l1 12.5h9L18 7"></path></symbol>
+      <symbol id="i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"></circle><path d="M12 3v2.2M12 18.8V21M4.9 4.9l1.6 1.6M17.5 17.5l1.6 1.6M3 12h2.2M18.8 12H21M4.9 19.1l1.6-1.6M17.5 6.5l1.6-1.6"></path></symbol>
+      <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"></path></symbol>
+      <symbol id="i-minus" viewBox="0 0 24 24"><path d="M5 12h14"></path></symbol>
+      <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"></path></symbol>
+      <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7"></path></symbol>
+      <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 13.5a4 4 0 0 0 5.7 0l2.6-2.6a4 4 0 0 0-5.7-5.7L11.4 6.4"></path><path d="M14 10.5a4 4 0 0 0-5.7 0l-2.6 2.6a4 4 0 0 0 5.7 5.7l1.2-1.2"></path></symbol>
+      <symbol id="i-zoom-in" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4.5 4.5M11 8.5v5M8.5 11h5"></path></symbol>
+      <symbol id="i-zoom-out" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4.5 4.5M8.5 11h5"></path></symbol>
+      <symbol id="i-fit" viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"></path></symbol>
+      <symbol id="i-focus" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"></circle><path d="M12 3v4M12 17v4M3 12h4M17 12h4"></path></symbol>
+      <symbol id="i-tree" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="5" rx="1.5"></rect><rect x="2.5" y="16" width="6" height="5" rx="1.5"></rect><rect x="15.5" y="16" width="6" height="5" rx="1.5"></rect><path d="M12 8v4M5.5 16v-3h13v3"></path></symbol>
+      <symbol id="i-free" viewBox="0 0 24 24"><circle cx="6" cy="7" r="2.2"></circle><circle cx="18" cy="9" r="2.2"></circle><circle cx="9" cy="18" r="2.2"></circle><path d="M8 7.5 15.8 8.5M7 9l1.6 6.8M17 11l-6 5.4"></path></symbol>
+      <symbol id="i-layout" viewBox="0 0 24 24"><rect x="3" y="4" width="7" height="5" rx="1.5"></rect><rect x="14" y="15" width="7" height="5" rx="1.5"></rect><path d="M10 6.5h4a2 2 0 0 1 2 2V15"></path></symbol>
+      <symbol id="i-image" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="3"></rect><circle cx="8.5" cy="9.5" r="1.6"></circle><path d="m4 17 5-4.5 4 3.5 3-2.5 4 3.5"></path></symbol>
+      <symbol id="i-more" viewBox="0 0 24 24"><circle cx="6" cy="12" r="1.5" fill="currentColor" stroke="none"></circle><circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"></circle><circle cx="18" cy="12" r="1.5" fill="currentColor" stroke="none"></circle></symbol>
+      <symbol id="i-sparkles" viewBox="0 0 24 24"><path d="M11 3.5 12.6 8l4.4 1.6-4.4 1.6L11 15.7 9.4 11.2 5 9.6 9.4 8z"></path><path d="m18 15 .7 2.2 2.3.8-2.3.8-.7 2.2-.7-2.2-2.3-.8 2.3-.8z"></path></symbol>
+      <symbol id="i-undo" viewBox="0 0 24 24"><path d="M9 7 5 11l4 4"></path><path d="M5 11h9a5 5 0 0 1 0 10h-3"></path></symbol>
+      <symbol id="i-redo" viewBox="0 0 24 24"><path d="m15 7 4 4-4 4"></path><path d="M19 11h-9a5 5 0 0 0 0 10h3"></path></symbol>
+      <symbol id="i-edit" viewBox="0 0 24 24"><path d="M4 20h4L18.5 9.5l-4-4L4 16z"></path><path d="m13.5 6.5 4 4"></path></symbol>
+      <symbol id="i-note" viewBox="0 0 24 24"><path d="M5 4h14v11l-5 5H5z"></path><path d="M14 20v-5h5"></path></symbol>
+      <symbol id="i-tag" viewBox="0 0 24 24"><path d="M3 12V4h8l9 9-8 8z"></path><circle cx="7.5" cy="8" r="1.4"></circle></symbol>
+      <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"></circle><path d="M3.5 12h17M12 3.5c2.4 2.4 3.6 5.4 3.6 8.5s-1.2 6.1-3.6 8.5c-2.4-2.4-3.6-5.4-3.6-8.5S9.6 5.9 12 3.5z"></path></symbol>
+      <symbol id="i-palette" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 0 18c1.4 0 2-1 2-2s-.7-1.7-.7-2.5c0-1 .8-1.5 1.9-1.5H18a3 3 0 0 0 3-3 9 9 0 0 0-9-9z"></path><circle cx="8" cy="9" r="1.2"></circle><circle cx="12" cy="7" r="1.2"></circle><circle cx="16" cy="9.5" r="1.2"></circle></symbol>
+      <symbol id="i-key" viewBox="0 0 24 24"><circle cx="8" cy="13" r="4"></circle><path d="m11 10 9-6M16 6.5l2 2M14 8l2 2"></path></symbol>
+      <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2.5h6a2 2 0 0 1 2 2V18a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></symbol>
+      <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v10m0 0 4-4m-4 4-4-4"></path><path d="M5 18h14"></path></symbol>
+      <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 20V10m0 0-4 4m4-4 4 4"></path><path d="M5 6h14"></path></symbol>
+      <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 4 3 20h18z"></path><path d="M12 10v4.5M12 17.5v.1"></path></symbol>
+      <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"></circle><path d="M12 11v5M12 8v.1"></path></symbol>
+      <symbol id="i-merge" viewBox="0 0 24 24"><path d="M6 4v4a5 5 0 0 0 5 5h6"></path><path d="M18 4v4a5 5 0 0 1-5 5H7"></path><path d="m15 10 3 3-3 3"></path></symbol>
+      <symbol id="i-filter" viewBox="0 0 24 24"><path d="M3 5h18l-7 8v6l-4 2v-8z"></path></symbol>
+      <symbol id="i-sort" viewBox="0 0 24 24"><path d="M7 4v14m0 0-3-3m3 3 3-3"></path><path d="M17 20V6m0 0-3 3m3-3 3 3"></path></symbol>
+      <symbol id="i-restore" viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.6-5.9"></path><path d="M4 4v4h4"></path><path d="M12 8v4l3 2"></path></symbol>
+      <symbol id="i-external" viewBox="0 0 24 24"><path d="M14 4h6v6"></path><path d="M20 4 10 14"></path><path d="M19 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5"></path></symbol>
+      <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"></path></symbol>
+      <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M4 12h15m0 0-5-5m5 5-5 5"></path></symbol>
+      <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"></rect><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"></path></symbol>
+      <symbol id="i-star" viewBox="0 0 24 24"><path d="m12 4 2.4 5.2 5.6.7-4.1 3.9 1.1 5.6L12 16.8 7 19.4l1.1-5.6L4 9.9l5.6-.7z"></path></symbol>
+      <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M7 18a4.5 4.5 0 0 1-.3-9 6 6 0 0 1 11.6 1.3A3.8 3.8 0 0 1 18 18z"></path></symbol>
+      <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3.5 19 6v6c0 4.4-3 7.4-7 8.5-4-1.1-7-4.1-7-8.5V6z"></path><path d="m9 12 2 2 4-4"></path></symbol>
+      <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"></circle><path d="M9.6 9.2a2.5 2.5 0 1 1 3.6 2.3c-.7.4-1.2.9-1.2 1.8v.4M12 17v.1"></path></symbol>
+      <symbol id="i-file" viewBox="0 0 24 24"><path d="M6 3.5h7l5 5V20a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4.5a1 1 0 0 1 1-1z"></path><path d="M13 3.5v5h5"></path></symbol>
+      <symbol id="i-keyboard" viewBox="0 0 24 24"><rect x="2.5" y="6" width="19" height="12" rx="2.5"></rect><path d="M6 10h.1M9.5 10h.1M13 10h.1M16.5 10h.1M6 13.5h.1M9.5 13.5h.1M13 13.5h.1M16.5 13.5h.1M8 16.5h8"></path></symbol>
+    </defs>
+  </svg>
+
+  <div class="app" id="app">
+    <div class="main">
+      <header class="topbar" id="topbar">
+        <div class="brand" id="brand" title="Corpus Canvas">
+          <span class="brand-mark">
+            <svg viewBox="0 0 32 32" width="24" height="24" fill="none">
+              <circle cx="16" cy="16" r="3.4" stroke="currentColor" stroke-width="1.8"></circle>
+              <circle cx="7" cy="7.5" r="2.2" stroke="currentColor" stroke-width="1.6"></circle>
+              <circle cx="25" cy="8" r="2.2" stroke="currentColor" stroke-width="1.6"></circle>
+              <circle cx="8" cy="25" r="2.2" stroke="currentColor" stroke-width="1.6"></circle>
+              <circle cx="24.5" cy="24" r="2.2" stroke="currentColor" stroke-width="1.6"></circle>
+              <path d="M9 9.2l4.4 4.2M23 9.8l-4.2 3.8M9.8 23.2l3.9-4.2M22.6 22.4l-4-3.9" stroke="currentColor" stroke-width="1.4" opacity=".8"></path>
+            </svg>
+          </span>
+          <span class="brand-name">Corpus Canvas</span>
+        </div>
+
+        <nav class="topnav" id="rail-nav">
+          <button class="rail-btn" data-nav="home" title="首頁"><span class="ico-wrap" data-icon="home"><svg class="ico" width="19" height="19" aria-hidden="true"><use href="#i-home"></use></svg></span><span class="rail-label" data-i18n="nav.home">首頁</span></button>
+          <button class="rail-btn" data-nav="map" title="圖"><span class="ico-wrap" data-icon="map"><svg class="ico" width="19" height="19" aria-hidden="true"><use href="#i-map"></use></svg></span><span class="rail-label" data-i18n="nav.map">圖</span></button>
+          <button class="rail-btn" data-nav="outline" title="大綱"><span class="ico-wrap" data-icon="outline"><svg class="ico" width="19" height="19" aria-hidden="true"><use href="#i-outline"></use></svg></span><span class="rail-label" data-i18n="nav.outline">大綱</span></button>
+          <button class="rail-btn" data-nav="cards" title="資料"><span class="ico-wrap" data-icon="cards"><svg class="ico" width="19" height="19" aria-hidden="true"><use href="#i-cards"></use></svg></span><span class="rail-label" data-i18n="nav.cards">資料</span></button>
+          <button class="rail-btn" data-nav="search" title="檢索"><span class="ico-wrap" data-icon="search"><svg class="ico" width="19" height="19" aria-hidden="true"><use href="#i-search"></use></svg></span><span class="rail-label" data-i18n="nav.search">檢索</span></button>
+          <button class="rail-btn" data-nav="health" title="檢查"><span class="ico-wrap" data-icon="health"><svg class="ico" width="19" height="19" aria-hidden="true"><use href="#i-health"></use></svg></span><span class="rail-label" data-i18n="nav.health">檢查</span></button>
+          <button class="rail-btn" data-nav="history" title="紀錄"><span class="ico-wrap" data-icon="history"><svg class="ico" width="19" height="19" aria-hidden="true"><use href="#i-history"></use></svg></span><span class="rail-label" data-i18n="nav.history">紀錄</span></button>
+          <button class="rail-btn" data-nav="trash" title="回收站"><span class="ico-wrap" data-icon="trash"><svg class="ico" width="19" height="19" aria-hidden="true"><use href="#i-trash"></use></svg></span><span class="rail-label" data-i18n="nav.trash">回收站</span></button>
+        </nav>
+
+        <div class="tb-right">
+          <button class="search-pill" id="tb-search">
+            <span class="sp-ico" data-icon="search"><svg class="ico" width="19" height="19" aria-hidden="true"><use href="#i-search"></use></svg></span>
+            <span class="sp-text" id="sp-text">搜尋…</span>
+            <kbd>Ctrl K</kbd>
+          </button>
+          <div class="tb-group">
+            <button class="icon-btn" id="tb-undo" title="復原"><svg class="ico" width="17" height="17" aria-hidden="true"><use href="#i-undo"></use></svg></button>
+            <button class="icon-btn" id="tb-redo" title="重做" disabled=""><svg class="ico" width="17" height="17" aria-hidden="true"><use href="#i-redo"></use></svg></button>
+          </div>
+          <button class="ai-pill off" id="tb-ai">
+            <span class="sp-ico" data-icon="sparkles"><svg class="ico" width="19" height="19" aria-hidden="true"><use href="#i-sparkles"></use></svg></span><span id="ai-pill-label">AI</span>
+          </button>
+          <button class="icon-btn" id="tb-theme" title="Theme"><svg class="ico" width="17" height="17" aria-hidden="true"><use href="#i-palette"></use></svg></button>
+          <button class="icon-btn" id="tb-help" title="幫助"><svg class="ico" width="17" height="17" aria-hidden="true"><use href="#i-help"></use></svg></button>
+          <button class="rail-btn small" id="rail-lang" title="Language">
+            <span class="ico-wrap" data-icon="globe"><svg class="ico" width="19" height="19" aria-hidden="true"><use href="#i-globe"></use></svg></span>
+            <span class="rail-label" id="lang-label">繁</span>
+          </button>
+          <button class="rail-btn small" data-nav="settings" title="設定">
+            <span class="ico-wrap" data-icon="settings"><svg class="ico" width="19" height="19" aria-hidden="true"><use href="#i-settings"></use></svg></span>
+            <span class="rail-label" data-i18n="nav.settings">設定</span>
+          </button>
+        </div>
+      </header>
+
+      <div class="map-tabs" id="map-tabs" hidden=""><button class="map-tab" data-map="m_a45ysr0pg5"><span class="mt-name">示例圖 · 複習與遺忘</span></button><button class="map-tab active" data-map="m_w5ezcn0pg5"><span class="mt-name">示例圖 · 筆記方法</span><span class="mt-close" data-close="m_w5ezcn0pg5"><svg class="ico" width="10" height="10" aria-hidden="true"><use href="#i-close"></use></svg></span></button><button class="map-tab add" data-new="1"><svg class="ico" width="13" height="13" aria-hidden="true"><use href="#i-plus"></use></svg></button></div>
+
+      <div class="workspace" id="workspace">
+        <main class="view view-help" id="view"><div class="help-view"><aside class="help-side"><div class="help-tabs"><button class="help-tab active" data-tab="guide">使用手冊</button><button class="help-tab" data-tab="ai">AI 與 API</button></div><input class="input sm help-search" id="help-search" placeholder="搜尋說明书…"><nav class="help-toc"><button class="help-toc-item" data-go="start">五分鐘上手</button><button class="help-toc-item" data-go="map">圖與視圖</button><button class="help-toc-item" data-go="node">節點與卡片</button><button class="help-toc-item" data-go="edge">連線</button><button class="help-toc-item" data-go="outline">大綱視圖</button><button class="help-toc-item" data-go="cards">資料庫</button><button class="help-toc-item" data-go="search">檢索</button><button class="help-toc-item" data-go="health">檢查（原「體檢」）</button><button class="help-toc-item" data-go="history">紀錄、快照與回收站</button><button class="help-toc-item" data-go="io">匯入與備份</button><button class="help-toc-item" data-go="settings">設定、隱私與費用</button><button class="help-toc-item" data-go="keys">快捷鍵</button></nav></aside><div class="help-main"><div class="help-head"><h1>使用手冊</h1><p>每個功能都有一節說明。先看「五分鐘上手」，其余按需查。</p></div><div class="help-articles"><article class="help-article" id="h-start" data-search="五分鐘上手  這是一套「資料為正本、圖只是畫法」的工具。卡片存內容，圖存位置與連線；同一張卡片可以出現在多張圖裡，改一處，處處同步。  第一次打開   軟體會自動建一張圖和一個「中心主題」，光標已在標題上，直接改名即可。  按  tab  或點「新增節點」加子節點；雙擊畫布空白也能加。  雙擊位置靠近某個節點（340px 內）會自動連成它的子節點；離得遠則是一個懸浮節點。按住  shift  雙擊永遠是懸浮，不連線。  拖動節點時連線會實時跟隨；拖父節點會帶走整個分支。松手即儲存。  右下角可以縮放；工具欄「自動排布」會重新整理樹。   介面分區   頂部：導航（首頁/圖/大綱/資料/檢索/檢查/紀錄/回收站）、搜尋、復原重做、ai、主題、語言、設定、幫助。  第二行：圖標籤。點「+」新建圖，右鍵標籤可改名、複製、存模板、刪除。  右側：屬性面板。選中節點后出現，改標題、正文、附註、標籤、分類、樣式。  "><h2>五分鐘上手</h2><p>這是一套「資料為正本、圖只是畫法」的工具。卡片存內容，圖存位置與連線；同一張卡片可以出現在多張圖裡，改一處，處處同步。</p><h3>第一次打開</h3><ol><li>軟體會自動建一張圖和一個「中心主題」，光標已在標題上，直接改名即可。</li><li>按 <kbd>Tab</kbd> 或點「新增節點」加子節點；雙擊畫布空白也能加。</li><li>雙擊位置靠近某個節點（340px 內）會自動連成它的子節點；離得遠則是一個懸浮節點。按住 <kbd>Shift</kbd> 雙擊永遠是懸浮，不連線。</li><li>拖動節點時連線會實時跟隨；拖父節點會帶走整個分支。松手即儲存。</li><li>右下角可以縮放；工具欄「自動排布」會重新整理樹。</li></ol><h3>介面分區</h3><ul><li>頂部：導航（首頁/圖/大綱/資料/檢索/檢查/紀錄/回收站）、搜尋、復原重做、AI、主題、語言、設定、幫助。</li><li>第二行：圖標籤。點「+」新建圖，右鍵標籤可改名、複製、存模板、刪除。</li><li>右側：屬性面板。選中節點后出現，改標題、正文、附註、標籤、分類、樣式。</li></ul></article><article class="help-article" id="h-map" data-search="圖與視圖  新建與切換  圖標籤欄的「+」新建一張圖；點標籤切換。每張圖有自己的擺位和連線，但卡片內容共用一份正本。  三種結構    樹狀 ：從左到右的層級，最常用。   組織圖 ：從上到下，適合匯報關係、目錄。   自由連線 ：節點位置完全由你擺，適合概念圖。   切換結構時，已有擺位會被保留或轉換；「自動排布」會清掉手動偏移，回到自動布局。  焦點模式  選中節點后點工具欄的准星，只顯示它和相鄰一層，登出再點一次。適合在大圖裡看局部。  模板  把當前圖右鍵標籤「存為模板」，以后在圖標籤「+」旁邊或首頁從模板新建，會複製結構和卡片內容。  匯出  工具欄「…」裡有：匯出 png（整圖或當前視野）、匯出 svg、匯出 markdown 大綱。超過 2600 個節點時只匯出當前視野，避免卡死。 "><h2>圖與視圖</h2><h3>新建與切換</h3><p>圖標籤欄的「+」新建一張圖；點標籤切換。每張圖有自己的擺位和連線，但卡片內容共用一份正本。</p><h3>三種結構</h3><ul><li><b>樹狀</b>：從左到右的層級，最常用。</li><li><b>組織圖</b>：從上到下，適合匯報關係、目錄。</li><li><b>自由連線</b>：節點位置完全由你擺，適合概念圖。</li></ul><p>切換結構時，已有擺位會被保留或轉換；「自動排布」會清掉手動偏移，回到自動布局。</p><h3>焦點模式</h3><p>選中節點后點工具欄的准星，只顯示它和相鄰一層，登出再點一次。適合在大圖裡看局部。</p><h3>模板</h3><p>把當前圖右鍵標籤「存為模板」，以后在圖標籤「+」旁邊或首頁從模板新建，會複製結構和卡片內容。</p><h3>匯出</h3><p>工具欄「…」裡有：匯出 PNG（整圖或當前視野）、匯出 SVG、匯出 Markdown 大綱。超過 2600 個節點時只匯出當前視野，避免卡死。</p></article><article class="help-article" id="h-node" data-search="節點與卡片  新增  三種方式：工具欄「新增節點」、右鍵節點「新增子節點/同級」、雙擊畫布空白。靠近已有節點時會自動連線。  編輯  雙擊節點打開右側屬性面板。標題是圖上顯示的文字；正文是詳細內容；附註是可留空的補充，不影響節點本身。  標題為空時，圖上顯示正文第一行；正文也空則顯示灰色的「未命名」，不會是白板。  樣式   形狀：圓角 / 方形 / 膠囊。  填充：8 個色板；文字顏色會自動取對比色。  圖標：填一個 emoji 或字符，顯示在標題左側。  字號：小 / 中 / 大；b 切換加粗。  鏈接：填 https://…，點右側按鈕用系統瀏覽器打開。   其他操作   折疊：有子節點的右上角會顯示「+n」，點它收起/展開。  複製：右鍵「複製節點」，或  ctrl + d 。  對齊：多選后右鍵「左對齊 / 頂對齊」。  刪除： delete ，進入回收站，可取回。  區域框：選中多個節點，工具欄「…」→「區域框」，給一組節點加虛線范圍。  "><h2>節點與卡片</h2><h3>新增</h3><p>三種方式：工具欄「新增節點」、右鍵節點「新增子節點/同級」、雙擊畫布空白。靠近已有節點時會自動連線。</p><h3>編輯</h3><p>雙擊節點打開右側屬性面板。標題是圖上顯示的文字；正文是詳細內容；附註是可留空的補充，不影響節點本身。</p><p>標題為空時，圖上顯示正文第一行；正文也空則顯示灰色的「未命名」，不會是白板。</p><h3>樣式</h3><ul><li>形狀：圓角 / 方形 / 膠囊。</li><li>填充：8 個色板；文字顏色會自動取對比色。</li><li>圖標：填一個 emoji 或字符，顯示在標題左側。</li><li>字號：小 / 中 / 大；B 切換加粗。</li><li>鏈接：填 https://…，點右側按鈕用系統瀏覽器打開。</li></ul><h3>其他操作</h3><ul><li>折疊：有子節點的右上角會顯示「+N」，點它收起/展開。</li><li>複製：右鍵「複製節點」，或 <kbd>Ctrl</kbd>+<kbd>D</kbd>。</li><li>對齊：多選后右鍵「左對齊 / 頂對齊」。</li><li>刪除：<kbd>Delete</kbd>，進入回收站，可取回。</li><li>區域框：選中多個節點，工具欄「…」→「區域框」，給一組節點加虛線范圍。</li></ul></article><article class="help-article" id="h-edge" data-search="連線  手動拉線   點工具欄「拉線」，按鈕變亮。  點起點節點，再點終點節點。  在彈窗裡選類型（層次/同义/反义/因果/例證/對照/引用/自定），可寫說明、選顏色、勾「標為存疑」。   按  esc  取消拉線。連線的說明只在 55% 以上縮放顯示。  編輯與刪除  雙擊連線打開同一個彈窗；右鍵連線可以標存疑或刪除。存疑連線在圖上用橙色虛線加「?」，會出現在「檢查」裡。  層次線與其他線  「層次」決定樹的父子關係（布局會用它）；同义、因果等只是關係，不影響樹結構，畫成帶箭頭的曲線。 "><h2>連線</h2><h3>手動拉線</h3><ol><li>點工具欄「拉線」，按鈕變亮。</li><li>點起點節點，再點終點節點。</li><li>在彈窗裡選類型（層次/同义/反义/因果/例證/對照/引用/自定），可寫說明、選顏色、勾「標為存疑」。</li></ol><p>按 <kbd>Esc</kbd> 取消拉線。連線的說明只在 55% 以上縮放顯示。</p><h3>編輯與刪除</h3><p>雙擊連線打開同一個彈窗；右鍵連線可以標存疑或刪除。存疑連線在圖上用橙色虛線加「?」，會出現在「檢查」裡。</p><h3>層次線與其他線</h3><p>「層次」決定樹的父子關係（布局會用它）；同义、因果等只是關係，不影響樹結構，畫成帶箭頭的曲線。</p></article><article class="help-article" id="h-outline" data-search="大綱視圖  大綱與圖是同一份資料：這裡改標題、調層級，圖上立刻變；反過來也一樣。   點標題直接改，回車提交。   tab  降一級， shift + tab  升一級。   enter  新增同級；行尾「+」新增子項。  頂部可全部展開/收起。   大綱只顯示當前選中的那張圖。 "><h2>大綱視圖</h2><p>大綱與圖是同一份資料：這裡改標題、調層級，圖上立刻變；反過來也一樣。</p><ul><li>點標題直接改，回車提交。</li><li><kbd>Tab</kbd> 降一級，<kbd>Shift</kbd>+<kbd>Tab</kbd> 升一級。</li><li><kbd>Enter</kbd> 新增同級；行尾「+」新增子項。</li><li>頂部可全部展開/收起。</li></ul><p>大綱只顯示當前選中的那張圖。</p></article><article class="help-article" id="h-cards" data-search="資料庫  資料庫是正本：每張卡片可以自由填寫，不預設固定欄位。  字段   標題、正文、附註（選用）、標籤、分類、來源。  來源紀錄：手記 / 筆記 / 匯入 / ai 起草，帶時間，方便追溯。   整理   篩選：全部 / 未入圖 / 已入圖，按標籤、語言（已移除介面入口）、時間過濾。  勾選多張后底部出現批量條：加標籤、設分類、移入回收站。  相近內容：屬性面板底部會提示相似卡片，可合併或忽略。合併會把標籤、附註、來源並過去，原卡片進回收站。   列表一次顯示 400 條，可用篩選或「載入更多」檢視后面的。 "><h2>資料庫</h2><p>資料庫是正本：每張卡片可以自由填寫，不預設固定欄位。</p><h3>字段</h3><ul><li>標題、正文、附註（選用）、標籤、分類、來源。</li><li>來源紀錄：手記 / 筆記 / 匯入 / AI 起草，帶時間，方便追溯。</li></ul><h3>整理</h3><ul><li>篩選：全部 / 未入圖 / 已入圖，按標籤、語言（已移除介面入口）、時間過濾。</li><li>勾選多張后底部出現批量條：加標籤、設分類、移入回收站。</li><li>相近內容：屬性面板底部會提示相似卡片，可合併或忽略。合併會把標籤、附註、來源並過去，原卡片進回收站。</li></ul><p>列表一次顯示 400 條，可用篩選或「載入更多」檢視后面的。</p></article><article class="help-article" id="h-search" data-search="檢索  全文  一次搜標題、正文、附註、標籤。支援錯字近似和簡繁互通（「筆記」能搜到「筆記」）。  篩選  標籤、是否入圖、更新時間、是否有待處理批註，可組合。常用條件點「存為視圖」，下次一鍵套用。  關係  按連線類型列出全部關係，例如所有同义關係、所有存疑連線。  結構  找孤立節點、最深分支、重複節點、斷線（端點已刪除的連線）。  批量操作  勾選結果后可：由結果成圖、批量加標籤、批量連到某個節點。 "><h2>檢索</h2><h3>全文</h3><p>一次搜標題、正文、附註、標籤。支援錯字近似和簡繁互通（「筆記」能搜到「筆記」）。</p><h3>篩選</h3><p>標籤、是否入圖、更新時間、是否有待處理批註，可組合。常用條件點「存為視圖」，下次一鍵套用。</p><h3>關係</h3><p>按連線類型列出全部關係，例如所有同义關係、所有存疑連線。</p><h3>結構</h3><p>找孤立節點、最深分支、重複節點、斷線（端點已刪除的連線）。</p><h3>批量操作</h3><p>勾選結果后可：由結果成圖、批量加標籤、批量連到某個節點。</p></article><article class="help-article" id="h-health" data-search="檢查（原「體檢」）  檢查頁只做提示，不會改動資料。五類內容：    未入圖的資料 ：卡片存在，但沒放進任何一張圖。可以一鍵為它們成圖。   孤立節點 ：圖裡有節點沒有任何連線，通常是漏連了。   存疑連線 ：拉線時勾了「存疑」，或 ai 校閱標出的不確定關係。   重複內容 ：標題/正文高度相似，建議合併。   斷線 ：連線的另一頭已在回收站或被刪除。   點條目可以直接跳到對應圖或卡片處理。 "><h2>檢查（原「體檢」）</h2><p>檢查頁只做提示，不會改動資料。五類內容：</p><ul><li><b>未入圖的資料</b>：卡片存在，但沒放進任何一張圖。可以一鍵為它們成圖。</li><li><b>孤立節點</b>：圖裡有節點沒有任何連線，通常是漏連了。</li><li><b>存疑連線</b>：拉線時勾了「存疑」，或 AI 校閱標出的不確定關係。</li><li><b>重複內容</b>：標題/正文高度相似，建議合併。</li><li><b>斷線</b>：連線的另一頭已在回收站或被刪除。</li></ul><p>點條目可以直接跳到對應圖或卡片處理。</p></article><article class="help-article" id="h-history" data-search="紀錄、快照與回收站  變更紀錄  每次結構性修改都會記一條。點「回退到此前」能把整份資料恢複到那一步之前，回退前會自動存一個還原點。  還原點  匯入、採用 ai、批量整理、合併前會自動留存；也可以手動「立即留存還原點」並命名。自動快照最多 12 個，手動快照單獨保留。  復原/重做   ctrl + z  /  ctrl + shift + z ，頂部也有按鈕。  回收站  刪除的卡片在這裡，可單張取回或全部取回；「徹底刪除」不可復原。連線會保留，取回后自動恢複。 "><h2>紀錄、快照與回收站</h2><h3>變更紀錄</h3><p>每次結構性修改都會記一條。點「回退到此前」能把整份資料恢複到那一步之前，回退前會自動存一個還原點。</p><h3>還原點</h3><p>匯入、採用 AI、批量整理、合併前會自動留存；也可以手動「立即留存還原點」並命名。自動快照最多 12 個，手動快照單獨保留。</p><h3>復原/重做</h3><p><kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd>，頂部也有按鈕。</p><h3>回收站</h3><p>刪除的卡片在這裡，可單張取回或全部取回；「徹底刪除」不可復原。連線會保留，取回后自動恢複。</p></article><article class="help-article" id="h-io" data-search="匯入與備份  匯入  支援 xmind（.xmind）、opml、markdown / txt 大綱。匯入后統一變成卡片與圖，不保留原圖檔案。可以選擇「轉成一張新圖」或「只加入資料庫」。  匯入后會顯示自檢報告：成功多少、跳過多少（空標題）、明細。匯入的卡片會紀錄來源，方便追溯。  備份  設定 → 一鍵備份，寫成一個可讀的 .wef（json）。還原時可「合併」或「覆蓋」；合併按 id 去重。  密鑰永遠不會寫進備份。換機器后需要重新填一次密鑰。  資料在哪  設定裡顯示資料路徑，可一鍵在資料夾中顯示。刪除軟體不會自動刪資料，請自行備份。 "><h2>匯入與備份</h2><h3>匯入</h3><p>支援 XMind（.xmind）、OPML、Markdown / TXT 大綱。匯入后統一變成卡片與圖，不保留原圖檔案。可以選擇「轉成一張新圖」或「只加入資料庫」。</p><p>匯入后會顯示自檢報告：成功多少、跳過多少（空標題）、明細。匯入的卡片會紀錄來源，方便追溯。</p><h3>備份</h3><p>設定 → 一鍵備份，寫成一個可讀的 .wef（JSON）。還原時可「合併」或「覆蓋」；合併按 id 去重。</p><p>密鑰永遠不會寫進備份。換機器后需要重新填一次密鑰。</p><h3>資料在哪</h3><p>設定裡顯示資料路徑，可一鍵在資料夾中顯示。刪除軟體不會自動刪資料，請自行備份。</p></article><article class="help-article" id="h-settings" data-search="設定、隱私與費用  語言與主題  介面語言共 7 種：簡體中文、繁體中文、英語、日本語、西班牙語、法語、韓語。全部介面文案與內置手冊均為人工翻譯，切換后同一屏只出現一種語言。預設「跟隨系統」：用電腦語言，匹配不到就用英文。  主題有明亮、紙感、暗色、墨色。  ai 服務  自備服務地址、模型名與密鑰；也可以勾「使用本機模型」，不填密鑰直連 ollama / lm studio。詳見「ai 與 api」頁。  隱私   無帳號、無遙測、無雲同步。  只有你主動點 ai 動作時，才會把所選范圍的文字發到你填的地址。  密鑰用系統加密儲存在本機，不寫日志、不進備份，可一鍵清除。   費用  軟體本身免費、無訂閱。ai 費用由你的服務商按用量收取。 "><h2>設定、隱私與費用</h2><h3>語言與主題</h3><p>介面語言共 7 種：簡體中文、繁體中文、英語、日本語、西班牙語、法語、韓語。全部介面文案與內置手冊均為人工翻譯，切換后同一屏只出現一種語言。預設「跟隨系統」：用電腦語言，匹配不到就用英文。</p><p>主題有明亮、紙感、暗色、墨色。</p><h3>AI 服務</h3><p>自備服務地址、模型名與密鑰；也可以勾「使用本機模型」，不填密鑰直連 Ollama / LM Studio。詳見「AI 與 API」頁。</p><h3>隱私</h3><ul><li>無帳號、無遙測、無雲同步。</li><li>只有你主動點 AI 動作時，才會把所選范圍的文字發到你填的地址。</li><li>密鑰用系統加密儲存在本機，不寫日志、不進備份，可一鍵清除。</li></ul><h3>費用</h3><p>軟體本身免費、無訂閱。AI 費用由你的服務商按用量收取。</p></article><article class="help-article" id="h-keys" data-search="快捷鍵    按鍵  作用     n   新增卡片     ctrl + k   全文檢索     ctrl + s   立即儲存     ctrl + z  /  ctrl + shift + z   復原 / 重做     ctrl + n   快速新增卡片     ctrl + d   複製選中節點     delete   刪除選中節點（進回收站）     enter   編輯選中節點     f  /  g   聚焦 / 適應窗口（圖視圖）     f11   全屏     1 – 9   切換視圖     esc   取消 / 關閉   "><h2>快捷鍵</h2><table class="help-table"><tbody><tr><th>按鍵</th><th>作用</th></tr><tr><td><kbd>N</kbd></td><td>新增卡片</td></tr><tr><td><kbd>Ctrl</kbd>+<kbd>K</kbd></td><td>全文檢索</td></tr><tr><td><kbd>Ctrl</kbd>+<kbd>S</kbd></td><td>立即儲存</td></tr><tr><td><kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd></td><td>復原 / 重做</td></tr><tr><td><kbd>Ctrl</kbd>+<kbd>N</kbd></td><td>快速新增卡片</td></tr><tr><td><kbd>Ctrl</kbd>+<kbd>D</kbd></td><td>複製選中節點</td></tr><tr><td><kbd>Delete</kbd></td><td>刪除選中節點（進回收站）</td></tr><tr><td><kbd>Enter</kbd></td><td>編輯選中節點</td></tr><tr><td><kbd>F</kbd> / <kbd>G</kbd></td><td>聚焦 / 適應窗口（圖視圖）</td></tr><tr><td><kbd>F11</kbd></td><td>全屏</td></tr><tr><td><kbd>1</kbd>–<kbd>9</kbd></td><td>切換視圖</td></tr><tr><td><kbd>Esc</kbd></td><td>取消 / 關閉</td></tr></tbody></table></article></div></div></div></main>
+      </div>
+    </div>
+
+    <aside class="inspector" id="inspector" hidden=""></aside>
+  </div>
+
+  <div class="toasts" id="toasts"></div>
+  <div class="drop-veil" id="drop-veil"><div><span data-icon="upload"><svg class="ico" width="19" height="19" aria-hidden="true"><use href="#i-upload"></use></svg></span><p id="drop-veil-text">也可以把檔案拖進窗口。</p></div></div>
+
+  <script src="js/s2t.js"></script>
+  <script src="js/langpacks.js"></script>
+  <script src="js/lang-es.js"></script>
+  <script src="js/lang-fr.js"></script>
+  <script src="js/lang-ko.js"></script>
+  <script src="js/i18n.js"></script>
+  <script src="js/util.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/layout.js"></script>
+  <script src="js/graph.js"></script>
+  <script src="js/inspector.js"></script>
+  <script src="js/views.js"></script>
+  <script src="js/search.js"></script>
+  <script src="js/settings.js"></script>
+  <script src="js/ai.js"></script>
+  <script src="js/importer.js"></script>
+  <script src="js/demo.js"></script>
+  <script src="js/help-i18n.js"></script>
+  <script src="js/help.js"></script>
+  <script src="js/app.js"></script>
+
+
+</body></html>
