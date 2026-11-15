@@ -95,7 +95,7 @@
     },
     {
       id: 'settings', title: '设置、隐私与费用',
-      html: '<h3>语言与主题</h3><p>界面语言共 32 种（按使用人数选取，含繁體中文）。简中、繁中、英、日为核心文案完整翻译；其余 28 种为人工翻译的核心界面（导航、按钮、页面标题、连线类型等），更细的提示文案暂以英文回退。默认「跟随系统」：用电脑语言，匹配不到就用英文。</p><p>主题有明亮、纸感、暗色、墨色。</p>' +
+      html: '<h3>语言与主题</h3><p>界面语言共 7 种：简体中文、繁體中文、英語、日本語、西班牙語、法語、韓語。全部界面文案与内置手册均为人工翻译，切换后同一屏只出现一种语言。默认「跟随系统」：用电脑语言，匹配不到就用英文。</p><p>主题有明亮、纸感、暗色、墨色。</p>' +
         '<h3>AI 服务</h3><p>自备服务地址、模型名与密钥；也可以勾「使用本机模型」，不填密钥直连 Ollama / LM Studio。详见「AI 与 API」页。</p>' +
         '<h3>隐私</h3><ul><li>无账号、无遥测、无云同步。</li><li>只有你主动点 AI 动作时，才会把所选范围的文字发到你填的地址。</li><li>密钥用系统加密保存在本机，不写日志、不进备份，可一键清除。</li></ul>' +
         '<h3>费用</h3><p>软件本身免费、无订阅。AI 费用由你的服务商按用量收取。</p>'
@@ -208,11 +208,28 @@
     }
   ];
 
+  function localizedGuide() {
+    var lang = CC.i18n.getLang();
+    if (lang === 'zh-TW') {
+      return GUIDE.map(function (s) { return { id: s.id, title: CC.toTW(s.title), html: CC.toTW(s.html) }; });
+    }
+    if (lang !== 'zh-CN' && CC.HELP_I18N && CC.HELP_I18N[lang]) return CC.HELP_I18N[lang].guide;
+    return GUIDE;
+  }
+
+  function localizedAI() {
+    var lang = CC.i18n.getLang();
+    if (lang === 'zh-TW') {
+      return AI.map(function (s) { return { id: s.id, title: CC.toTW(s.title), html: CC.toTW(s.html) }; });
+    }
+    if (lang !== 'zh-CN' && CC.HELP_I18N && CC.HELP_I18N[lang]) return CC.HELP_I18N[lang].ai;
+    return AI;
+  }
+
   function mount(root, tab) {
     var current = tab === 'ai' ? 'ai' : 'guide';
-    var sections = current === 'ai' ? AI : GUIDE;
-    var langNote = CC.i18n.getLang() === 'zh-CN' ? '' :
-      '<div class="help-banner">' + U.esc(t('help.langNote')) + '</div>';
+    var sections = current === 'ai' ? localizedAI() : localizedGuide();
+    var langNote = '';
 
     root.innerHTML =
       '<div class="help-view">' +

@@ -97,21 +97,22 @@ function step(name, fn) {
       Object.keys(base).forEach((k) => { if (!CC.i18n.dicts[lang][k]) missing.push(lang + ':' + k); });
     });
     if (missing.length) throw new Error('missing: ' + missing.join(', '));
-    const packs = Object.keys(CC.LANG_PACKS);
-    packs.forEach((code) => {
-      const arr = CC.LANG_PACKS[code];
-      if (arr.length !== CC.LANG_KEYS.length) throw new Error('pack length ' + code + '=' + arr.length);
-      if (!CC.i18n.dicts[code]) throw new Error('pack not merged: ' + code);
+    const extra = ['es', 'fr', 'ko'];
+    const reach = JSON.parse(require('fs').readFileSync(__dirname + '/reach-keys.json', 'utf8'));
+    extra.forEach((code) => {
+      const d = CC.i18n.dicts[code];
+      if (!d) throw new Error('missing dictionary ' + code);
+      Object.keys(reach).forEach((k) => { if (!d[k]) missing.push(code + ':' + k); });
+      ['ai.errAuth', 'ai.errRate', 'ai.errEndpoint', 'ai.errTimeout', 'ai.errNetwork', 'ai.errRequest', 'ai.errServer', 'ai.errEmpty', 'ai.errConfig']
+        .forEach((k) => { if (!d[k]) missing.push(code + ':' + k); });
     });
-    if (CC.i18n.langs.length !== 32) throw new Error('langs=' + CC.i18n.langs.length);
-    const sys = {
-      'zh-HK': 'zh-TW', 'zh-Hant-TW': 'zh-TW', 'zh-CN': 'zh-CN', 'fr-FR': 'fr',
-      'pt-BR': 'pt', 'xx-YY': 'en', 'fil-PH': 'tl'
-    };
+    if (missing.length) throw new Error('missing: ' + missing.slice(0, 12).join(', '));
+    if (CC.i18n.langs.length !== 7) throw new Error('langs=' + CC.i18n.langs.length);
+    const sys = { 'zh-HK': 'zh-TW', 'zh-Hant-TW': 'zh-TW', 'zh-CN': 'zh-CN', 'fr-FR': 'fr', 'ko-KR': 'ko', 'xx-YY': 'en' };
     Object.keys(sys).forEach((loc) => {
       if (CC.i18n.resolveSystem(loc) !== sys[loc]) throw new Error(loc + '->' + CC.i18n.resolveSystem(loc));
     });
-    return Object.keys(base).length + ' keys, 4 full + ' + packs.length + ' packs, 32 langs';
+    return Object.keys(base).length + ' keys, 4 full + 3 hand-written, 7 langs';
   });
 
   await step('demo-load', () => {
@@ -272,12 +273,12 @@ function step(name, fn) {
     const es = label();
     CC.app.setLang('fr');
     const fr = label();
-    CC.app.setLang('bn');
-    const bn = label();
+    CC.app.setLang('ko');
+    const ko = label();
     CC.app.setLang('zh-CN');
-    if (!en || !ja || !tw || !es || !fr || !bn) throw new Error('labels empty');
-    if (new Set([en, ja, tw, es, fr, bn]).size < 6) throw new Error('not translated: ' + [en, ja, tw, es, fr, bn].join('/'));
-    return [en, ja, tw, es, fr, bn].join(' / ');
+    if (!en || !ja || !tw || !es || !fr || !ko) throw new Error('labels empty');
+    if (new Set([en, ja, tw, es, fr, ko]).size < 6) throw new Error('not translated: ' + [en, ja, tw, es, fr, ko].join('/'));
+    return [en, ja, tw, es, fr, ko].join(' / ');
   });
 
   await step('theme-switch', () => {
@@ -549,6 +550,19 @@ function step(name, fn) {
     if (S.state().settings.lastMapId !== empty.id) throw new Error('starter node not in the existing empty map');
     CC.app.nav('map');
     return S.card(id).title;
+  });
+
+  await step('help-localised', async () => {
+    CC.app.setLang('ko');
+    CC.app.nav('help');
+    const text = Array.prototype.map.call(document.querySelectorAll('.help-article'), (a) => a.textContent).join(' ');
+    if (/[一-龥]/.test(text)) throw new Error('Chinese text leaked into the Korean manual');
+    if (document.querySelectorAll('.help-article').length < 6) throw new Error('sections=' + document.querySelectorAll('.help-article').length);
+    document.querySelector('[data-tab="ai"]').click();
+    const aiText = Array.prototype.map.call(document.querySelectorAll('.help-article'), (a) => a.textContent).join(' ');
+    if (/[一-龥]/.test(aiText)) throw new Error('Chinese text leaked into the Korean AI guide');
+    CC.app.setLang('zh-CN');
+    return 'ko manual clean';
   });
 
   await step('help-view', async () => {

@@ -1889,20 +1889,10 @@
     return out;
   })();
 
-  /* core packs for the other 28 languages; missing keys fall back to English */
+  /* full hand-written dictionaries for the remaining UI languages */
   (function () {
-    var keys = (window.CC && CC.LANG_KEYS) || [];
-    var packs = (window.CC && CC.LANG_PACKS) || {};
-    Object.keys(packs).forEach(function (code) {
-      var arr = packs[code];
-      if (!Array.isArray(arr) || arr.length !== keys.length) {
-        if (window.console) console.warn('language pack length mismatch:', code, arr && arr.length, keys.length);
-        return;
-      }
-      var d = {};
-      keys.forEach(function (k, i) { d[k] = arr[i]; });
-      dicts[code] = d;
-    });
+    var full = (window.CC && CC.LANG_FULL) || {};
+    Object.keys(full).forEach(function (code) { dicts[code] = full[code]; });
   })();
 
   var current = 'zh-CN';
@@ -1934,13 +1924,7 @@
     if (/^zh/.test(l)) return /hant|tw|hk|mo/.test(l) ? 'zh-TW' : 'zh-CN';
     if (/^yue/.test(l)) return 'zh-TW';
     var base = l.split('-')[0];
-    var map = {
-      en: 'en', es: 'es', hi: 'hi', bn: 'bn', pt: 'pt', ru: 'ru', ja: 'ja',
-      pa: 'pa', mr: 'mr', te: 'te', tr: 'tr', ta: 'ta', vi: 'vi', ko: 'ko',
-      fa: 'fa', ha: 'ha', ar: 'ar', sw: 'sw', jv: 'jv', it: 'it', de: 'de',
-      fr: 'fr', th: 'th', gu: 'gu', ur: 'ur', kn: 'kn', am: 'am',
-      fil: 'tl', tl: 'tl'
-    };
+    var map = { en: 'en', es: 'es', fr: 'fr', ja: 'ja', ko: 'ko' };
     var c = map[base] || 'en';
     return dicts[c] ? c : 'en';
   }
