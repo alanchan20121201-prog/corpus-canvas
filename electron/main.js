@@ -20,6 +20,22 @@ let win = null;
 const userDir = app.getPath('userData');
 const corpusPath = path.join(userDir, 'corpus.json');
 const securePath = path.join(userDir, 'secure.json');
+const backupDir = path.join(userDir, 'backups');
+const FORMAT_VERSION = 2;
+
+async function autoBackup() {
+  try {
+    const st = await fsp.stat(corpusPath).catch(() => null);
+    if (!st || !st.size) return;
+    await fsp.mkdir(backupDir, { recursive: true });
+    const d = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    const name = 'corpus-' + d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate()) + '-' + pad(d.getHours()) + pad(d.getMinutes()) + pad(d.getSeconds()) + '.json';
+    await fsp.copyFile(corpusPath, path.join(backupDir, name));
+    const files = (await fsp.readdir(backupDir)).filter((f) => /^corpus-\d{8}-\d{6}\.json$/.test(f)).sort();
+    while (files.length > 10) await fsp.rm(path.join(backupDir, files.shift()), { force: true });
+  } catch (e) { /* ignore */ }
+}
 const statePath = path.join(userDir, 'window.json');
 
 /* ------------------------------------------------------------------ */
@@ -186,7 +202,7 @@ if (!gotLock) {
   app.on('second-instance', () => {
     if (win) { if (win.isMinimized()) win.restore(); win.focus(); }
   });
-  app.whenReady().then(createWindow);
+  app.whenReady().then(async () => { await autoBackup(); createWindow(); });
 }
 
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
@@ -208,6 +224,32 @@ ipcMain.handle('app:info', async () => ({
 }));
 
 ipcMain.handle('corpus:load', async () => readJson(corpusPath));
+
+ipcMain.handle('backup:list', async () => {
+  try {
+    const files = (await fsp.readdir(backupDir)).filter((f) => /^corpus-\d{8}-\d{6}\.json$/.test(f)).sort().reverse();
+    const out = [];
+    for (const f of files.slice(0, 10)) {
+      const st = await fsp.stat(path.join(backupDir, f));
+      out.push({ name: f, at: st.mtimeMs, size: st.size });
+    }
+    return { ok: true, items: out };
+  } catch (e) { return { ok: true, items: [] }; }
+});
+
+ipcMain.handle('backup:restore', async (_e, name) => {
+  if (!/^corpus-\d{8}-\d{6}\.json$/.test(String(name || ''))) return { ok: false, error: 'bad name' };
+  const file = path.join(backupDir, name);
+  let data;
+  try { data = JSON.parse(await fsp.readFile(file, 'utf8')); }
+  catch (e) { return { ok: false, error: 'invalid' }; }
+  if (!data || !Array.isArray(data.cards) || !Array.isArray(data.maps)) return { ok: false, error: 'invalid' };
+  if (data.formatVersion != null && Number(data.formatVersion) > FORMAT_VERSION) return { ok: false, error: 'version' };
+  try {
+    await writeJsonAtomic(corpusPath, data);
+    return { ok: true };
+  } catch (e) { return { ok: false, error: String(e.message || e) }; }
+});
 
 ipcMain.handle('corpus:save', async (_e, data) => {
   await writeJsonAtomic(corpusPath, data);
@@ -333,6 +375,23 @@ ipcMain.handle('image:save', async (_e, { dataUrl, suggested }) => {
 });
 
 /* AI proxy: keeps the renderer free of CORS problems and network details. */
+ipcMain.handle('ai:models', async (_e, payload) => {
+  try {
+    const base = String((payload && payload.baseUrl) || '').replace(/\/+$/, '').replace(/\/chat\/completions$/i, '');
+    if (!base) return { ok: false, error: 'missing endpoint' };
+    const headers = {};
+    if (payload && payload.apiKey) headers.Authorization = 'Bearer ' + payload.apiKey;
+    const resp = await net.fetch(base + '/models', { headers });
+    const text = await resp.text();
+    let json = null;
+    try { json = JSON.parse(text); } catch (e) { /* ignore */ }
+    if (!resp.ok) return { ok: false, status: resp.status, error: (json && json.error && json.error.message) || text.slice(0, 200) };
+    const list = (json && (json.data || json.models)) || [];
+    const ids = list.map((m) => (typeof m === 'string' ? m : m.id || m.name)).filter(Boolean);
+    return { ok: true, models: ids };
+  } catch (e) { return { ok: false, error: String(e.message || e) }; }
+});
+
 ipcMain.handle('ai:chat', async (_e, payload) => {
   return aiClient.chat(Object.assign({}, payload, {
     fetchFn: (url, init) => net.fetch(url, init)

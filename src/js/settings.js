@@ -61,12 +61,26 @@
             '<span>' + U.esc((ai.hasKey || ai.local) ? (ai.local ? t('settings.localModel') : t('settings.apiKeySaved')) : t('settings.aiOff')) + '</span>' +
           '</div>' +
           '<p class="set-hint">' + U.esc(t('settings.aiHint')) + '</p>' +
+          '<label class="field"><span>' + U.esc(t('settings.preset')) + '</span>' +
+            '<select class="input" id="ai-preset">' +
+              '<option value="">' + U.esc(t('settings.presetCustom')) + '</option>' +
+              '<option value="openai">OpenAI</option>' +
+              '<option value="deepseek">DeepSeek</option>' +
+              '<option value="moonshot">Moonshot / Kimi</option>' +
+              '<option value="zhipu">智谱 / Zhipu</option>' +
+              '<option value="bailian">阿里百炼 / Bailian</option>' +
+              '<option value="openrouter">OpenRouter</option>' +
+              '<option value="ollama">Ollama (local)</option>' +
+              '<option value="lmstudio">LM Studio (local)</option>' +
+            '</select>' +
+            '<em>' + U.esc(t('settings.presetHint')) + '</em></label>' +
           '<div class="form-grid">' +
             '<label class="field"><span>' + U.esc(t('settings.baseUrl')) + '</span>' +
               '<input class="input" id="ai-base" value="' + U.esc(ai.baseUrl) + '" placeholder="https://api.openai.com/v1">' +
               '<em>' + U.esc(t('settings.baseUrlHint')) + '</em></label>' +
             '<label class="field"><span>' + U.esc(t('settings.model')) + '</span>' +
-              '<input class="input" id="ai-model" value="' + U.esc(ai.model) + '" placeholder="gpt-4o-mini"></label>' +
+              '<div class="key-row"><input class="input" id="ai-model" value="' + U.esc(ai.model) + '" placeholder="gpt-4o-mini">' +
+              '<button class="mini-btn" id="ai-models">' + U.esc(t('settings.fetchModels')) + '</button></div></label>' +
           '</div>' +
           '<label class="field"><span>' + U.esc(t('settings.apiKey')) + '</span>' +
             '<div class="key-row">' +
@@ -103,6 +117,12 @@
             '<button class="btn" id="backup-import">' + U.icon('upload', 15) + '<span>' + U.esc(t('settings.backupImport')) + '</span></button>' +
             '<button class="btn ghost" id="import-file">' + U.icon('upload', 15) + '<span>' + U.esc(t('import.title')) + '</span></button>' +
           '</div>' +
+          '<div class="auto-backup">' +
+            '<div class="ab-head"><strong>' + U.esc(t('settings.autoBackup')) + '</strong>' +
+              '<button class="mini-btn" id="ab-refresh">' + U.esc(t('common.refresh')) + '</button></div>' +
+            '<p class="set-hint small">' + U.esc(t('settings.autoBackupHint')) + '</p>' +
+            '<div class="ab-list" id="ab-list"></div>' +
+          '</div>' +
           '<div class="danger-zone"><div><strong>' + U.esc(t('settings.danger')) + '</strong><p>' + U.esc(t('settings.clearAllConfirm')) + '</p></div>' +
             '<button class="btn danger sm" id="clear-all">' + U.esc(t('settings.clearAll')) + '</button></div>') +
 
@@ -131,6 +151,39 @@
     root.querySelectorAll('[data-theme]').forEach(function (b) {
       b.onclick = function () { CC.app.setTheme(b.getAttribute('data-theme')); };
     });
+
+    var PRESETS = {
+      openai: { base: 'https://api.openai.com/v1', model: 'gpt-4o-mini', local: false },
+      deepseek: { base: 'https://api.deepseek.com/v1', model: 'deepseek-chat', local: false },
+      moonshot: { base: 'https://api.moonshot.cn/v1', model: 'moonshot-v1-8k', local: false },
+      zhipu: { base: 'https://open.bigmodel.cn/api/paas/v4', model: 'glm-4-flash', local: false },
+      bailian: { base: 'https://dashscope.aliyuncs.com/compatible-mode/v1', model: 'qwen-plus', local: false },
+      openrouter: { base: 'https://openrouter.ai/api/v1', model: 'openai/gpt-4o-mini', local: false },
+      ollama: { base: 'http://127.0.0.1:11434/v1', model: 'qwen2.5', local: true },
+      lmstudio: { base: 'http://127.0.0.1:1234/v1', model: '', local: true }
+    };
+    var preset = root.querySelector('#ai-preset');
+    if (preset) preset.onchange = function () {
+      var p = PRESETS[preset.value];
+      if (!p) return;
+      var a = S.settings().ai;
+      a.baseUrl = p.base; a.model = p.model; a.local = p.local;
+      S.saveSoon(); S.emit();
+      mount(root);
+    };
+    var modelsBtn = root.querySelector('#ai-models');
+    if (modelsBtn) modelsBtn.onclick = function () {
+      var a = S.settings().ai;
+      modelsBtn.disabled = true;
+      window.api.listModels({ baseUrl: a.baseUrl, apiKey: CC.app.getKey() }).then(function (r) {
+        modelsBtn.disabled = false;
+        if (!r || !r.ok || !r.models || !r.models.length) { U.toast(t('settings.modelsFail'), 'bad'); return; }
+        var rect = modelsBtn.getBoundingClientRect();
+        U.showMenu(rect.left, rect.bottom + 4, r.models.slice(0, 80).map(function (id) {
+          return { label: id, onClick: function () { S.settings().ai.model = id; S.saveSoon(); S.emit(); mount(root); } };
+        }));
+      });
+    };
 
     var base = root.querySelector('#ai-base');
     var model = root.querySelector('#ai-model');
@@ -199,6 +252,43 @@
     if (bi) bi.onclick = function () { importBackup(root); };
     var ifile = root.querySelector('#import-file');
     if (ifile) ifile.onclick = function () { CC.importer.open(); };
+
+    function renderBackups() {
+      var host = root.querySelector('#ab-list');
+      if (!host || !window.api || !window.api.listBackups) return;
+      window.api.listBackups().then(function (r) {
+        if (!r || !r.ok || !r.items || !r.items.length) {
+          host.innerHTML = '<div class="mini-empty">' + U.esc(t('settings.noBackups')) + '</div>';
+          return;
+        }
+        host.innerHTML = r.items.map(function (b) {
+          return '<div class="ab-row">' +
+            '<span class="ab-time">' + U.esc(U.fmtDate(b.at, true)) + '</span>' +
+            '<span class="ab-size">' + Math.max(1, Math.round(b.size / 1024)) + ' KB</span>' +
+            '<button class="mini-btn" data-restore="' + U.esc(b.name) + '">' + U.esc(t('settings.restore')) + '</button>' +
+            '</div>';
+        }).join('');
+        host.querySelectorAll('[data-restore]').forEach(function (btn) {
+          btn.onclick = function () {
+            var name = btn.getAttribute('data-restore');
+            U.confirm(t('settings.restore'), t('settings.restoreConfirm', { name: name })).then(function (ok) {
+              if (!ok) return;
+              window.api.restoreBackup(name).then(function (res) {
+                if (res && res.ok) {
+                  U.toast(t('settings.restored'), 'ok');
+                  setTimeout(function () { location.reload(); }, 600);
+                } else {
+                  U.toast(t('settings.backupInvalid'), 'bad');
+                }
+              });
+            });
+          };
+        });
+      });
+    }
+    renderBackups();
+    var abRefresh = root.querySelector('#ab-refresh');
+    if (abRefresh) abRefresh.onclick = renderBackups;
 
     var ca = root.querySelector('#clear-all');
     if (ca) ca.onclick = function () {
