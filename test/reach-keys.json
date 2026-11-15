@@ -453,5 +453,11 @@
   "demo.mapB": "Sample · Review and forgetting",
   "demo.loaded": "Sample corpus loaded",
   "demo.load": "Load sample corpus",
-  "search.inTags": "tags"
+  "search.inTags": "tags",
+  "map.inlineEdit": "Rename on canvas",
+  "map.marquee": "Box select",
+  "map.marqueeTitle": "Box select: drag on empty canvas to pick several nodes",
+  "map.minimapTitle": "Minimap navigation",
+  "map.showMinimap": "Show minimap",
+  "map.hideMinimap": "Hide minimap"
 }

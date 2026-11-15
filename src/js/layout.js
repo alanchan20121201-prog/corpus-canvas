@@ -564,6 +564,21 @@
 
   function totalNodes(model) { return model ? Object.keys(model.nodes).length : 0; }
 
+  /* Coarse cells sampled down to a maximum, so a million-node map still
+     yields a cheap overview (the minimap) without building a huge array. */
+  function coarseSample(model, limit) {
+    ensureIndex(model);
+    var out = [];
+    var size = model.coarse.size;
+    var stride = Math.max(1, Math.ceil(size / Math.max(1, limit || 700)));
+    var i = 0;
+    model.coarse.forEach(function (c) {
+      if (i % stride === 0) out.push(c);
+      i++;
+    });
+    return out;
+  }
+
   function shiftSubtree(model, id, dx, dy) {
     var n = model.nodes[id];
     if (!n) return;
@@ -585,7 +600,7 @@
 
   CC.layout = {
     get: get, compute: get, invalidate: invalidate,
-    query: query, queryEdges: queryEdges, clusters: clusters,
+    query: query, queryEdges: queryEdges, clusters: clusters, coarseSample: coarseSample,
     totalNodes: totalNodes, shiftSubtree: shiftSubtree,
     serialize: serialize, hydrate: hydrate, sigOf: sigOf,
     recomputeBounds: function (model) { return computeBounds(model.nodes); },

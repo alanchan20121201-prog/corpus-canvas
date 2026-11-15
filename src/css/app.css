@@ -1923,6 +1923,63 @@ code.kv-val { font-family: var(--font-mono); font-size: 11px; }
 .zh-sep { width: 1px; height: 14px; background: var(--border); margin: 0 3px; }
 .zoom-hud .zoom-val { min-width: 38px; font-size: 10.5px; }
 
+/* ---------- batch 3: inline edit, marquee, minimap ---------- */
+
+.inline-edit {
+  position: absolute;
+  z-index: 9;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: var(--node-fill);
+  border: 2px solid var(--accent);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, .18);
+  line-height: 1.4;
+}
+.inline-edit-input {
+  display: block;
+  width: 100%;
+  border: 0;
+  outline: 0;
+  padding: 0;
+  margin: 0;
+  resize: none;
+  overflow: hidden;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+}
+.inline-edit-input::placeholder { color: var(--muted); font-weight: 500; }
+
+.marquee-box {
+  position: absolute;
+  z-index: 8;
+  pointer-events: none;
+  border: 1px solid var(--accent);
+  background: var(--accent-soft);
+  border-radius: 3px;
+}
+.map-svg.marqueeing { cursor: crosshair; }
+
+.minimap {
+  position: absolute;
+  left: 16px; bottom: 16px;
+  width: 190px; height: 128px;
+  z-index: 6;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--surface) 90%, transparent);
+  box-shadow: var(--shadow-s);
+  backdrop-filter: blur(8px);
+  overflow: hidden;
+}
+.minimap[hidden] { display: none; }
+.minimap-svg { width: 100%; height: 100%; display: block; cursor: pointer; }
+.mm-bounds { fill: none; stroke: var(--border-strong); stroke-width: 1; }
+.mm-cell { fill: var(--accent); }
+.mm-view { fill: var(--accent); fill-opacity: .1; stroke: var(--accent); stroke-width: 1.5; }
+
 @media (max-width: 1280px) {
   .topnav .rail-label { display: none; }
   .brand-name { display: none; }

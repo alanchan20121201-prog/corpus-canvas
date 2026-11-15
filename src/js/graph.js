@@ -8,8 +8,11 @@
   var st = {
     sel: [], edgeSel: null, mode: 'select', connectFrom: null, focus: null,
     drag: null, pan: null, mounted: false, lod: 'full', visible: 0, total: 0,
-    truncated: false, focusCache: null, lastPaint: 0
+    truncated: false, focusCache: null, lastPaint: 0,
+    inline: null, marquee: null, marqueeMode: false, mm: null, mmSig: ''
   };
+
+  var MM_W = 190, MM_H = 128, MM_PAD = 10, MM_CELLS = 700;
 
   var host = null, svg = null, vp = null, gEdges = null, gNodes = null, gBounds = null, stage = null;
   var view = { x: 0, y: 0, k: 1 };
@@ -51,6 +54,8 @@
           '<div class="map-bar-group right">' +
             '<button class="tool-btn ghost" data-act="focus">' + U.icon('focus', 15) + '</button>' +
             '<button class="tool-btn ghost" data-act="structure"></button>' +
+            '<button class="tool-btn ghost" data-act="marquee" title="' + U.esc(t('map.marqueeTitle')) + '">' + U.icon('marquee', 15) + '</button>' +
+            '<button class="tool-btn ghost" data-act="minimap" title="' + U.esc(t('map.minimapTitle')) + '">' + U.icon('minimap', 15) + '</button>' +
             '<button class="tool-btn ghost" data-act="ai">' + U.icon('sparkles', 15) + '</button>' +
             '<button class="tool-btn ghost" data-act="more">' + U.icon('more', 16) + '</button>' +
           '</div>' +
@@ -67,6 +72,9 @@
           '<div class="map-empty" id="map-empty" hidden></div>' +
           '<div class="map-hint" id="map-hint"></div>' +
           '<div class="map-status" id="map-status"></div>' +
+          '<div class="minimap" id="minimap" hidden>' +
+            '<svg class="minimap-svg" id="minimap-svg" viewBox="0 0 ' + MM_W + ' ' + MM_H + '" xmlns="http://www.w3.org/2000/svg"></svg>' +
+          '</div>' +
           '<div class="zoom-hud">' +
             '<button class="icon-btn sm" data-act="fit" title="' + U.esc(t('map.fit')) + '">' + U.icon('fit', 14) + '</button>' +
             '<span class="zh-sep"></span>' +
@@ -84,8 +92,12 @@
     gBounds = root.querySelector('#g-bounds');
     stage = root.querySelector('#map-stage');
 
+    /* a fresh DOM means a fresh minimap layer */
+    st.mmSig = '';
     bindToolbar(root);
     bindStage();
+    var mmBox = root.querySelector('#minimap');
+    if (mmBox) bindMinimap(mmBox);
     st.mounted = true;
     refresh();
   }
@@ -135,6 +147,11 @@
         ? U.icon('free', 15) + '<span>' + U.esc(t('map.free')) + '</span>'
         : U.icon('tree', 15) + '<span>' + U.esc(t('map.tree')) + '</span>';
     structBtn.title = t('map.structure');
+
+    var mqBtn = host.querySelector('[data-act="marquee"]');
+    if (mqBtn) mqBtn.classList.toggle('active', !!st.marqueeMode);
+    var mmBtn = host.querySelector('[data-act="minimap"]');
+    if (mmBtn) mmBtn.classList.toggle('active', !!(m && m.style && m.style.minimap !== false));
 
     hint.textContent = st.mode === 'link'
       ? (st.connectFrom ? t('map.connectingFrom', { name: S.cardTitle(S.card(st.connectFrom)) }) : t('map.connectHint'))
@@ -210,6 +227,7 @@
           '</g>';
       }).join('');
       updateStatus(0);
+      paintMinimap();
       return;
     }
 
@@ -236,6 +254,7 @@
     updateStatus(edges.length);
     markSelection();
     scheduleLayoutCache();
+    paintMinimap();
   }
 
   function updateStatus(edgeCount) {
@@ -504,6 +523,8 @@
         return;
       }
 
+      if (st.marqueeMode || e.shiftKey) { startMarquee(e); return; }
+
       st.sel = [];
       st.edgeSel = null;
       st.focus = null;
@@ -515,6 +536,7 @@
     });
 
     svg.addEventListener('pointermove', function (e) {
+      if (st.marquee) { updateMarquee(e); return; }
       if (st.pan) {
         view.x = st.pan.ox + (e.clientX - st.pan.sx);
         view.y = st.pan.oy + (e.clientY - st.pan.sy);
@@ -533,6 +555,7 @@
     });
 
     svg.addEventListener('pointerup', function (e) {
+      if (st.marquee) { endMarquee(e); return; }
       if (st.pan) {
         st.pan = null;
         svg.classList.remove('panning');
@@ -566,7 +589,7 @@
     svg.addEventListener('dblclick', function (e) {
       if (e.target.closest('.node')) {
         var id = e.target.closest('.node').getAttribute('data-id');
-        if (CC.app) CC.app.openCard(id, { focusTitle: true });
+        beginInlineEdit(id);
         return;
       }
       if (e.target.closest('.edge')) { editEdge(e.target.closest('.edge').getAttribute('data-edge')); return; }
@@ -702,7 +725,8 @@
       { label: t('map.focus'), icon: '◎', onClick: function () { st.focus = id; st.focusCache = null; refresh(); } },
       { label: t('map.collapseNode'), icon: '⊟', onClick: function () { if (activeMap().collapsed.indexOf(id) < 0) toggleCollapse(id); } },
       { sep: true },
-      { label: t('common.edit'), icon: '✎', onClick: function () { CC.app.openCard(id, { focusTitle: true }); } },
+      { label: t('map.inlineEdit'), icon: '✎', onClick: function () { beginInlineEdit(id); } },
+      { label: t('common.edit'), icon: '▤', onClick: function () { CC.app.openCard(id, { focusTitle: true }); } },
       { label: t('cards.delete'), icon: '🗑', danger: true, onClick: function () { CC.app.deleteCardFlow(id); } }
     ];
     if (st.sel.length > 1) {
@@ -728,10 +752,254 @@
       { label: t('map.fit'), onClick: zoomFit },
       { sep: true },
       { label: t('map.showLabels'), onClick: function () { toggleLabels(); } },
+      { label: t('map.marquee'), onClick: function () { toggleMarquee(); } },
       { label: t('map.exportImage'), onClick: exportPNG },
       { label: t('map.exportSvg'), onClick: exportSVG },
       { label: t('map.exportMd'), onClick: exportMarkdown }
     ]);
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* inline editing (edit the title straight on the canvas)             */
+  /* ------------------------------------------------------------------ */
+
+  function beginInlineEdit(id) {
+    if (!model) return;
+    var n = model.nodes[id];
+    var card = n && n.card;
+    if (!card) return;
+    cancelInlineEdit();
+
+    var box = document.createElement('div');
+    box.className = 'inline-edit';
+    var ta = document.createElement('textarea');
+    ta.className = 'inline-edit-input';
+    ta.rows = 1;
+    ta.value = card.title || '';
+    ta.placeholder = t('common.untitled');
+    box.appendChild(ta);
+    stage.appendChild(box);
+
+    st.inline = { id: id, box: box, ta: ta, card: card };
+    positionInline();
+
+    ta.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        e.stopPropagation();
+        commitInlineEdit();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        e.stopPropagation();
+        cancelInlineEdit();
+      }
+    });
+    ta.addEventListener('blur', function () { commitInlineEdit(); });
+    ta.addEventListener('input', function () { ta.style.height = 'auto'; ta.style.height = ta.scrollHeight + 'px'; });
+
+    setTimeout(function () { ta.focus(); ta.select(); }, 0);
+    if (CC.app) CC.app.onSelectionChange(st.sel.indexOf(id) >= 0 ? st.sel : [id]);
+  }
+
+  function positionInline() {
+    var s = st.inline;
+    if (!s || !model) return;
+    var n = model.nodes[s.id];
+    if (!n) return;
+    var sr = svg.getBoundingClientRect();
+    var cr = stage.getBoundingClientRect();
+    var k = view.k || 1;
+    s.box.style.left = (sr.left - cr.left + view.x + (n.x - n.w / 2) * k) + 'px';
+    s.box.style.top = (sr.top - cr.top + view.y + (n.y - n.h / 2) * k) + 'px';
+    s.box.style.width = Math.max(90, n.w * k) + 'px';
+    s.box.style.minHeight = Math.max(30, n.h * k) + 'px';
+    s.box.style.fontSize = Math.max(11, n.fs * k) + 'px';
+  }
+
+  function commitInlineEdit() {
+    var s = st.inline;
+    if (!s) return;
+    st.inline = null;
+    if (s.box.parentNode) s.box.parentNode.removeChild(s.box);
+    var val = s.ta.value;
+    if (String(s.card.title || '') === val) { refresh(); return; }
+    S.commit('edit', t('map.inlineEdit'), function () {
+      s.card.title = val;
+      s.card.updatedAt = Date.now();
+    });
+    L.invalidate(activeMap().id);
+    refresh();
+    if (CC.inspector && CC.inspector.isOpen()) CC.inspector.refresh();
+  }
+
+  function cancelInlineEdit() {
+    var s = st.inline;
+    if (!s) return;
+    st.inline = null;
+    if (s.box.parentNode) s.box.parentNode.removeChild(s.box);
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* marquee selection                                                  */
+  /* ------------------------------------------------------------------ */
+
+  function startMarquee(e) {
+    var box = document.createElement('div');
+    box.className = 'marquee-box';
+    stage.appendChild(box);
+    st.marquee = {
+      x0: e.clientX, y0: e.clientY, x1: e.clientX, y1: e.clientY,
+      add: !!e.shiftKey, base: e.shiftKey ? st.sel.slice() : [], el: box, moved: false
+    };
+    if (svg.setPointerCapture) { try { svg.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ } }
+    svg.classList.add('marqueeing');
+    updateMarquee(e);
+  }
+
+  function updateMarquee(e) {
+    var q = st.marquee;
+    if (!q) return;
+    q.x1 = e.clientX;
+    q.y1 = e.clientY;
+    if (Math.abs(q.x1 - q.x0) + Math.abs(q.y1 - q.y0) > 4) q.moved = true;
+    var cr = stage.getBoundingClientRect();
+    var x = Math.min(q.x0, q.x1) - cr.left;
+    var y = Math.min(q.y0, q.y1) - cr.top;
+    q.el.style.left = x + 'px';
+    q.el.style.top = y + 'px';
+    q.el.style.width = Math.abs(q.x1 - q.x0) + 'px';
+    q.el.style.height = Math.abs(q.y1 - q.y0) + 'px';
+    st.sel = marqueeSelection(q);
+    markSelection();
+  }
+
+  function marqueeSelection(q) {
+    if (!model) return q.base.slice();
+    var a = toWorld(q.x0, q.y0), b = toWorld(q.x1, q.y1);
+    var rect = {
+      x1: Math.min(a.x, b.x), y1: Math.min(a.y, b.y),
+      x2: Math.max(a.x, b.x), y2: Math.max(a.y, b.y)
+    };
+    var ids = L.query(model, rect, 0, 4000).ids.filter(function (id) {
+      var n = model.nodes[id];
+      if (!n) return false;
+      return !(n.x + n.w / 2 < rect.x1 || n.x - n.w / 2 > rect.x2 ||
+               n.y + n.h / 2 < rect.y1 || n.y - n.h / 2 > rect.y2);
+    });
+    if (!q.add) return ids;
+    var set = {};
+    ids.concat(q.base).forEach(function (id) { set[id] = 1; });
+    return Object.keys(set);
+  }
+
+  function endMarquee(e) {
+    var q = st.marquee;
+    if (!q) return;
+    st.marquee = null;
+    if (q.el.parentNode) q.el.parentNode.removeChild(q.el);
+    svg.classList.remove('marqueeing');
+    if (!q.moved && !q.add) { st.sel = []; markSelection(); }
+    try { svg.releasePointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+    if (CC.app) CC.app.onSelectionChange(st.sel);
+  }
+
+  function toggleMarquee() {
+    st.marqueeMode = !st.marqueeMode;
+    refresh();
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* minimap                                                             */
+  /* ------------------------------------------------------------------ */
+
+  function minimapEl() { return host && host.querySelector('#minimap'); }
+
+  function toggleMinimap() {
+    var m = activeMap();
+    if (!m) return;
+    m.style = m.style || {};
+    /* undefined means "shown"; only an explicit false hides it */
+    m.style.minimap = (m.style.minimap === false);
+    S.saveSoon();
+    refresh();
+  }
+
+  function paintMinimap() {
+    var box = minimapEl();
+    if (!box) return;
+    var m = activeMap();
+    if (!m || !model) { box.hidden = true; return; }
+    var show = !(m.style && m.style.minimap === false);
+    box.hidden = !show;
+    if (!show) { st.mm = null; return; }
+
+    var b = model.bounds;
+    var w = Math.max(1, b.w), h = Math.max(1, b.h);
+    var sc = Math.min((MM_W - MM_PAD * 2) / w, (MM_H - MM_PAD * 2) / h);
+    var ox = MM_PAD + (MM_W - MM_PAD * 2 - w * sc) / 2 - b.minX * sc;
+    var oy = MM_PAD + (MM_H - MM_PAD * 2 - h * sc) / 2 - b.minY * sc;
+    st.mm = { sc: sc, ox: ox, oy: oy };
+
+    var svgEl = box.querySelector('#minimap-svg');
+    if (!svgEl) return;
+
+    /* the cell layer only changes when the map itself changes */
+    var sig = [Math.round(b.minX), Math.round(b.minY), Math.round(b.w), Math.round(b.h),
+      st.total, (m.rev || 0)].join('|');
+    if (st.mmSig !== sig) {
+      st.mmSig = sig;
+      var cells = [];
+      try { cells = L.coarseSample(model, MM_CELLS); } catch (err) { cells = []; }
+      var parts = ['<rect class="mm-bounds" x="' + (b.minX * sc + ox) + '" y="' + (b.minY * sc + oy) +
+        '" width="' + (w * sc) + '" height="' + (h * sc) + '"/>'];
+      cells.forEach(function (c) {
+        var cw = Math.max(1, (c.x2 - c.x1) * sc), ch = Math.max(1, (c.y2 - c.y1) * sc);
+        parts.push('<rect class="mm-cell" x="' + (c.x1 * sc + ox) + '" y="' + (c.y1 * sc + oy) +
+          '" width="' + cw + '" height="' + ch + '" style="fill-opacity:' +
+          Math.min(0.85, 0.25 + Math.log(c.count + 1) / 6).toFixed(2) + '"/>');
+      });
+      svgEl.innerHTML = parts.join('') + '<rect class="mm-view" x="0" y="0" width="0" height="0"/>';
+    }
+
+    var r = worldRect();
+    var vr = svgEl.querySelector('.mm-view');
+    if (vr) {
+      vr.setAttribute('x', (r.x1 * sc + ox));
+      vr.setAttribute('y', (r.y1 * sc + oy));
+      vr.setAttribute('width', Math.max(2, (r.x2 - r.x1) * sc));
+      vr.setAttribute('height', Math.max(2, (r.y2 - r.y1) * sc));
+    }
+  }
+
+  function minimapWorldAt(lx, ly) {
+    var mm = st.mm;
+    if (!mm || !mm.sc) return null;
+    return { x: (lx - mm.ox) / mm.sc, y: (ly - mm.oy) / mm.sc };
+  }
+
+  function bindMinimap(box) {
+    var dragging = false;
+    function jump(e) {
+      var r = box.getBoundingClientRect();
+      var w = minimapWorldAt(e.clientX - r.left, e.clientY - r.top);
+      if (!w) return;
+      var sr = svg.getBoundingClientRect();
+      view.x = sr.width / 2 - w.x * view.k;
+      view.y = sr.height / 2 - w.y * view.k;
+      applyView();
+      persistView();
+      paintSoon();
+    }
+    box.addEventListener('pointerdown', function (e) {
+      dragging = true;
+      if (box.setPointerCapture) { try { box.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ } }
+      e.preventDefault();
+      e.stopPropagation();
+      jump(e);
+    });
+    box.addEventListener('pointermove', function (e) { if (dragging) jump(e); });
+    box.addEventListener('pointerup', function () { dragging = false; });
+    box.addEventListener('pointercancel', function () { dragging = false; });
   }
 
   /* ------------------------------------------------------------------ */
@@ -1208,6 +1476,8 @@
           return;
         }
         if (act === 'arrange') return autoArrange();
+        if (act === 'marquee') return toggleMarquee();
+        if (act === 'minimap') return toggleMinimap();
         if (act === 'focus') return toggleFocus();
         if (act === 'structure') return structureMenu(btn);
         if (act === 'ai') return CC.app.openAI('draft');
@@ -1247,6 +1517,7 @@
       { sep: true },
       { label: t('map.addBoundary'), onClick: function () { addBoundary(); } },
       { label: (m.style && m.style.showLabels === false) ? t('map.showLabels') : t('map.hideLabels'), onClick: toggleLabels },
+      { label: (m.style && m.style.minimap === false) ? t('map.showMinimap') : t('map.hideMinimap'), onClick: toggleMinimap },
       { label: t('map.resetPositions'), onClick: function () {
           S.commit('map', t('map.resetPositions'), function () { m.offsets = {}; m.positions = {}; });
           L.invalidate(m.id);
@@ -1332,6 +1603,16 @@
     exportSVG: exportSVG, exportMarkdown: exportMarkdown,
     duplicateNode: duplicateNode, setStructure: setStructure,
     selection: function () { return st.sel.slice(); },
+    beginInlineEdit: beginInlineEdit,
+    endInlineEdit: function () { commitInlineEdit(); },
+    minimapWorldAt: minimapWorldAt,
+    viewInfo: function () { return { x: view.x, y: view.y, k: view.k }; },
+    nodeScreenPos: function (id) {
+      var n = model && model.nodes[id];
+      if (!n) return null;
+      var r = svg.getBoundingClientRect();
+      return { x: r.left + view.x + n.x * view.k, y: r.top + view.y + n.y * view.k };
+    },
     focus: function () { return st.focus; },
     setMode: function (m) { st.mode = m; },
     stats: function () { return { visible: st.visible, total: st.total, lod: st.lod }; }

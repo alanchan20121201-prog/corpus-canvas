@@ -566,6 +566,25 @@ function step(name, fn) {
     return 'ko manual clean';
   });
 
+  await step('help-canvas-section', async () => {
+    const langs = ['zh-CN', 'zh-TW', 'en', 'ja', 'es', 'fr', 'ko'];
+    const missing = [];
+    for (const lang of langs) {
+      CC.app.setLang(lang);
+      CC.app.nav('help');
+      const el = document.querySelector('#h-canvas');
+      if (!el) { missing.push(lang); continue; }
+      const body = el.textContent || '';
+      if (body.length < 80) missing.push(lang + ':thin');
+      /* Japanese legitimately uses kanji, so only the Latin-script manuals
+         are checked for stray Chinese characters. */
+      if (['es', 'fr', 'ko'].indexOf(lang) >= 0 && /[一-龥]/.test(body)) missing.push(lang + ':han');
+    }
+    CC.app.setLang('zh-CN');
+    if (missing.length) throw new Error('canvas section missing: ' + missing.join(','));
+    return 'canvas section in ' + langs.length + ' languages';
+  });
+
   await step('help-view', async () => {
     CC.app.nav('help');
     const n1 = document.querySelectorAll('.help-article').length;
@@ -581,6 +600,127 @@ function step(name, fn) {
     return 'guide ' + n1 + ', ai ' + n2 + ', filtered ' + visible;
   });
 
+
+  await step('inline-edit', async () => {
+    CC.app.nav('map');
+    await sleep(60);
+    const m = S.currentMap();
+    const id = S.mapCards(m)[0].id;
+    const before = S.card(id).title;
+    CC.graph.beginInlineEdit(id);
+    await sleep(30);
+    const ta = document.querySelector('.inline-edit-input');
+    if (!ta) throw new Error('no inline editor');
+    ta.value = '就地改名测试';
+    ta.dispatchEvent(new window.Event('input'));
+    ta.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    await sleep(60);
+    if (S.card(id).title !== '就地改名测试') throw new Error('title not applied: ' + S.card(id).title);
+    if (document.querySelector('.inline-edit-input')) throw new Error('editor still open');
+    S.undo();
+    await sleep(30);
+    if (S.card(id).title !== before) throw new Error('undo failed: ' + S.card(id).title);
+    S.redo();
+    await sleep(30);
+    return 'renamed on canvas, undo/redo ok';
+  });
+
+  await step('inline-edit-cancel', async () => {
+    CC.app.nav('map');
+    await sleep(40);
+    const m = S.currentMap();
+    const id = S.mapCards(m)[0].id;
+    const before = S.card(id).title;
+    CC.graph.beginInlineEdit(id);
+    await sleep(20);
+    const ta = document.querySelector('.inline-edit-input');
+    if (!ta) throw new Error('no inline editor');
+    ta.value = 'should be discarded';
+    ta.dispatchEvent(new window.Event('input'));
+    ta.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    await sleep(40);
+    if (S.card(id).title !== before) throw new Error('escape did not cancel: ' + S.card(id).title);
+    if (document.querySelector('.inline-edit-input')) throw new Error('editor still open');
+    return 'escape cancels';
+  });
+
+  await step('marquee-select', async () => {
+    const m = S.newMap('marquee map', { silent: true });
+    const c1 = S.newCard({ title: 'mq one' }, true);
+    const c2 = S.newCard({ title: 'mq two' }, true);
+    m.positions[c1.id] = { x: 0, y: 0 };
+    m.positions[c2.id] = { x: 260, y: 0 };
+    m.edges.push({ id: U.uid('e'), from: c1.id, to: c2.id, type: 'hierarchy', color: '', label: '', uncertain: false });
+    m.rev++;
+    S.settings().lastMapId = m.id;
+    CC.app.nav('map');
+    await sleep(80);
+    const cards = S.mapCards(m);
+    if (cards.length < 2) throw new Error('need 2 nodes');
+    const model = CC.layout.get(m);
+    const ids = cards.map((c) => c.id);
+    const a = model.nodes[ids[0]], b = model.nodes[ids[1]];
+    const minX = Math.min(a.x - a.w / 2, b.x - b.w / 2) - 40;
+    const minY = Math.min(a.y - a.h / 2, b.y - b.h / 2) - 40;
+    const maxX = Math.max(a.x + a.w / 2, b.x + b.w / 2) + 40;
+    const maxY = Math.max(a.y + a.h / 2, b.y + b.h / 2) + 40;
+    const svg = document.querySelector('#map-svg');
+    const r = svg.getBoundingClientRect();
+    const view = CC.graph.viewInfo();
+    const k = view.k;
+    const toClient = (wx, wy) => ({
+      x: r.left + view.x + wx * k,
+      y: r.top + view.y + wy * k
+    });
+    const p0 = toClient(minX, minY);
+    const p1 = toClient(maxX, maxY);
+    svg.dispatchEvent(new window.MouseEvent('pointerdown', { bubbles: true, clientX: p0.x, clientY: p0.y, shiftKey: true }));
+    const box = document.querySelector('.marquee-box');
+    if (!box) throw new Error('no marquee box');
+    svg.dispatchEvent(new window.MouseEvent('pointermove', { bubbles: true, clientX: p1.x, clientY: p1.y }));
+    svg.dispatchEvent(new window.MouseEvent('pointerup', { bubbles: true, clientX: p1.x, clientY: p1.y }));
+    await sleep(40);
+    const sel = CC.graph.selection();
+    if (sel.length < 2) throw new Error('marquee selected ' + sel.length);
+    if (document.querySelector('.marquee-box')) throw new Error('marquee box left behind');
+    return sel.length + ' nodes selected';
+  });
+
+  await step('marquee-mode-toggle', async () => {
+    CC.app.nav('map');
+    await sleep(40);
+    const btn = document.querySelector('[data-act="marquee"]');
+    if (!btn) throw new Error('no marquee button');
+    btn.click();
+    await sleep(30);
+    if (!btn.classList.contains('active')) throw new Error('marquee mode not active');
+    btn.click();
+    await sleep(30);
+    if (btn.classList.contains('active')) throw new Error('marquee mode still active');
+    return 'toggle ok';
+  });
+
+  await step('minimap', async () => {
+    window.__MMDBG = 1;
+    CC.app.nav('map');
+    await sleep(60);
+    const mm = document.querySelector('#minimap');
+    if (!mm) throw new Error('no minimap');
+    if (mm.hidden) throw new Error('minimap hidden by default');
+    const cells = document.querySelectorAll('#minimap-svg .mm-cell').length;
+    if (!cells) throw new Error('no minimap cells');
+    const view = document.querySelector('#minimap-svg .mm-view');
+    if (!view) throw new Error('no minimap viewport');
+    const w = CC.graph.minimapWorldAt(95, 64);
+    if (!w || typeof w.x !== 'number') throw new Error('minimapWorldAt failed');
+    document.querySelector('[data-act="minimap"]').click();
+    await sleep(40);
+    if (!document.querySelector('#minimap').hidden) throw new Error('minimap not hidden');
+    document.querySelector('[data-act="minimap"]').click();
+    await sleep(40);
+    if (document.querySelector('#minimap').hidden) throw new Error('minimap not shown again');
+    return cells + ' cells';
+  });
 
   await step('no-uncaught', () => {
     if (errors.length) throw new Error(errors.slice(0, 3).join(' | '));

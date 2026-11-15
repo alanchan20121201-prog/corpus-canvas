@@ -18,6 +18,14 @@
         '<p>Collapse a branch with the “+N” pill, duplicate a node from the context menu, align several selected nodes, or draw a boundary around a group. Deleting moves the card to Trash.</p>' },
       { id: 'edge', title: 'Links', html:
         '<p>Press Link, then click source and target. Choose a type (hierarchy, synonym, cause…), add a note, pick a colour or mark it doubtful. Double-click a link to edit; doubtful links appear in Check.</p>' },
+      { id: 'canvas', title: 'Editing and selecting on the canvas', html:
+        '<h3>Renaming in place</h3><p>Double-click a node and its title turns into a text box: type straight into it, without opening the side panel. <kbd>Enter</kbd> commits, <kbd>Esc</kbd> cancels, and clicking away also commits. The change applies at once, the layout re-flows, and it can be undone and redone like any other edit.</p>' +
+        '<p>To change the body, note or style of the whole card, use “Edit” in the context menu to open the side panel.</p>' +
+        '<h3>Marquee selection</h3><p>Hold <kbd>Shift</kbd> and drag on empty canvas to draw a rectangle; every node inside it gets selected. Holding <kbd>Shift</kbd> for a second box adds to the current selection.</p>' +
+        '<p>You can also press the dashed-rectangle button in the toolbar to stay in marquee mode, then drag without <kbd>Shift</kbd>. Press the button again to leave it.</p>' +
+        '<p>Once several nodes are selected you can drag them as a group, link them in one go, or delete them together with <kbd>Delete</kbd>.</p>' +
+        '<h3>Minimap</h3><p>The small map at the bottom left shows the whole map; the pale rectangle marks the current viewport. Click it or drag it and the viewport jumps to that spot — on a map with hundreds of thousands of cards this is the quickest way to find your way around.</p>' +
+        '<p>Show or hide it with the map-icon button in the toolbar or from the canvas “…” menu. The choice is stored per map, so each map remembers its own setting.</p>' },
       { id: 'outline', title: 'Outline', html:
         '<p>The outline edits the same data as the map. Change a title or level here and the map follows immediately, and vice versa.</p>' +
         '<p><kbd>Tab</kbd> indents, <kbd>Shift</kbd>+<kbd>Tab</kbd> outdents, <kbd>Enter</kbd> adds a sibling; the row buttons add children and siblings.</p>' },
@@ -89,6 +97,14 @@
         '<p>「+N」で枝を畳み、右クリックで複製、複数選択で整列、囲み枠も作れます。削除はゴミ箱へ移動します。</p>' },
       { id: 'edge', title: 'リンク', html:
         '<p>「リンク」を押し、始点と終点をクリックします。種類・説明・色・不確かを設定し、ダブルクリックで編集します。不確かな線は点検に表示されます。</p>' },
+      { id: 'canvas', title: 'キャンバスでの編集と選択', html:
+        '<h3>その場で名前を変える</h3><p>ノードをダブルクリックするとタイトルが入力欄になり、サイドパネルを開かずにそのまま入力できます。<kbd>Enter</kbd>で確定、<kbd>Esc</kbd>で取り消し、別の場所をクリックしても確定します。変更はすぐに反映され、レイアウトも組み直され、他の編集と同じように元に戻せます。</p>' +
+        '<p>本文・補足・スタイルなどカード全体を直すときは、右クリックの「編集」でサイドパネルを開いてください。</p>' +
+        '<h3>矩形選択</h3><p>空いた場所で<kbd>Shift</kbd>を押しながらドラッグすると長方形が引かれ、中のノードがすべて選択されます。もう一度<kbd>Shift</kbd>を押したまま四角えると、選択に追加されます。</p>' +
+        '<p>ツールバーの破線ボタンは矩形選択モードの切り替えです。押した状態では<kbd>Shift</kbd>なしでそのままドラッグすれば選択できます。もう一度押すと解除されます。</p>' +
+        '<p>複数選択後はまとめて移動、まとめて接続、<kbd>Delete</kbd>で一括削除できます。</p>' +
+        '<h3>ミニマップ</h3><p>キャンバス左下の小さな図がマップ全体を示し、薄い長方形が現在の表示範囲です。クリックまたはドラッグするとその位置へ表示が移動します。数十万枚のカードのあるマップでは、これが一番早い道しるべになります。</p>' +
+        '<p>表示・非表示はツールバーの地図アイコン、またはキャンバス右クリックの「…」メニューから切り替えます。設定はマップごとに保存されます。</p>' },
       { id: 'outline', title: 'アウトライン', html:
         '<p>アウトラインはマップと同じデータを編集します。ここでタイトルや階層を変えるとマップに即反映し、逆も同じです。</p>' +
         '<p><kbd>Tab</kbd> で下げ、<kbd>Shift</kbd>+<kbd>Tab</kbd> で上げ、<kbd>Enter</kbd> で同じ階層を追加します。</p>' },
@@ -156,6 +172,14 @@
         '<p>Contrae una rama con «+N», duplica desde el menú, alinea varios nodos o crea un marco de área. Eliminar mueve la tarjeta a la papelera.</p>' },
       { id: 'edge', title: 'Enlaces', html:
         '<p>Pulsa Enlazar y haz clic en origen y destino. Elige tipo (jerarquía, sinónimo, causa…), nota, color o marca dudoso. Doble clic edita; los dudosos aparecen en Revisión.</p>' },
+      { id: 'canvas', title: 'Edición y selección en el lienzo', html:
+        '<h3>Renombrar en el sitio</h3><p>Haz doble clic en un nodo y su título se convierte en un cuadro de texto: escribe directamente en él, sin abrir el panel lateral. <kbd>Enter</kbd> confirma, <kbd>Esc</kbd> cancela y al hacer clic fuera también se confirma. El cambio se aplica al instante, la disposición se recalcula y se puede deshacer y rehacer como cualquier otra edición.</p>' +
+        '<p>Para cambiar el cuerpo, la nota o el estilo de la tarjeta completa, usa «Editar» en el menú contextual para abrir el panel lateral.</p>' +
+        '<h3>Selección por recuadro</h3><p>Mantén <kbd>Shift</kbd> y arrastra sobre el lienzo vacío para dibujar un rectángulo: todos los nodos que quedan dentro quedan seleccionados. Mantener <kbd>Shift</kbd> en un segundo recuadro añade a la selección actual.</p>' +
+        '<p>También puedes pulsar el botón de rectángulo discontinuo de la barra de herramientas para quedarte en modo recuadro y arrastrar sin <kbd>Shift</kbd>. Púlsalo otra vez para salir.</p>' +
+        '<p>Con varios nodos seleccionados puedes moverlos en bloque, enlazarlos de una vez o borrarlos juntos con <kbd>Delete</kbd>.</p>' +
+        '<h3>Minimapa</h3><p>El pequeño mapa de la esquina inferior izquierda muestra el mapa entero; el rectángulo claro marca la vista actual. Haz clic o arrástralo y la vista salta a ese punto: en un mapa con cientos de miles de tarjetas es la forma más rápida de orientarse.</p>' +
+        '<p>Se muestra u oculta con el botón de icono de mapa de la barra de herramientas o desde el menú «…» del lienzo. La preferencia se guarda por mapa.</p>' },
       { id: 'outline', title: 'Esquema', html:
         '<p>El esquema edita los mismos datos que el mapa: cambia un título o nivel y el mapa sigue al instante, y al revés.</p>' +
         '<p><kbd>Tab</kbd> sangra, <kbd>Mayús</kbd>+<kbd>Tab</kbd> quita sangría y <kbd>Intro</kbd> crea un hermano.</p>' },
@@ -222,6 +246,14 @@
         '<p>Réduisez une branche avec « +N », dupliquez depuis le menu, alignez plusieurs nœuds ou encadrez un groupe. Supprimer envoie la fiche à la corbeille.</p>' },
       { id: 'edge', title: 'Liens', html:
         '<p>Cliquez sur Relier puis sur source et cible. Choisissez type (hiérarchie, synonyme, cause…), note, couleur ou douteux. Double-clic pour modifier ; les liens douteux apparaissent dans Vérification.</p>' },
+      { id: 'canvas', title: 'Édition et sélection sur le canevas', html:
+        '<h3>Renommer sur place</h3><p>Double-cliquez sur un nœud et son titre devient un champ de saisie : tapez directement dedans, sans ouvrir le panneau latéral. <kbd>Entrée</kbd> valide, <kbd>Échap</kbd> annule, et un clic ailleurs valide aussi. La modification s’applique immédiatement, la disposition se recalcule et elle s’annule et se rétablit comme les autres.</p>' +
+        '<p>Pour changer le corps, la note ou le style complet de la fiche, utilisez « Modifier » dans le menu contextuel afin d’ouvrir le panneau latéral.</p>' +
+        '<h3>Sélection par cadre</h3><p>Maintenez <kbd>Maj</kbd> et faites glisser sur le canevas vide pour tracer un rectangle : tous les nœuds à l’intérieur sont sélectionnés. Maintenir <kbd>Maj</kbd> lors d’un second cadre ajoute à la sélection courante.</p>' +
+        '<p>Vous pouvez aussi activer le bouton au rectangle pointillé de la barre d’outils pour rester en mode cadre et glisser sans <kbd>Maj</kbd>. Cliquez de nouveau pour en sortir.</p>' +
+        '<p>Une fois plusieurs nœuds sélectionnés, vous pouvez les déplacer ensemble, les relier d’un coup ou les supprimer avec <kbd>Suppr</kbd>.</p>' +
+        '<h3>Mini-carte</h3><p>La petite carte en bas à gauche montre la carte entière ; le rectangle clair indique la vue en cours. Cliquez-la ou faites-la glisser et l’affichage s’y rend : sur une carte de centaines de milliers de fiches, c’est le moyen le plus rapide de s’orienter.</p>' +
+        '<p>Elle s’affiche ou se masque avec le bouton d’icône de carte de la barre d’outils ou via le menu « … » du canevas. Le choix est enregistré pour chaque carte.</p>' },
       { id: 'outline', title: 'Plan', html:
         '<p>Le plan modifie les mêmes données que la carte : un titre ou un niveau change ici et la carte suit, et inversement.</p>' +
         '<p><kbd>Tab</kbd> indente, <kbd>Maj</kbd>+<kbd>Tab</kbd> désindente, <kbd>Entrée</kbd> crée un voisin.</p>' },
@@ -288,6 +320,14 @@
         '<p>「+N」으로 가지를 접고, 메뉴에서 복제하고, 여러 노드를 정렬하거나 영역 상자를 만들 수 있습니다. 삭제는 휴지통으로 갑니다.</p>' },
       { id: 'edge', title: '연결', html:
         '<p>「연결」을 누르고 시작과 대상을 차례로 클릭합니다. 종류(계층·동의어·원인…), 설명, 색, 불확실을 정하고 더블클릭으로 편집합니다. 불확실한 연결은 점검에 나타납니다.</p>' },
+      { id: 'canvas', title: '캔버스에서 편집하고 선택하기', html:
+        '<h3>그 자리에서 이름 바꾸기</h3><p>노드를 두 번 클릭하면 제목이 입력칸이 되어 옆 패널을 열지 않고 바로 입력할 수 있습니다. <kbd>Enter</kbd>로 저장하고 <kbd>Esc</kbd>로 취소하며, 다른 곳을 눌러도 저장됩니다. 변경은 바로 반영되고 배치가 다시 계산되며, 다른 편집과 마찬가지로 실행 취소와 재실행이 됩니다.</p>' +
+        '<p>본문·메모·스타일 등 카드 전체를 고치려면 오른쪽 클릭의 「편집」으로 옆 패널을 여세요.</p>' +
+        '<h3>사각형 선택</h3><p>빈 캔버스에서 <kbd>Shift</kbd>를 누른 채 끌면 사각형이 그려지고 그 안의 노드가 모두 선택됩니다. 다시 <kbd>Shift</kbd>를 누른 채 그려 현재 선택에 더할 수 있습니다.</p>' +
+        '<p>도구 모음의 점선 사각형 버튼을 누르면 선택 모드가 계속 유지되어 <kbd>Shift</kbd> 없이 그냥 끌어도 됩니다. 다시 누르면 해제됩니다.</p>' +
+        '<p>여러 노드를 고른 뒤에는 한꺼번에 옮기고, 한꺼번에 연결하고, <kbd>Delete</kbd>로 함께 지울 수 있습니다.</p>' +
+        '<h3>미니맵</h3><p>캔버스 왼쪽 아래의 작은 지도가 전체 지도를 보여 주고 연한 사각형이 현재 화면입니다. 클릭하거나 끌면 그 위치로 이동합니다. 카드가 수십만 장인 지도에서 길을 찾는 가장 빠른 방법입니다.</p>' +
+        '<p>지도 아이콘 버튼이나 캔버스 오른쪽 클릭의 「…」 메뉴에서 표시를 켜고 끌 수 있습니다. 이 설정은 지도마다 따로 저장됩니다.</p>' },
       { id: 'outline', title: '개요', html:
         '<p>개요는 맵과 같은 데이터를 편집합니다. 여기서 제목이나 단계를 바꾸면 맵이 즉시 따라오고, 반대도 같습니다.</p>' +
         '<p><kbd>Tab</kbd>은 내리기, <kbd>Shift</kbd>+<kbd>Tab</kbd>은 올리기, <kbd>Enter</kbd>는 같은 단계 추가입니다.</p>' },
