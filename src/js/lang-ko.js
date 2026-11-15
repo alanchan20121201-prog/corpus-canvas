@@ -318,6 +318,7 @@
     'settings.costBody': '이 앱은 무료이며 구독과 인앱 결제가 없습니다. AI 사용료는 서비스 제공자가 청구합니다.',
     'settings.privacy': '개인정보',
     'settings.privacyBody': '계정, 텔레메트리, 클라우드 동기화가 없습니다. 자료와 키는 이 컴퓨터에만 있습니다.',
+    'settings.privacyFixed': '다음은 고정된 동작이며 전환할 수 있는 스위치가 아닙니다.',
     'settings.network': '네트워크 동작',
     'settings.networkAi': 'AI 초안 / 정리 / 요약 / 검토: 선택한 텍스트를 설정한 서비스로 보냅니다.',
     'settings.networkOff': '그 외(가져오기, 그리기, 검색, 백업, 복원)는 모두 로컬에서 처리됩니다.',

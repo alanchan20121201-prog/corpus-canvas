@@ -148,7 +148,7 @@
             if (r === false) return;
             if (r !== undefined) return close(r);
           }
-          close(a.value !== undefined ? a.value : a.id);
+          close(a.value !== undefined ? a.value : (a.id === 'cancel' ? null : a.id));
         };
         foot.appendChild(b);
       });
@@ -204,7 +204,7 @@
           }
         }
       ]
-    });
+    }).then(function (v) { return typeof v === 'string' ? v : null; });
   }
 
   function alertDialog(title, message) {

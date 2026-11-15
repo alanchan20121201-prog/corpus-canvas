@@ -148,7 +148,8 @@
       if (!c) return;
       nodes[row[0]] = {
         id: row[0], card: c, x: row[1], y: row[2], w: row[3], h: row[4],
-        lines: null, fs: 13.5, fw: 600, lineH: 19, iconW: 0,
+        lines: null, fs: 13.5, fw: 600, lineH: 19, iconW: 0, untitled: false,
+        summaryLines: [], summaryFs: 0, summaryLH: 0, summaryKind: '', pic: null, picH: 0,
         depth: row[5] || 0, kids: [], hiddenCount: 0, orphan: !!row[6]
       };
     });
@@ -213,7 +214,7 @@
       nodes[c.id] = {
         id: c.id, card: c, x: 0, y: 0, w: ms.w, h: ms.h,
         lines: ms.lines, fs: ms.fs, fw: ms.fw, lineH: ms.lineH, iconW: ms.iconW, untitled: ms.untitled,
-        summaryLines: ms.summaryLines || [], summaryFs: ms.summaryFs || 0,
+        summaryLines: ms.summaryLines || [], summaryFs: ms.summaryFs || 0, summaryLH: ms.summaryLH || 0,
         summaryKind: ms.summaryKind || '', pic: ms.pic || null, picH: ms.picH || 0,
         depth: 0, kids: [], hiddenCount: 0, orphan: false
       };

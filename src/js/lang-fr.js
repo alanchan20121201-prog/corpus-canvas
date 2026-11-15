@@ -318,6 +318,7 @@
     'settings.costBody': 'Cette application est gratuite : sans abonnement ni achat intégré. L’usage de l’IA est facturé par votre fournisseur, pas par nous.',
     'settings.privacy': 'Confidentialité',
     'settings.privacyBody': 'Sans compte, sans télémétrie, sans cloud. Le corpus et les clés restent sur cette machine.',
+    'settings.privacyFixed': 'Ce sont des comportements fixes, pas des interrupteurs que vous pouvez basculer.',
     'settings.network': 'Actions réseau',
     'settings.networkAi': 'Brouillon / organiser / résumer / relire par IA : envoie le texte sélectionné à votre service.',
     'settings.networkOff': 'Tout le reste (import, dessin, recherche, sauvegardes, restauration) est local.',

@@ -274,8 +274,6 @@
   function mount(root, tab) {
     var current = tab === 'ai' ? 'ai' : 'guide';
     var sections = current === 'ai' ? localizedAI() : localizedGuide();
-    var langNote = '';
-
     root.innerHTML =
       '<div class="help-view">' +
         '<aside class="help-side">' +
@@ -293,7 +291,6 @@
             '<h1>' + U.esc(current === 'ai' ? t('help.ai') : t('help.guide')) + '</h1>' +
             '<p>' + U.esc(current === 'ai' ? t('help.aiSub') : t('help.guideSub')) + '</p>' +
           '</div>' +
-          langNote +
           '<div class="help-articles">' + sections.map(function (s) {
             return '<article class="help-article" id="h-' + s.id + '" data-search="' + U.esc((s.title + ' ' + s.html.replace(/<[^>]+>/g, ' ')).toLowerCase()) + '">' +
               '<h2>' + U.esc(s.title) + '</h2>' + s.html + '</article>';

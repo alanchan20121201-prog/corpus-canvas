@@ -909,6 +909,105 @@ function step(name, fn) {
     return 'style section in ' + langs.length + ' languages';
   });
 
+  await step('svg-no-nan-after-hydrate', async () => {
+    const L = CC.layout;
+    const m = S.currentMap();
+    const card = m && S.mapCards(m)[0];
+    if (!card) throw new Error('no card on current map');
+    for (const kind of ['plain', 'callout', 'badge']) {
+      S.commit('edit', 'summary', () => {
+        card.title = '中心主题'; card.summary = 'ffffff'; card.body = 'xcfghjmff'; card.note = 'bcf';
+        card.style = Object.assign({}, card.style, { icon: 'dfg', summaryKind: kind });
+      });
+      await sleep(240);
+      /* persist + hydrate: the restored model has incomplete measured fields */
+      const cached = L.serialize(L.get(m));
+      L.invalidate(m.id);
+      const hm = L.hydrate(m, cached);
+      if (!hm) throw new Error('hydrate failed (' + kind + ')');
+      CC.app.nav('cards');
+      await sleep(50);
+      CC.app.nav('map');
+      await sleep(180);
+      /* the renderer must have re-measured the hydrated node in place */
+      const hn = hm.nodes[Object.keys(hm.nodes)[0]];
+      if (!isFinite(Number(hn.summaryLH)) || Number(hn.summaryLH) <= 0) throw new Error('lazy measure did not fill summaryLH (' + kind + ')');
+      if (!isFinite(Number(hn.w)) || Number(hn.w) <= 0) throw new Error('lazy measure did not fill w (' + kind + ')');
+      const nodes = document.querySelector('#g-nodes');
+      const html = nodes ? nodes.innerHTML : '';
+      if (!html) throw new Error('nodes not rendered (' + kind + ')');
+      if (html.indexOf('NaN') >= 0) throw new Error('NaN in node svg (' + kind + ')');
+      const dot = nodes.querySelector('.note-dot');
+      if (dot && !isFinite(Number(dot.getAttribute('cy')))) throw new Error('note-dot cy not finite (' + kind + ')');
+      if (kind === 'badge' && !nodes.querySelector('.node-summary-badge')) throw new Error('badge rect missing');
+      if (kind === 'callout' && !nodes.querySelector('.node-summary-callout')) throw new Error('callout rect missing');
+      const rect = nodes.querySelector('.node-summary-badge, .node-summary-callout');
+      if (rect && !isFinite(Number(rect.getAttribute('height')))) throw new Error('summary rect height not finite (' + kind + ')');
+    }
+    return 'plain/callout/badge clean';
+  });
+
+  await step('modal-cancel-is-falsy', async () => {
+    let result = 'unset';
+    U.openModal({
+      title: 'cancel test', body: '<p>x</p>',
+      actions: [
+        { id: 'cancel', label: 'cancel', ghost: true },
+        { id: 'ok', label: 'ok', primary: true, value: 'yes' }
+      ]
+    }).then((r) => { result = r; });
+    await sleep(30);
+    const btn = document.querySelector('.overlay .modal-foot .btn.ghost');
+    if (!btn) throw new Error('cancel button missing');
+    btn.click();
+    await sleep(30);
+    if (result !== null) throw new Error('cancel returned ' + String(result));
+    return 'null';
+  });
+
+  await step('wef-drop-routed-to-backup', async () => {
+    const orig = CC.settings.importBackupData;
+    if (typeof orig !== 'function') throw new Error('importBackupData not exported');
+    let called = 0;
+    CC.settings.importBackupData = function () { called++; };
+    const before = S.cards().length;
+    const payload = {
+      format: 'corpus-canvas', formatVersion: S.FORMAT_VERSION,
+      data: { cards: [], maps: [], reviews: [], savedQueries: [], aiActions: [], templates: [] }
+    };
+    const fakeFile = { name: 'corpus.wef', text: () => Promise.resolve(JSON.stringify(payload)) };
+    CC.importer.importFileObject(fakeFile);
+    await sleep(120);
+    CC.settings.importBackupData = orig;
+    if (!called) throw new Error('.wef not routed to backup import');
+    if (S.cards().length !== before) throw new Error('.wef polluted corpus');
+    return 'routed=' + called;
+  });
+
+  await step('backup-merge-keeps-fields', async () => {
+    const payload = {
+      format: 'corpus-canvas', formatVersion: S.FORMAT_VERSION,
+      data: {
+        cards: [], maps: [],
+        reviews: [{ id: 'r-test', at: 1, mapId: null, scope: 'map', items: [] }],
+        savedQueries: [{ id: 'q-test', name: 'v', q: '', tags: [], langs: [], presence: 'all', at: 1 }],
+        aiActions: [{ id: 'a-test', name: 'x', prompt: 'y', at: 1 }],
+        templates: [{ id: 't-test', name: 'z', at: 1, payload: {} }]
+      }
+    };
+    CC.settings.importBackupData(payload);
+    await sleep(30);
+    const mergeBtn = Array.prototype.slice.call(document.querySelectorAll('.overlay .modal-foot .btn'))
+      .filter((b) => b.textContent === window.t('settings.importMerge'))[0];
+    if (!mergeBtn) throw new Error('merge button missing');
+    mergeBtn.click();
+    await sleep(200);
+    ['savedQueries', 'aiActions', 'templates', 'reviews'].forEach((k) => {
+      if (!S.state()[k].some((x) => String(x.id).indexOf('-test') >= 0)) throw new Error(k + ' lost in merge');
+    });
+    return 'all four field groups merged';
+  });
+
   await step('no-uncaught', () => {
     if (errors.length) throw new Error(errors.slice(0, 3).join(' | '));
     return 'clean';

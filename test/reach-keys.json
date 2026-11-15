@@ -531,5 +531,6 @@
   "settings.storage": "Storage",
   "settings.storageSingle": "Single file",
   "settings.storageSharded": "Sharded ({n} shards)",
-  "settings.storageCards": "{n} cards"
+  "settings.storageCards": "{n} cards",
+  "settings.privacyFixed": "Fixed behaviours, not toggles"
 }

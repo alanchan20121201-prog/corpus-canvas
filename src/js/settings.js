@@ -100,10 +100,11 @@
 
         section('set-privacy', 'shield', t('settings.privacy'),
           '<p class="set-hint">' + U.esc(t('settings.privacyBody')) + '</p>' +
-          '<div class="net-list">' +
-            '<div class="net-row on">' + U.icon('sparkles', 15) + '<div><strong>' + U.esc(t('settings.network')) + '</strong><p>' + U.esc(t('settings.networkAi')) + '</p></div><span class="net-tag">' + U.esc(t('common.on')) + '</span></div>' +
-            '<div class="net-row">' + U.icon('folder', 15) + '<div><strong>' + U.esc(t('settings.data')) + '</strong><p>' + U.esc(t('settings.networkOff')) + '</p></div><span class="net-tag off">' + U.esc(t('common.off')) + '</span></div>' +
-            '<div class="net-row">' + U.icon('key', 15) + '<div><strong>' + U.esc(t('settings.apiKey')) + '</strong><p>' + U.esc(t('settings.networkKey')) + '</p></div><span class="net-tag off">' + U.esc(t('common.off')) + '</span></div>' +
+          '<p class="set-hint small">' + U.esc(t('settings.privacyFixed')) + '</p>' +
+          '<div class="net-list" role="note">' +
+            '<div class="net-row on" aria-disabled="true" title="' + U.esc(t('settings.privacyFixed')) + '">' + U.icon('sparkles', 15) + '<div><strong>' + U.esc(t('settings.network')) + '</strong><p>' + U.esc(t('settings.networkAi')) + '</p></div><span class="net-tag">' + U.esc(t('common.on')) + '</span></div>' +
+            '<div class="net-row" aria-disabled="true" title="' + U.esc(t('settings.privacyFixed')) + '">' + U.icon('folder', 15) + '<div><strong>' + U.esc(t('settings.data')) + '</strong><p>' + U.esc(t('settings.networkOff')) + '</p></div><span class="net-tag off">' + U.esc(t('common.off')) + '</span></div>' +
+            '<div class="net-row" aria-disabled="true" title="' + U.esc(t('settings.privacyFixed')) + '">' + U.icon('key', 15) + '<div><strong>' + U.esc(t('settings.apiKey')) + '</strong><p>' + U.esc(t('settings.networkKey')) + '</p></div><span class="net-tag off">' + U.esc(t('common.off')) + '</span></div>' +
           '</div>') +
 
         section('set-data', 'folder', t('settings.data'),
@@ -260,7 +261,7 @@
     var be = root.querySelector('#backup-export');
     if (be) be.onclick = function () { exportBackup(); };
     var bi = root.querySelector('#backup-import');
-    if (bi) bi.onclick = function () { importBackup(root); };
+    if (bi) bi.onclick = function () { importBackup(); };
     var ifile = root.querySelector('#import-file');
     if (ifile) ifile.onclick = function () { CC.importer.open(); };
 
@@ -339,57 +340,89 @@
     });
   }
 
-  function importBackup(root) {
+  function stableKey(x) {
+    if (x && x.id != null) return 'id:' + x.id;
+    try { return 'json:' + JSON.stringify(x); } catch (e) { return 'json:' + String(x); }
+  }
+
+  function mergeUnique(base, extra) {
+    var out = (base || []).slice();
+    var seen = {};
+    out.forEach(function (x) { seen[stableKey(x)] = 1; });
+    (extra || []).forEach(function (x) {
+      var k = stableKey(x);
+      if (!seen[k]) { seen[k] = 1; out.push(x); }
+    });
+    return out;
+  }
+
+  function importBackup() {
     window.api.importBackup().then(function (r) {
       if (!r || !r.ok) {
         if (r && r.error) U.toast(t('settings.backupFail', { msg: r.error }), 'bad');
         return;
       }
-      var data = r.data && r.data.data ? r.data.data : r.data;
-      if (!data || !Array.isArray(data.cards)) { U.toast(t('settings.backupFail', { msg: 'format' }), 'bad'); return; }
-      var cards = data.cards.length, maps = (data.maps || []).length;
-      U.openModal({
-        title: t('settings.backupImport'),
-        body: '<p class="dialog-text">' + U.esc(t('settings.importAsk', { cards: cards, maps: maps })) + '</p>',
-        actions: [
-          { id: 'cancel', label: t('common.cancel'), ghost: true },
-          { id: 'merge', label: t('settings.importMerge'), value: 'merge' },
-          { id: 'replace', label: t('settings.importReplace'), primary: true, value: 'replace' }
-        ]
-      }).then(function (mode) {
-        if (!mode) return;
-        S.createSnapshot(t('history.kind.restore') + ' · ' + U.fmtDate(Date.now(), true), true, true);
-        var added = 0, updated = 0;
-        S.commit('restore', t('settings.backupImport'), function () {
-          var db = S.state();
-          if (mode === 'replace') {
-            db.cards = data.cards.map(function (c) { return Object.assign({ tags: [], langs: [], sources: [] }, c); });
-            db.maps = data.maps || [];
-            db.reviews = data.reviews || [];
-            db.savedQueries = data.savedQueries || [];
-            db.aiActions = data.aiActions || [];
-            db.templates = data.templates || [];
-            added = db.cards.length;
-          } else {
-            (data.cards || []).forEach(function (c) {
-              var ex = db.cards.find(function (x) { return x.id === c.id; });
-              if (ex) { Object.assign(ex, c); updated++; }
-              else { db.cards.push(c); added++; }
-            });
-            (data.maps || []).forEach(function (m) {
-              var ex = db.maps.find(function (x) { return x.id === m.id; });
-              if (ex) Object.assign(ex, m);
-              else db.maps.push(m);
-            });
-            db.reviews = db.reviews.concat(data.reviews || []);
-          }
-          db.settings.lastMapId = db.maps[0] ? db.maps[0].id : null;
-        });
-        U.toast(t('settings.importDone', { added: added, updated: updated }), 'ok');
-        CC.app.nav(CC.app.view());
-      });
+      importBackupData(r.data);
     });
   }
 
-  CC.settings = { mount: mount, exportBackup: exportBackup };
+  /* Also used when a .wef backup is dropped onto the window. */
+  function importBackupData(payload) {
+    if (payload && payload.formatVersion && Number(payload.formatVersion) > S.FORMAT_VERSION) {
+      U.toast(t('settings.backupFail', { msg: 'version' }), 'bad');
+      return;
+    }
+    var data = payload && payload.data ? payload.data : payload;
+    if (!data || !Array.isArray(data.cards)) { U.toast(t('settings.backupFail', { msg: 'format' }), 'bad'); return; }
+    applyImportedData(data);
+  }
+
+  function applyImportedData(data) {
+    var cards = data.cards.length, maps = (data.maps || []).length;
+    U.openModal({
+      title: t('settings.backupImport'),
+      body: '<p class="dialog-text">' + U.esc(t('settings.importAsk', { cards: cards, maps: maps })) + '</p>',
+      actions: [
+        { id: 'cancel', label: t('common.cancel'), ghost: true },
+        { id: 'merge', label: t('settings.importMerge'), value: 'merge' },
+        { id: 'replace', label: t('settings.importReplace'), primary: true, value: 'replace' }
+      ]
+    }).then(function (mode) {
+      if (!mode) return;
+      S.createSnapshot(t('history.kind.restore') + ' · ' + U.fmtDate(Date.now(), true), true, true);
+      var added = 0, updated = 0;
+      S.commit('restore', t('settings.backupImport'), function () {
+        var db = S.state();
+        if (mode === 'replace') {
+          db.cards = data.cards.map(function (c) { return Object.assign({ tags: [], langs: [], sources: [] }, c); });
+          db.maps = data.maps || [];
+          db.reviews = data.reviews || [];
+          db.savedQueries = data.savedQueries || [];
+          db.aiActions = data.aiActions || [];
+          db.templates = data.templates || [];
+          added = db.cards.length;
+        } else {
+          (data.cards || []).forEach(function (c) {
+            var ex = db.cards.find(function (x) { return x.id === c.id; });
+            if (ex) { Object.assign(ex, c); updated++; }
+            else { db.cards.push(c); added++; }
+          });
+          (data.maps || []).forEach(function (m) {
+            var ex = db.maps.find(function (x) { return x.id === m.id; });
+            if (ex) Object.assign(ex, m);
+            else db.maps.push(m);
+          });
+          db.reviews = mergeUnique(db.reviews, data.reviews);
+          db.savedQueries = mergeUnique(db.savedQueries, data.savedQueries);
+          db.aiActions = mergeUnique(db.aiActions, data.aiActions);
+          db.templates = mergeUnique(db.templates, data.templates);
+        }
+        db.settings.lastMapId = db.maps[0] ? db.maps[0].id : null;
+      });
+      U.toast(t('settings.importDone', { added: added, updated: updated }), 'ok');
+      CC.app.nav(CC.app.view());
+    });
+  }
+
+  CC.settings = { mount: mount, exportBackup: exportBackup, importBackupData: importBackupData };
 })();

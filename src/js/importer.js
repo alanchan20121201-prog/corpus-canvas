@@ -350,10 +350,28 @@
       return;
     }
     file.text().then(function (text) {
+      if (handleBackupText(text, ext)) return;
       var parsed = ext === 'opml' ? parseOPML(text) : parseMarkdown(text);
       if (!parsed) { U.toast(t('import.error', { msg: 'parse' }), 'bad'); return; }
       finish(parsed, name);
     });
+  }
+
+  /* A .wef backup (or any corpus-canvas JSON) must never be read as an
+     outline: that would silently pollute the corpus with raw JSON text. */
+  function handleBackupText(text, ext) {
+    var trimmed = text ? String(text).trim() : '';
+    if (trimmed.charAt(0) !== '{') return false;
+    var payload = null;
+    try { payload = JSON.parse(trimmed); } catch (e) { return false; }
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return false;
+    var data = payload.data || payload;
+    var looksBackup = payload.format === 'corpus-canvas' ||
+      (Array.isArray(data.cards) && (ext === 'wef' || Array.isArray(data.maps)));
+    if (!looksBackup) return false;
+    if (window.CC && CC.settings && CC.settings.importBackupData) CC.settings.importBackupData(payload);
+    else U.toast(t('import.error', { msg: 'backup' }), 'bad');
+    return true;
   }
 
   function finish(parsed, name) {

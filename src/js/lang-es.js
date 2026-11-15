@@ -318,6 +318,7 @@
     'settings.costBody': 'Esta aplicación es gratuita: sin suscripción ni compras. El uso de IA lo factura tu proveedor, no nosotros.',
     'settings.privacy': 'Privacidad',
     'settings.privacyBody': 'Sin cuenta, sin telemetría, sin nube. El corpus y las claves se quedan en este equipo.',
+    'settings.privacyFixed': 'Estos son comportamientos fijos, no interruptores que se puedan activar o desactivar.',
     'settings.network': 'Acciones de red',
     'settings.networkAi': 'Borrador / organizar / resumir / revisar con IA: envía el texto seleccionado a tu servicio.',
     'settings.networkOff': 'Todo lo demás (importar, dibujar, buscar, copias, restaurar) ocurre en local.',

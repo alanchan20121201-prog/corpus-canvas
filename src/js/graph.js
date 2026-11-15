@@ -3,6 +3,8 @@
   'use strict';
   var CC = window.CC = window.CC || {};
   var U = CC.util, S = CC.store, L = CC.layout;
+  var picTried = {};      /* attachment ids already requested; do not retry a failed read on every paint */
+  var attachBound = false;
   var t = function () { return window.t.apply(null, arguments); };
 
   var st = {
@@ -138,6 +140,10 @@
     bindStage();
     var mmBox = root.querySelector('#minimap');
     if (mmBox) bindMinimap(mmBox);
+    if (!attachBound && CC.attach && CC.attach.onChange) {
+      CC.attach.onChange(function () { if (st.mounted) paintSoon(); });
+      attachBound = true;
+    }
     st.mounted = true;
     refresh();
   }
@@ -296,6 +302,14 @@
       if (n && !n.lines) {
         var ms = L.measure(n.card);
         n.lines = ms.lines; n.fs = ms.fs; n.fw = ms.fw; n.lineH = ms.lineH; n.iconW = ms.iconW; n.untitled = ms.untitled;
+        n.w = ms.w; n.h = ms.h;
+        n.summaryLines = ms.summaryLines || []; n.summaryFs = ms.summaryFs || 0; n.summaryLH = ms.summaryLH || 0;
+        n.summaryKind = ms.summaryKind || ''; n.pic = ms.pic || null; n.picH = ms.picH || 0;
+      }
+      if (n && lod === 'full' && n.pic && CC.attach && CC.attach.load &&
+          !CC.attach.dataUrl(n.pic.id) && !picTried[n.pic.id]) {
+        picTried[n.pic.id] = 1;
+        CC.attach.load(n.card.id);
       }
     });
     gNodes.innerHTML = q.ids.map(function (id) { return nodeHTML(model.nodes[id], lod); }).join('');
@@ -386,16 +400,18 @@
     if (lod === 'full' && n.summaryLines && n.summaryLines.length) {
       var sumKind = n.summaryKind || 'plain';
       var sumTop = ty + 3;
-      var sumH = n.summaryLines.length * n.summaryLH + 2;
+      var sumFs = Number(n.summaryFs) > 0 ? Number(n.summaryFs) : 12;
+      var sumLH = Number(n.summaryLH) > 0 ? Number(n.summaryLH) : Math.round(sumFs * 1.38);
+      var sumH = n.summaryLines.length * sumLH + 2;
       if (sumKind === 'callout') {
         html += '<rect class="node-summary-callout" x="14" y="' + sumTop + '" width="3" height="' + sumH + '" rx="1.5"/>';
       } else if (sumKind === 'badge') {
         html += '<rect class="node-summary-badge" x="14" y="' + (sumTop - 1) + '" width="' + Math.min(n.w - 28, 6 + String(n.summaryLines[0]).length * 5.6) + '" height="' + (sumH - 2) + '" rx="7"/>';
       }
-      var sy = sumTop + n.summaryFs;
+      var sy = sumTop + sumFs;
       n.summaryLines.forEach(function (line) {
-        html += '<text class="node-summary' + (sumKind === 'badge' ? ' badge' : '') + '" x="' + (sumKind === 'callout' ? 23 : 19) + '" y="' + sy + '" style="font-size:' + n.summaryFs + 'px">' + U.esc(line) + '</text>';
-        sy += n.summaryLH;
+        html += '<text class="node-summary' + (sumKind === 'badge' ? ' badge' : '') + '" x="' + (sumKind === 'callout' ? 23 : 19) + '" y="' + sy + '" style="font-size:' + sumFs + 'px">' + U.esc(line) + '</text>';
+        sy += sumLH;
       });
       ty = sy;
     }
