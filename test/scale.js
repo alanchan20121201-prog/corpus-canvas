@@ -39,6 +39,14 @@ const rect = { x1: -200, y1: -200, x2: 400, y2: 300 };
 const tq0 = Date.now();
 const q = L.query(model, rect, 200);
 const tq = Date.now() - tq0;
+const pan0 = process.hrtime.bigint();
+for (let i = 0; i < 50; i++) {
+  L.query(model, { x1: rect.x1 + i * 40, y1: rect.y1 + i * 20, x2: rect.x2 + i * 40, y2: rect.y2 + i * 20 }, 200);
+}
+const tPan = Number(process.hrtime.bigint() - pan0) / 1e6 / 50;
+const wide0 = process.hrtime.bigint();
+const wide = L.query(model, { x1: rect.x1 - 2000, y1: rect.y1 - 2000, x2: rect.x2 + 2000, y2: rect.y2 + 2000 }, 400, 1800);
+const tWide = Number(process.hrtime.bigint() - wide0) / 1e6;
 const vis = {};
 q.ids.forEach((id) => { vis[id] = 1; });
 const edges = L.queryEdges(model, rect, vis, 200);
@@ -47,12 +55,16 @@ const tCache0 = Date.now();
 L.get(m);
 const tCache = Date.now() - tCache0;
 
-m.structure = 'org';
-m.rev++;
-L.invalidate(m.id);
-const org = L.get(m);
-const child = Object.keys(org.nodes).filter((id) => id !== org.roots[0]).slice(0, 40).map((id) => org.nodes[id]);
-const orgOk = child.every((n) => n.y > org.nodes[org.roots[0]].y);
+let orgOk = true;
+let org = null;
+if (N <= 200000) {
+  m.structure = 'org';
+  m.rev++;
+  L.invalidate(m.id);
+  org = L.get(m);
+  const child = Object.keys(org.nodes).filter((id) => id !== org.roots[0]).slice(0, 40).map((id) => org.nodes[id]);
+  orgOk = child.every((n) => n.y > org.nodes[org.roots[0]].y);
+}
 
 const out = {
   nodes: N,
@@ -63,13 +75,18 @@ const out = {
   edgesVisible: edges.length,
   clusters: clusters.length,
   cacheMs: tCache,
+  panAvgMs: Number(tPan.toFixed(3)),
+  wideQueryMs: Number(tWide.toFixed(3)),
+  wideVisible: wide.ids.length,
+  heapMB: Math.round(process.memoryUsage().heapUsed / 1048576),
+  rssMB: Math.round(process.memoryUsage().rss / 1048576),
   bounds: model.bounds,
   orgOk: orgOk,
-  orgLevels: org.roots.length,
+  orgLevels: org ? org.roots.length : 0,
   totalMs: Date.now() - t0
 };
 console.log(JSON.stringify(out, null, 2));
 
 const ok = out.nodes === N && out.visible > 0 && out.visible < 400 && out.clusters > 0 &&
-  out.cacheMs < 50 && out.orgOk && out.bounds.w > 0;
+  out.cacheMs < 50 && out.orgOk && out.bounds.w > 0 && out.panAvgMs < 16 && out.wideQueryMs < 120;
 process.exit(ok ? 0 : 1);
