@@ -1498,6 +1498,25 @@ function step(name, fn) {
     return 'redundancy cleaned';
   });
 
+  await step('body-shows-as-node-summary', () => {
+    const c = S.cards()[0];
+    S.commit('test', 'body', function () {
+      c.summary = '';
+      c.body = '正文第一行测试';
+    });
+    const m = CC.layout.measure(c);
+    const joined = (m.summaryLines || []).join('');
+    if (joined.indexOf('正文第一行测试') < 0) throw new Error('summary=' + joined);
+    return 'body first line on node';
+  });
+
+  await step('backup-ms-filename', () => {
+    const html = fs.readFileSync(path.join(root, '..', 'electron', 'main.js'), 'utf8');
+    if (html.indexOf("corpus-\\d{8}-\\d{6}(?:-\\d{3})?") < 0) throw new Error('regex not ms-aware');
+    if (html.indexOf('getMilliseconds()') < 0) throw new Error('autoBackup not ms');
+    return 'ms backup names';
+  });
+
   await step('no-uncaught', () => {
     if (errors.length) throw new Error(errors.slice(0, 3).join(' | '));
     return 'clean';

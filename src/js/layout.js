@@ -64,7 +64,10 @@
       untitled = true;
     }
 
-    var summary = String(card.summary || '').trim();
+    /* A card's body first line acts as its on-node summary when there is no
+       explicit summary, so editing the body gives immediate canvas feedback. */
+    var summary = String(card.summary || '').trim() ||
+      String(card.body || '').split(/\r?\n/)[0].trim();
     var pics = (card.attachments || []).filter(function (a) { return a && a.mime && a.mime.indexOf('image/') === 0; });
 
     var key = [card.id, display, untitled ? 1 : 0, fs, fw, iconW, card.note ? 1 : 0,

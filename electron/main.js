@@ -85,7 +85,7 @@ async function autoBackup() {
     await fsp.mkdir(active.backupDir, { recursive: true });
     const d = new Date();
     const pad = (n) => String(n).padStart(2, '0');
-    const name = 'corpus-' + d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate()) + '-' + pad(d.getHours()) + pad(d.getMinutes()) + pad(d.getSeconds()) + '.json';
+    const name = 'corpus-' + d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate()) + '-' + pad(d.getHours()) + pad(d.getMinutes()) + pad(d.getSeconds()) + '-' + pad(d.getMilliseconds()) + '.json';
     await fsp.writeFile(path.join(active.backupDir, name), JSON.stringify(data), 'utf8');
     const files = (await fsp.readdir(active.backupDir)).filter((f) => /^corpus-\d{8}-\d{6}\.json$/.test(f)).sort();
     while (files.length > 10) await fsp.rm(path.join(active.backupDir, files.shift()), { force: true });
@@ -349,7 +349,7 @@ ipcMain.handle('layout:clear', async (_e, id) => {
 
 ipcMain.handle('backup:list', async () => {
   try {
-    const files = (await fsp.readdir(active.backupDir)).filter((f) => /^corpus-\d{8}-\d{6}\.json$/.test(f)).sort().reverse();
+    const files = (await fsp.readdir(active.backupDir)).filter((f) => /^corpus-\d{8}-\d{6}(?:-\d{3})?\.json$/.test(f)).sort().reverse();
     const out = [];
     for (const f of files.slice(0, 10)) {
       const st = await fsp.stat(path.join(active.backupDir, f));
@@ -375,7 +375,7 @@ ipcMain.handle('backup:snapshot', async () => {
 });
 
 ipcMain.handle('backup:restore', async (_e, name) => {
-  if (!/^corpus-\d{8}-\d{6}\.json$/.test(String(name || ''))) return { ok: false, error: 'bad name' };
+  if (!/^corpus-\d{8}-\d{6}(?:-\d{3})?\.json$/.test(String(name || ''))) return { ok: false, error: 'bad name' };
   const file = path.join(active.backupDir, name);
   let data;
   try { data = JSON.parse(await fsp.readFile(file, 'utf8')); }
