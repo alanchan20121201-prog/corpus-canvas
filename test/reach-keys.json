@@ -626,5 +626,12 @@
   "save.saving": "Saving",
   "save.failed": "Save failed",
   "settings.safetySnapshot": "Safety snapshot",
-  "settings.attachMissing": "Attachments missing"
+  "settings.attachMissing": "Attachments missing",
+  "cards.citeCard": "Cite card",
+  "cards.citeCardPlaceholder": "Cite placeholder",
+  "cards.citeNotFound": "Cite not found",
+  "cards.followSource": "Follow source",
+  "settings.keyNotMigrated": "Key not migrated",
+  "settings.aiTitle": "AI service",
+  "search.subtitle": "Search subtitle"
 }

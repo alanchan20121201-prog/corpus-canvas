@@ -2300,6 +2300,10 @@ body.presenting { overflow: hidden; }
 .shortcut-grid.sc-edit-grid .sc-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .shortcut-grid .sc-key { min-width: 120px; text-align: center; font: 12px ui-monospace, Consolas, monospace; }
 .shortcut-grid .sc-key.recording { border-color: var(--accent, #8a6f4e); color: var(--accent, #8a6f4e); }
+/* provenance: clickable source rows */
+.source-link { width: 100%; text-align: left; background: transparent; border: 0; cursor: pointer; }
+.source-link:hover .src-ref { text-decoration: underline; color: var(--accent, #8a6f4e); }
+
 /* save status indicator */
 .save-status { display: inline-flex; align-items: center; gap: 6px; border: 0; background: transparent;
   font: 11px inherit; color: var(--muted, #8a8377); cursor: default; padding: 4px 8px; border-radius: 8px; }

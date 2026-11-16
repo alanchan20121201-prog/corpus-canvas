@@ -1476,6 +1476,28 @@ function step(name, fn) {
     });
   });
 
+  await step('provenance-cite-card', () => {
+    const cards = S.cards();
+    if (cards.length < 2) throw new Error('need 2 cards');
+    const src = cards[0], cited = cards[1];
+    S.commit('test', 'cite', function () {
+      src.sources.push({ kind: 'card', ref: cited.id, title: cited.title, at: Date.now() });
+    });
+    CC.inspector.open(src.id);
+    const rows = document.querySelectorAll('[data-source]');
+    if (rows.length < 1) throw new Error('source rows missing');
+    if (!document.querySelector('[data-act="cite-card"]')) throw new Error('cite button missing');
+    return 'sources clickable';
+  });
+
+  await step('redundancy-removed', () => {
+    const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+    const fileSymbols = (html.match(/<symbol id="i-file"/g) || []).length;
+    if (fileSymbols !== 1) throw new Error('i-file symbols=' + fileSymbols);
+    if (window.t('search.subtitle') === window.t('search.placeholder')) throw new Error('search subtitle duplicated');
+    return 'redundancy cleaned';
+  });
+
   await step('no-uncaught', () => {
     if (errors.length) throw new Error(errors.slice(0, 3).join(' | '));
     return 'clean';

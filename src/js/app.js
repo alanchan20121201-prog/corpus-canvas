@@ -342,7 +342,7 @@
     if (aiPill) aiPill.classList.toggle('off', !CC.ai.ready());
 
     var lang = document.getElementById('lang-label');
-    var labels = { 'zh-CN': '简', 'zh-TW': '繁', en: 'EN', ja: '日', ko: 'KO', es: 'ES', fr: 'FR', de: 'DE' };
+    var labels = { 'zh-CN': '简', 'zh-TW': '繁', en: 'EN', ja: '日', ko: 'KO', es: 'ES', fr: 'FR' };
     if (lang) lang.textContent = labels[s.lang] || String(s.lang || 'EN').toUpperCase();
 
     var sp = document.getElementById('sp-text');

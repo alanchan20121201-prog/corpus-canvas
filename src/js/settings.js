@@ -68,7 +68,7 @@
             '</div><em>' + U.esc(t('settings.aiProfileSharedKey')) + '</em></label>' +
           '<div class="ai-status-bar">' +
             '<span class="ai-dot' + (ai.baseUrl && ai.model && (ai.hasKey || ai.local) ? ' on' : '') + '"></span>' +
-            '<span>' + U.esc((ai.hasKey || ai.local) ? (ai.local ? t('settings.localModel') : t('settings.apiKeySaved')) : t('settings.aiOff')) + '</span>' +
+            '<span>' + U.esc(ai.local ? t('settings.localModel') : t('settings.aiTitle')) + '</span>' +
           '</div>' +
           '<p class="set-hint">' + U.esc(t('settings.aiHint')) + '</p>' +
           '<label class="field"><span>' + U.esc(t('settings.preset')) + '</span>' +
@@ -789,6 +789,14 @@
       if (data.settings && mode === 'replace') {
         if (data.settings.lang) { CC.i18n.setLang(data.settings.lang); CC.i18n.apply(document); }
         if (data.settings.theme && CC.app.setTheme) CC.app.setTheme(data.settings.theme);
+      }
+      /* Keys are device-level and never travel with a backup. Tell the user
+         clearly instead of letting the AI button silently go grey. */
+      var hasKey = CC.app.getKey && CC.app.getKey();
+      if (!hasKey && !S.settings().ai.local && window.api.getKey) {
+        window.api.getKey().then(function (k) {
+          if (!k || !k.key) U.toast(t('settings.keyNotMigrated'), 'bad');
+        });
       }
       CC.app.nav(CC.app.view());
     });

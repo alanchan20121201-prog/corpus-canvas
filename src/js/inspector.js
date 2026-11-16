@@ -47,6 +47,34 @@
     }));
   }
 
+  function sourceLabel(s) {
+    if (!s) return '';
+    if (s.kind === 'card') {
+      var target = S.card(s.ref);
+      return (target && target.title) || s.title || s.ref || '';
+    }
+    return String(s.ref || '');
+  }
+
+  function followSource(s) {
+    if (!s) return;
+    if (s.kind === 'card' && S.card(s.ref)) { open(s.ref); return; }
+    var ref = String(s.ref || '');
+    if (/^https?:\/\//i.test(ref)) {
+      if (window.api && window.api.openExternal) window.api.openExternal(ref);
+      return;
+    }
+    /* plain text: try to match a card title exactly, then loosely, else search */
+    var cards = S.cards();
+    var hit = cards.filter(function (c) { return (c.title || '').trim() === ref.trim(); })[0];
+    if (!hit) {
+      var q = U.norm ? U.norm(ref) : ref.toLowerCase();
+      hit = cards.filter(function (c) { return U.norm(c.title || c.body || '').indexOf(q) >= 0; })[0];
+    }
+    if (hit) { open(hit.id); return; }
+    if (CC.search && CC.search.setQuery) { CC.search.setQuery(ref); CC.app.nav('search'); }
+  }
+
   function fillBodyPreview(c) {
     var el = host.querySelector('#insp-body-preview');
     if (!el) return;
@@ -168,12 +196,16 @@
 
         '<div class="insp-block">' +
           '<div class="insp-block-head"><span>' + U.esc(t('cards.sources')) + '</span>' +
+            '<button class="mini-btn" data-act="cite-card">' + U.esc(t('cards.citeCard')) + '</button>' +
             '<button class="mini-btn" data-act="add-source">' + U.icon('plus', 13) + U.esc(t('cards.addSource')) + '</button></div>' +
           '<div class="source-list">' +
-            (c.sources.length ? c.sources.map(function (s) {
-              return '<div class="source-row"><span class="src-kind">' + U.esc(t('cards.source' + (String(s.kind || 'manual') === 'ai' ? 'AI' : cap(s.kind || 'manual')))) + '</span>' +
-                '<span class="src-ref">' + U.esc(s.ref || '') + '</span>' +
-                '<span class="src-time">' + U.esc(U.fmtDate(s.at)) + '</span></div>';
+            (c.sources.length ? c.sources.map(function (s, i) {
+              var kind = String(s.kind || 'manual');
+              var label = t('cards.source' + (kind === 'ai' ? 'AI' : cap(kind)));
+              return '<button class="source-row source-link" data-source="' + i + '" title="' + U.esc(t('cards.followSource')) + '">' +
+                '<span class="src-kind">' + U.esc(label) + '</span>' +
+                '<span class="src-ref">' + U.esc(sourceLabel(s)) + '</span>' +
+                '<span class="src-time">' + U.esc(U.fmtDate(s.at)) + '</span></button>';
             }).join('') :
               '<div class="mini-empty">' + U.esc(t('common.empty')) + '</div>') +
           '</div>' +
@@ -407,6 +439,28 @@
     bindText('#insp-note', 'note', t('history.kind.edit'));
     bindText('#insp-summary', 'summary', t('history.kind.edit'));
     bindText('#insp-category', 'category', t('history.kind.edit'));
+
+    host.querySelectorAll('[data-source]').forEach(function (b) {
+      b.onclick = function () {
+        var idx = Number(b.getAttribute('data-source'));
+        var card = S.card(id);
+        if (card && card.sources[idx]) followSource(card.sources[idx]);
+      };
+    });
+
+    var citeCard = host.querySelector('[data-act="cite-card"]');
+    if (citeCard) citeCard.onclick = function () {
+      U.prompt(t('cards.citeCard'), '', { placeholder: t('cards.citeCardPlaceholder') }).then(function (v) {
+        if (!v) return;
+        var title = String(v).trim();
+        var target = S.cards().filter(function (c) { return (c.title || '').trim() === title; })[0];
+        if (!target) { U.toast(t('cards.citeNotFound'), 'bad'); return; }
+        S.commit('edit', t('cards.citeCard'), function () {
+          c.sources.push({ kind: 'card', ref: target.id, title: target.title, at: Date.now() });
+        });
+        refresh();
+      });
+    };
 
     var addSource = host.querySelector('[data-act="add-source"]');
     if (addSource) addSource.onclick = function () {

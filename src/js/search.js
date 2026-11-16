@@ -134,7 +134,7 @@
     root.innerHTML =
       '<div class="page-head"><div class="ph-left">' +
         '<h1 class="page-title"><span class="pt-ico">' + U.icon('search', 20) + '</span>' + U.esc(t('search.title')) + '</h1>' +
-        '<p class="page-sub">' + U.esc(t('search.placeholder')) + '</p>' +
+        '<p class="page-sub">' + U.esc(t('search.subtitle')) + '</p>' +
       '</div><div class="page-actions">' +
         (st.tab === 'text' && st.q.trim() ? '<button class="btn sm" data-act="save-query">' + U.icon('star', 14) + U.esc(t('search.saveQuery')) + '</button>' : '') +
       '</div></div>' +
