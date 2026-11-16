@@ -50,6 +50,8 @@ window.api = {
   submitQuickCapture: () => Promise.resolve({ ok: false }),
   cancelQuickCapture: () => Promise.resolve({ ok: true }),
   onQuickCapture: () => () => {},
+  snapshotBackup: () => Promise.resolve({ ok: true, name: 'test-snapshot' }),
+  checkAttachments: () => Promise.resolve({ ok: true, missing: [] }),
   revealCorpus: () => Promise.resolve({ ok: true }),
   getKey: () => Promise.resolve({ key: '', encrypted: true }),
   setKey: () => Promise.resolve({ ok: true }),
@@ -1431,6 +1433,47 @@ function step(name, fn) {
       if (typeof window.api[m] !== 'function') throw new Error('missing api: ' + m);
     });
     return 'ipcs present';
+  });
+
+  await step('save-state-machine', async () => {
+    const states = [];
+    const off = S.onSaveState(function (s) { states.push(s); });
+    S.saveSoon();
+    await sleep(400);
+    off();
+    const st = S.saveState();
+    if (!states.length || states.indexOf('dirty') < 0 || states.indexOf('saved') < 0) {
+      throw new Error('states=' + states.join(',') + ' status=' + st.status);
+    }
+    return states.join('>');
+  });
+
+  await step('save-failure-surfaces', async () => {
+    const orig = window.api.saveCorpus;
+    window.api.saveCorpus = function () { return Promise.resolve({ ok: false, error: 'disk full' }); };
+    S.flush();
+    await sleep(60);
+    const st = S.saveState();
+    window.api.saveCorpus = orig;
+    if (st.status !== 'failed') throw new Error('status=' + st.status);
+    const el = document.getElementById('save-status');
+    if (el && el.hidden) throw new Error('status indicator hidden on failure');
+    return 'failed surfaced';
+  });
+
+  await step('snapshot-before-destructive', () => {
+    if (typeof window.api.snapshotBackup !== 'function') throw new Error('no snapshot api');
+    return window.api.snapshotBackup().then(function (r) {
+      if (!r || !r.ok) throw new Error('snapshot failed');
+      return 'snapshot ok';
+    });
+  });
+
+  await step('attachment-check', () => {
+    return window.api.checkAttachments(['a1', 'a2']).then(function (r) {
+      if (!r || !r.ok || !Array.isArray(r.missing)) throw new Error('bad check result');
+      return 'checked ' + r.total;
+    });
   });
 
   await step('no-uncaught', () => {

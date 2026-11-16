@@ -359,6 +359,21 @@ ipcMain.handle('backup:list', async () => {
   } catch (e) { return { ok: true, items: [] }; }
 });
 
+ipcMain.handle('backup:snapshot', async () => {
+  /* write a timestamped backup of the current corpus, used as a safety net
+     before destructive actions (clear-all, restore) */
+  try {
+    const data = await corpusStore.assembled(userDir, active.corpusPath);
+    if (!data || !Array.isArray(data.cards)) return { ok: false, error: 'empty' };
+    await fsp.mkdir(active.backupDir, { recursive: true });
+    const d = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    const name = 'corpus-' + d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate()) + '-' + pad(d.getHours()) + pad(d.getMinutes()) + pad(d.getSeconds()) + '-' + pad(d.getMilliseconds()) + '.json';
+    await fsp.writeFile(path.join(active.backupDir, name), JSON.stringify(data), 'utf8');
+    return { ok: true, name: name };
+  } catch (e) { return { ok: false, error: String(e.message || e) }; }
+});
+
 ipcMain.handle('backup:restore', async (_e, name) => {
   if (!/^corpus-\d{8}-\d{6}\.json$/.test(String(name || ''))) return { ok: false, error: 'bad name' };
   const file = path.join(active.backupDir, name);
@@ -693,6 +708,16 @@ ipcMain.handle('file:pick-attachments', async (_e, kind) => {
   const files = out.filter((f) => f.ok);
   if (!files.length) return { ok: false, files: out, error: out[0] && out[0].error };
   return { ok: true, files, skipped: out.filter((f) => !f.ok) };
+});
+
+ipcMain.handle('file:check-attachments', async (_e, ids) => {
+  const list = Array.isArray(ids) ? ids : [];
+  const missing = [];
+  for (const id of list) {
+    const file = await attachFile(id);
+    if (!file) missing.push(id);
+  }
+  return { ok: true, total: list.length, missing: missing };
 });
 
 ipcMain.handle('file:read-attachment', async (_e, id) => {

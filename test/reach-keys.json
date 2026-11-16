@@ -621,5 +621,10 @@
   "tour.skip": "Skip",
   "tour.prev": "Back",
   "tour.next": "Next",
-  "tour.finish": "Finish"
+  "tour.finish": "Finish",
+  "save.dirty": "Unsaved",
+  "save.saving": "Saving",
+  "save.failed": "Save failed",
+  "settings.safetySnapshot": "Safety snapshot",
+  "settings.attachMissing": "Attachments missing"
 }

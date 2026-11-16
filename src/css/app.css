@@ -2300,6 +2300,16 @@ body.presenting { overflow: hidden; }
 .shortcut-grid.sc-edit-grid .sc-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .shortcut-grid .sc-key { min-width: 120px; text-align: center; font: 12px ui-monospace, Consolas, monospace; }
 .shortcut-grid .sc-key.recording { border-color: var(--accent, #8a6f4e); color: var(--accent, #8a6f4e); }
+/* save status indicator */
+.save-status { display: inline-flex; align-items: center; gap: 6px; border: 0; background: transparent;
+  font: 11px inherit; color: var(--muted, #8a8377); cursor: default; padding: 4px 8px; border-radius: 8px; }
+.save-status[hidden] { display: none; }
+.ss-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted, #8a8377); }
+.save-status.ss-dirty .ss-dot { background: #c08552; }
+.save-status.ss-saving .ss-dot { background: #7d8fa9; }
+.save-status.ss-failed { color: #b05b45; cursor: pointer; }
+.save-status.ss-failed .ss-dot { background: #b05b45; }
+
 /* first-run tour banner */
 .tour-host { margin: 0 0 16px; }
 .tour-step { border: 1px solid var(--accent, #8a6f4e); border-radius: 12px; padding: 12px 16px;

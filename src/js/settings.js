@@ -480,15 +480,21 @@
             var name = btn.getAttribute('data-restore');
             U.confirm(t('settings.restore'), t('settings.restoreConfirm', { name: name })).then(function (ok) {
               if (!ok) return;
-              window.api.restoreBackup(name).then(function (res) {
-                if (res && res.ok) {
-                  U.toast(t('settings.restored'), 'ok');
-                  if (CC.app.suppressFlush) CC.app.suppressFlush();
-                  setTimeout(function () { location.reload(); }, 600);
-                } else {
-                  U.toast(t('settings.backupInvalid'), 'bad');
-                }
-              });
+              /* always leave a way back before an overwrite */
+              var proceed = function () {
+                window.api.restoreBackup(name).then(function (res) {
+                  if (res && res.ok) {
+                    U.toast(t('settings.restored'), 'ok');
+                    if (CC.app.suppressFlush) CC.app.suppressFlush();
+                    setTimeout(function () { location.reload(); }, 600);
+                  } else {
+                    U.toast(t('settings.backupInvalid'), 'bad');
+                  }
+                });
+              };
+              if (window.api.snapshotBackup) {
+                window.api.snapshotBackup().then(function () { proceed(); });
+              } else { proceed(); }
             });
           };
         });
@@ -503,9 +509,17 @@
     if (ca) ca.onclick = function () {
       U.confirm(t('settings.clearAll'), t('settings.clearAllConfirm'), { danger: true }).then(function (ok) {
         if (!ok) return;
-        S.resetAll();
-        U.toast(t('settings.clearAllDone'), 'ok');
-        CC.app.nav('home');
+        var clear = function () {
+          S.resetAll();
+          U.toast(t('settings.clearAllDone'), 'ok');
+          CC.app.nav('home');
+        };
+        if (window.api.snapshotBackup) {
+          window.api.snapshotBackup().then(function (r) {
+            if (r && r.ok) U.toast(t('settings.safetySnapshot'), 'ok');
+            clear();
+          });
+        } else { clear(); }
       });
     };
   }
@@ -757,6 +771,21 @@
         db.settings.lastMapId = db.maps[0] ? db.maps[0].id : null;
       });
       U.toast(t('settings.importDone', { added: added, updated: updated }), 'ok');
+      /* A plain .wef carries attachment metadata but not the bytes; tell the
+         user honestly how many files are missing on this machine. */
+      if (window.api.checkAttachments) {
+        var ids = [];
+        S.cards().forEach(function (c) {
+          (c.attachments || []).forEach(function (a) { if (a && a.id) ids.push(a.id); });
+        });
+        if (ids.length) {
+          window.api.checkAttachments(ids).then(function (r) {
+            if (r && r.ok && r.missing && r.missing.length) {
+              U.toast(t('settings.attachMissing', { n: r.missing.length }), 'bad');
+            }
+          });
+        }
+      }
       if (data.settings && mode === 'replace') {
         if (data.settings.lang) { CC.i18n.setLang(data.settings.lang); CC.i18n.apply(document); }
         if (data.settings.theme && CC.app.setTheme) CC.app.setTheme(data.settings.theme);

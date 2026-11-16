@@ -33,6 +33,7 @@
       corpusStats: function () { return Promise.resolve({ ok: true, sharded: false, shards: 0, cards: 0 }); },
       pickAttachments: function () { return Promise.resolve({ ok: false, canceled: true }); },
       readAttachment: function () { return Promise.resolve({ ok: false }); },
+      checkAttachments: function () { return Promise.resolve({ ok: true, missing: [] }); },
       openAttachment: function () { return Promise.resolve({ ok: false }); },
       revealAttachment: function () { return Promise.resolve({ ok: false }); },
       deleteAttachment: function () { return Promise.resolve({ ok: true }); },
@@ -41,6 +42,7 @@
       writeLayoutCache: function () { return Promise.resolve({ ok: true }); },
       clearLayoutCache: function () { return Promise.resolve({ ok: true }); },
       listBackups: function () { return Promise.resolve({ ok: true, items: [] }); },
+      snapshotBackup: function () { return Promise.resolve({ ok: false }); },
       restoreBackup: function () { return Promise.resolve({ ok: false }); },
       saveText: function () { return Promise.resolve({ ok: false, canceled: true }); },
       exportPdf: function () { return Promise.resolve({ ok: false, canceled: true }); },
@@ -86,6 +88,7 @@
       CC.i18n.apply(document);
       bindChrome();
       S.onChange(onStoreChange);
+      if (S.onSaveState) S.onSaveState(renderSaveStatus);
       if (window.api.onQuickCapture) {
         window.api.onQuickCapture(function (data) {
           if (!data || !data.text) return;
@@ -312,6 +315,17 @@
     window.addEventListener('beforeunload', function () { if (!st.suppressFlush) S.flush(); });
   }
 
+  function renderSaveStatus(status, err) {
+    var el = document.getElementById('save-status');
+    if (!el) return;
+    var label = document.getElementById('save-status-label');
+    if (!status || status === 'idle' || status === 'saved') { el.hidden = true; return; }
+    el.hidden = false;
+    el.className = 'save-status ss-' + status;
+    if (label) label.textContent = t('save.' + (status === 'failed' ? 'failed' : status));
+    el.title = status === 'failed' ? (err || t('save.failed')) : t('save.' + status);
+  }
+
   function syncChrome() {
     var s = S.settings();
     document.querySelectorAll('.rail-btn[data-nav]').forEach(function (b) {
@@ -336,6 +350,10 @@
 
     buildCrumb();
     renderTabs();
+    var ss = document.getElementById('save-status');
+    if (ss) ss.onclick = function () {
+      if (S.saveState && S.saveState().status === 'failed' && S.retrySave) S.retrySave();
+    };
   }
 
   function renderTabs() {

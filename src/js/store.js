@@ -156,20 +156,45 @@
 
   /* ------------- persistence ------------- */
 
+  /* save state: 'idle' | 'dirty' | 'saving' | 'saved' | 'failed' */
+  var saveStatus = 'idle';
+  var saveListeners = [];
+  var lastSaveError = '';
+  function setSaveStatus(next, err) {
+    saveStatus = next;
+    if (err) lastSaveError = String(err && err.message || err);
+    saveListeners.forEach(function (fn) { try { fn(saveStatus, lastSaveError); } catch (e) { /* ignore */ } });
+  }
+  function onSaveState(fn) { saveListeners.push(fn); return function () {
+    var i = saveListeners.indexOf(fn); if (i >= 0) saveListeners.splice(i, 1);
+  }; }
+  function saveState() { return { status: saveStatus, error: lastSaveError }; }
+  function retrySave() { return flush(); }
+
   function saveSoon() {
     clearTimeout(saveTimer);
+    setSaveStatus('dirty', '');
     saveTimer = setTimeout(flush, 300);
   }
 
   function flush() {
     clearTimeout(saveTimer);
     saveTimer = null;
-    if (!db) return Promise.resolve();
+    if (!db) return Promise.resolve({ ok: true, skipped: true });
     db.updatedAt = now();
     var payload;
-    try { payload = JSON.parse(JSON.stringify(db)); } catch (e) { return Promise.resolve(); }
+    try { payload = JSON.parse(JSON.stringify(db)); }
+    catch (e) { setSaveStatus('failed', e); return Promise.resolve({ ok: false, error: String(e && e.message || e) }); }
     var view = (info && info.libraryId) || '';
-    return window.api.saveCorpus({ libraryId: view, data: payload }).catch(function (err) { console.error('save failed', err); });
+    setSaveStatus('saving', '');
+    return window.api.saveCorpus({ libraryId: view, data: payload }).then(function (r) {
+      if (r && r.ok === false) { setSaveStatus('failed', r.error || 'save failed'); return { ok: false, error: r.error }; }
+      setSaveStatus('saved', '');
+      return { ok: true };
+    }).catch(function (err) {
+      setSaveStatus('failed', err);
+      return { ok: false, error: String(err && err.message || err) };
+    });
   }
 
   /* ------------- history / undo ------------- */
@@ -646,6 +671,7 @@
   CC.store = {
     FORMAT_VERSION: FORMAT_VERSION,
     init: init, state: state, settings: settings, info: function () { return info; },
+    saveState: saveState, onSaveState: onSaveState, retrySave: retrySave,
     cards: cards, card: card, maps: maps, map: map, currentMap: currentMap,
     cardsRev: cardsRevNo, bumpCardsRev: bumpCards,
     cardTitle: cardTitle, onChange: onChange, emit: emit,
