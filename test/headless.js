@@ -1517,6 +1517,42 @@ function step(name, fn) {
     return 'ms backup names';
   });
 
+  await step('new-structures-layout', () => {
+    var m = S.maps()[0];
+    if (!m) throw new Error('no map');
+    ['fishbone', 'timeline', 'radial', 'matrix'].forEach(function (st) {
+      m.structure = st;
+      var model = CC.layout.get(m);
+      var ids = Object.keys(model.nodes);
+      if (ids.length < 2) throw new Error(st + ': too few nodes');
+      var bad = ids.filter(function (id) {
+        var n = model.nodes[id];
+        return !isFinite(n.x) || !isFinite(n.y);
+      });
+      if (bad.length) throw new Error(st + ': non-finite coords ' + bad.join(','));
+      /* nodes must not all pile onto one point */
+      var first = model.nodes[ids[0]];
+      var spread = ids.some(function (id) {
+        var n = model.nodes[id];
+        return Math.abs(n.x - first.x) > 5 || Math.abs(n.y - first.y) > 5;
+      });
+      if (!spread) throw new Error(st + ': nodes overlap');
+    });
+    m.structure = 'tree';
+    return '4 structures produce finite spread coords';
+  });
+
+  await step('ui-fixes-accent-and-align', () => {
+    var gcode = fs.readFileSync(path.join(root, 'js', 'graph.js'), 'utf8');
+    if (gcode.indexOf("shape === 'pill' ? Math.round(n.h * 0.28)") < 0) {
+      throw new Error('pill accent inset missing');
+    }
+    if (gcode.indexOf("var sumX = sumKind === 'callout' ? 23 : 15") < 0) {
+      throw new Error('summary alignment missing');
+    }
+    return 'accent inset + summary aligned';
+  });
+
   await step('no-uncaught', () => {
     if (errors.length) throw new Error(errors.slice(0, 3).join(' | '));
     return 'clean';

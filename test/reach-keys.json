@@ -633,5 +633,9 @@
   "cards.followSource": "Follow source",
   "settings.keyNotMigrated": "Key not migrated",
   "settings.aiTitle": "AI service",
-  "search.subtitle": "Search subtitle"
+  "search.subtitle": "Search subtitle",
+  "map.fishbone": "Fishbone",
+  "map.timeline": "Timeline",
+  "map.radial": "Radial",
+  "map.matrix": "Matrix"
 }

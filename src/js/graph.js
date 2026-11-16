@@ -191,11 +191,14 @@
     scheduleWarm();
 
     host.querySelector('#zoom-val').textContent = Math.round(view.k * 100) + '%';
-    structBtn.innerHTML = m.structure === 'org'
-      ? U.icon('tree', 15) + '<span>' + U.esc(t('map.org')) + '</span>'
-      : m.structure === 'free'
-        ? U.icon('free', 15) + '<span>' + U.esc(t('map.free')) + '</span>'
-        : U.icon('tree', 15) + '<span>' + U.esc(t('map.tree')) + '</span>';
+    var structNames = {
+      tree: 'map.tree', org: 'map.org', free: 'map.free',
+      fishbone: 'map.fishbone', timeline: 'map.timeline',
+      radial: 'map.radial', matrix: 'map.matrix'
+    };
+    var structKey = structNames[m.structure] || 'map.tree';
+    structBtn.innerHTML = U.icon(m.structure === 'free' ? 'free' : 'tree', 15) +
+      '<span>' + U.esc(t(structKey)) + '</span>';
     structBtn.title = t('map.structure');
 
     var mqBtn = host.querySelector('[data-act="marquee"]');
@@ -397,13 +400,20 @@
     html += '<rect class="node-rect" x="0" y="0" width="' + n.w + '" height="' + n.h + '" rx="' + rx + '"' +
       (fill ? ' fill="' + U.esc(fill) + '"' : '') + '/>';
 
+    /* For pill / rounded shapes the left border curves away from x=0, so a
+       straight accent bar at x=0 pokes out of the rounded end. Inset it to
+       the flat part of the edge and shorten it to stay inside the curve. */
+    var accentX = 0, accentY = shape === 'pill' ? Math.round(n.h * 0.28) : 12;
+    var accentH = Math.max(8, n.h - accentY * 2);
+    var accentColor = s.accent || c.color || tagColor(c.tags[0] || '');
     if (lod === 'low') {
-      html += '<rect class="node-accent" x="0" y="10" width="3" height="' + Math.max(8, n.h - 20) + '" rx="1.5" style="fill:' + (s.accent || c.color || tagColor(c.tags[0] || '')) + '"/>';
+      accentY = shape === 'pill' ? Math.round(n.h * 0.28) : 10;
+      accentH = Math.max(8, n.h - accentY * 2);
+      html += '<rect class="node-accent" x="' + accentX + '" y="' + accentY + '" width="3" height="' + accentH + '" rx="1.5" style="fill:' + accentColor + '"/>';
       html += '</g>';
       return html;
     }
-
-    html += '<rect class="node-accent" x="0" y="12" width="3" height="' + Math.max(8, n.h - 24) + '" rx="1.5" style="fill:' + (s.accent || c.color || tagColor(c.tags[0] || '')) + '"/>';
+    html += '<rect class="node-accent" x="' + accentX + '" y="' + accentY + '" width="3" height="' + accentH + '" rx="1.5" style="fill:' + accentColor + '"/>';
 
     var iconW = 0;
     if (s.icon) {
@@ -431,9 +441,12 @@
       } else if (sumKind === 'badge') {
         html += '<rect class="node-summary-badge" x="14" y="' + (sumTop - 1) + '" width="' + badgeW + '" height="' + (sumH - 2) + '" rx="7"/>';
       }
+      /* Align summary text with the title baseline indent. Callout keeps a
+         small extra gap so its decoration bar does not touch the glyphs. */
+      var sumX = sumKind === 'callout' ? 23 : 15;
       var sy = n.sumBase;
       n.summaryLines.forEach(function (line) {
-        html += '<text class="node-summary' + (sumKind === 'badge' ? ' badge' : '') + '" x="' + (sumKind === 'callout' ? 23 : 19) + '" y="' + sy + '" style="font-size:' + sumFs + 'px">' + U.esc(line) + '</text>';
+        html += '<text class="node-summary' + (sumKind === 'badge' ? ' badge' : '') + '" x="' + sumX + '" y="' + sy + '" style="font-size:' + sumFs + 'px">' + U.esc(line) + '</text>';
         sy += sumLH;
       });
       ty = sy;
@@ -1677,6 +1690,10 @@
     U.showMenu(r.right - 160, r.bottom + 6, [
       { label: t('map.tree'), hint: '←→', onClick: function () { setStructure('tree'); } },
       { label: t('map.org'), hint: '↑↓', onClick: function () { setStructure('org'); } },
+      { label: t('map.fishbone'), onClick: function () { setStructure('fishbone'); } },
+      { label: t('map.timeline'), onClick: function () { setStructure('timeline'); } },
+      { label: t('map.radial'), onClick: function () { setStructure('radial'); } },
+      { label: t('map.matrix'), onClick: function () { setStructure('matrix'); } },
       { label: t('map.free'), onClick: function () { setStructure('free'); } }
     ]);
   }

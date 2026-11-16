@@ -294,6 +294,13 @@
     if (map.structure === 'tree' || map.structure === 'org') {
       layoutTree(nodes, childMap, roots, vertical);
       applyOffsets(nodes, childMap, roots, map.offsets || {});
+    } else if (map.structure === 'fishbone' || map.structure === 'timeline' ||
+               map.structure === 'radial' || map.structure === 'matrix') {
+      assignDepths(nodes, childMap, roots);
+      if (map.structure === 'fishbone') layoutFishbone(nodes, childMap, roots);
+      else if (map.structure === 'timeline') layoutTimeline(nodes, childMap, roots);
+      else if (map.structure === 'radial') layoutRadial(nodes, childMap, roots);
+      else layoutMatrix(nodes, childMap, roots);
     } else {
       layoutFree(map, nodes);
     }
@@ -306,7 +313,7 @@
     orphans.forEach(function (id) {
       if (loneRoot) return;
       var off = (map.offsets || {})[id];
-      if (off && (map.structure === 'tree' || map.structure === 'org')) {
+      if (off && map.structure !== 'free') {
         nodes[id].x = off.x;
         nodes[id].y = off.y;
         nodes[id].orphan = true;
@@ -424,6 +431,123 @@
       }
       cursor = top0 + span[r] + ROOT_GAP;
     });
+  }
+
+  /* assign depth for non-tree structures (shared traversal) */
+  function assignDepths(nodes, childMap, roots) {
+    var seen = {};
+    var stack = roots.map(function (r) { return { id: r, d: 0 }; });
+    while (stack.length) {
+      var it = stack.pop();
+      if (seen[it.id]) continue;
+      seen[it.id] = 1;
+      nodes[it.id].depth = it.d;
+      (childMap[it.id] || []).forEach(function (k) { stack.push({ id: k, d: it.d + 1 }); });
+    }
+    Object.keys(nodes).forEach(function (id) {
+      if (seen[id]) return;
+      seen[id] = 1;
+      nodes[id].depth = 0;
+      roots.push(id);
+      var st = [{ id: id, d: 0 }];
+      while (st.length) {
+        var cur = st.pop();
+        (childMap[cur.id] || []).forEach(function (k) {
+          if (!seen[k]) { seen[k] = 1; nodes[k].depth = cur.d + 1; st.push({ id: k, d: cur.d + 1 }); }
+        });
+      }
+    });
+  }
+
+  /* Fishbone (Ishikawa): root at left, a horizontal spine, first-level
+     branches alternating above/below, second-level hanging off them. */
+  function layoutFishbone(nodes, childMap, roots) {
+    var spineY = 0, x0 = 220, step = 240;
+    roots.forEach(function (r, ri) {
+      var ry = spineY + ri * 420;
+      var root = nodes[r];
+      root.x = 0; root.y = ry;
+      var bones = childMap[r] || [];
+      bones.forEach(function (b, i) {
+        var side = i % 2 === 0 ? -1 : 1;
+        var bx = x0 + Math.floor(i / 2) * step;
+        var by = ry + side * 130;
+        var bn = nodes[b];
+        bn.x = bx; bn.y = by;
+        (childMap[b] || []).forEach(function (k, j) {
+          var kn = nodes[k];
+          kn.x = bx + 150 + j * 20;
+          kn.y = by + side * (95 + j * 70);
+        });
+      });
+    });
+  }
+
+  /* Timeline: root centered at top, first-level along a horizontal axis,
+     second-level stacked beneath each. */
+  function layoutTimeline(nodes, childMap, roots) {
+    var root = nodes[roots[0]];
+    var items = childMap[roots[0]] || [];
+    if (root) { root.x = 0; root.y = -160; }
+    var cursor = -((items.length - 1) * 210) / 2;
+    items.forEach(function (b) {
+      var bn = nodes[b];
+      bn.x = cursor; bn.y = 0;
+      (childMap[b] || []).forEach(function (k, j) {
+        var kn = nodes[k];
+        kn.x = cursor + (j - ((childMap[b] || []).length - 1) / 2) * 150;
+        kn.y = 120;
+      });
+      cursor += 210;
+    });
+    roots.slice(1).forEach(function (r, i) { nodes[r].x = i * 220; nodes[r].y = 260; });
+  }
+
+  /* Radial / mind map: root in the centre, first level around a circle,
+     second level pushed further out along each spoke. */
+  function layoutRadial(nodes, childMap, roots) {
+    var root = nodes[roots[0]];
+    if (root) { root.x = 0; root.y = 0; }
+    var branches = childMap[roots[0]] || [];
+    var n = Math.max(1, branches.length);
+    var r1 = 230, r2 = 430;
+    branches.forEach(function (b, i) {
+      var ang = (i / n) * Math.PI * 2 - Math.PI / 2;
+      var bn = nodes[b];
+      bn.x = Math.cos(ang) * r1;
+      bn.y = Math.sin(ang) * r1;
+      var kids = childMap[b] || [];
+      kids.forEach(function (k, j) {
+        var spread = (j - (kids.length - 1) / 2) * 0.28;
+        var a2 = ang + spread;
+        var kn = nodes[k];
+        kn.x = Math.cos(a2) * r2;
+        kn.y = Math.sin(a2) * r2;
+      });
+    });
+    roots.slice(1).forEach(function (r, i) {
+      nodes[r].x = Math.cos(i) * (r2 + 120);
+      nodes[r].y = Math.sin(i) * (r2 + 120);
+    });
+  }
+
+  /* Matrix / quadrants: root in the middle, first level in four quadrants. */
+  function layoutMatrix(nodes, childMap, roots) {
+    var root = nodes[roots[0]];
+    if (root) { root.x = 0; root.y = 0; }
+    var items = childMap[roots[0]] || [];
+    var quadrants = [[-260, -180], [260, -180], [-260, 180], [260, 180]];
+    items.forEach(function (b, i) {
+      var q = quadrants[i % 4];
+      var bn = nodes[b];
+      bn.x = q[0]; bn.y = q[1];
+      (childMap[b] || []).forEach(function (k, j) {
+        var kn = nodes[k];
+        kn.x = q[0] + (j % 2 ? 150 : -150);
+        kn.y = q[1] + (j < 2 ? -80 : 80);
+      });
+    });
+    roots.slice(1).forEach(function (r, i) { nodes[r].x = -260 + i * 520; nodes[r].y = 360; });
   }
 
   function layoutFree(map, nodes) {
