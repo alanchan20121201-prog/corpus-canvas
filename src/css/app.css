@@ -2300,3 +2300,33 @@ body.presenting { overflow: hidden; }
 .shortcut-grid.sc-edit-grid .sc-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .shortcut-grid .sc-key { min-width: 120px; text-align: center; font: 12px ui-monospace, Consolas, monospace; }
 .shortcut-grid .sc-key.recording { border-color: var(--accent, #8a6f4e); color: var(--accent, #8a6f4e); }
+/* whole-corpus export */
+.export-corpus-row { display: flex; gap: 8px; align-items: stretch; margin-top: 10px; }
+.export-corpus-row select { flex: 1; min-width: 0; }
+.export-corpus-row .btn { flex: none; }
+
+/* ---------- AI dock (mirrors the inspector flex-squeeze layout) ---------- */
+.ai-dock {
+  width: 0; flex: none; overflow: hidden; position: relative; z-index: 25;
+  border-left: 1px solid transparent; background: var(--surface);
+  transition: width .24s var(--ease), border-color .24s;
+}
+.ai-dock.open { width: 440px; border-left-color: var(--border); display: flex; flex-direction: column; }
+.ai-dock[hidden] { display: none; }
+.ai-dock-head {
+  display: flex; align-items: center; justify-content: space-between;
+  height: 52px; flex: none; padding: 0 14px 0 20px;
+  border-bottom: 1px solid var(--border); background: var(--surface);
+}
+.dock-eyebrow { display: flex; align-items: center; gap: 7px;
+  font-size: 11px; letter-spacing: .6px; text-transform: uppercase; color: var(--muted); }
+.ai-dock-body { flex: 1; min-height: 0; overflow: auto; padding: 16px 18px 24px; }
+.ai-dock .ai-tabs { width: 100%; margin-bottom: 14px; }
+.ai-dock .ai-tab { flex: 1; justify-content: center; padding: 0 6px; }
+.ai-dock .ai-list { max-height: none; }   /* avoid double scrollbars */
+body.with-ai-dock .brand-name { display: none; }
+body.with-ai-dock .sp-text, body.with-ai-dock .search-pill kbd { display: none; }
+body.with-ai-dock .topnav .rail-label { display: none; }
+body.with-ai-dock .topnav .rail-btn { padding: 0 8px; }
+body.with-ai-dock .search-pill { min-width: 34px; padding: 0 8px; }
+@media (max-width: 1180px) { .ai-dock.open { width: 360px; } }

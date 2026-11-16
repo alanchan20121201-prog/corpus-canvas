@@ -28,7 +28,7 @@
     root.innerHTML =
       '<div class="page-head"><div class="ph-left">' +
         '<h1 class="page-title"><span class="pt-ico">' + U.icon('settings', 20) + '</span>' + U.esc(t('settings.title')) + '</h1>' +
-        '<p class="page-sub">' + U.esc(t('settings.aiHint')) + '</p>' +
+        '<p class="page-sub">' + U.esc(t('settings.subtitle')) + '</p>' +
       '</div><div class="page-actions"><span class="quiet-badge">' + U.esc(t('settings.noTelemetry')) + '</span></div></div>' +
 
       '<div class="settings-shell">' +
@@ -111,13 +111,10 @@
         section('set-privacy', 'shield', t('settings.privacy'),
           '<p class="set-hint">' + U.esc(t('settings.privacyBody')) + '</p>' +
           '<p class="set-hint small">' + U.esc(t('settings.privacyFixed')) + '</p>' +
-          '<div class="net-list" role="note">' +
-            '<div class="net-row on" aria-disabled="true" title="' + U.esc(t('settings.privacyFixed')) + '">' + U.icon('sparkles', 15) + '<div><strong>' + U.esc(t('settings.network')) + '</strong><p>' + U.esc(t('settings.networkAi')) + '</p></div><span class="net-tag">' + U.esc(t('common.on')) + '</span></div>' +
-            '<div class="net-row" aria-disabled="true" title="' + U.esc(t('settings.privacyFixed')) + '">' + U.icon('folder', 15) + '<div><strong>' + U.esc(t('settings.data')) + '</strong><p>' + U.esc(t('settings.networkOff')) + '</p></div><span class="net-tag off">' + U.esc(t('common.off')) + '</span></div>' +
-            '<div class="net-row" aria-disabled="true" title="' + U.esc(t('settings.privacyFixed')) + '">' + U.icon('key', 15) + '<div><strong>' + U.esc(t('settings.apiKey')) + '</strong><p>' + U.esc(t('settings.networkKey')) + '</p></div><span class="net-tag off">' + U.esc(t('common.off')) + '</span></div>' +
-          '</div>') +
+          '<div class="privacy-note">' + U.icon('shield', 15) +
+            '<div>' + U.esc(t('settings.networkAi')) + ' ' + U.esc(t('settings.networkOff')) + ' ' + U.esc(t('settings.networkKey')) + '</div></div>') +
 
-        section('set-library', 'folder', t('settings.library'),
+        section('set-library', 'cards', t('settings.library'),
           '<p class="set-hint">' + U.esc(t('settings.libraryHint')) + '</p>' +
           '<div class="lib-list" id="lib-list">' + U.esc(t('common.loading')) + '</div>' +
           '<div class="backup-row"><button class="btn" id="lib-new"><span>' + U.esc(t('settings.libraryNew')) + '</span></button></div>') +
@@ -134,6 +131,14 @@
             '<button class="btn" id="backup-export">' + U.icon('download', 15) + '<span>' + U.esc(t('settings.backupExport')) + '</span></button>' +
             '<button class="btn" id="backup-import">' + U.icon('upload', 15) + '<span>' + U.esc(t('settings.backupImport')) + '</span></button>' +
             '<button class="btn ghost" id="import-file">' + U.icon('upload', 15) + '<span>' + U.esc(t('import.title')) + '</span></button>' +
+          '</div>' +
+          '<div class="export-corpus-row">' +
+            '<select class="input" id="export-corpus-format">' +
+              ['md', 'json', 'csv', 'opml'].map(function (f) {
+                var label = f === 'md' ? 'Markdown' : f.toUpperCase();
+                return '<option value="' + f + '">' + label + '</option>';
+              }).join('') +
+            '</select>' +
             '<button class="btn ghost" id="export-corpus">' + U.icon('download', 15) + '<span>' + U.esc(t('settings.exportCorpus')) + '</span></button>' +
           '</div>' +
           '<p class="set-hint small">' + U.esc(t('settings.exportCorpusHint')) + '</p>' +
@@ -150,10 +155,10 @@
           '<p class="set-hint">' + U.esc(t('shortcut.customTitle')) + '</p>' +
           '<div class="shortcut-grid sc-edit-grid">' +
             ['search', 'save', 'undo', 'redo', 'fullscreen', 'delete', 'escape', 'focus', 'fit', 'edit'].map(function (k) {
-              return '<div class="sc-row"><span>' + U.esc(t('shortcut.' + k).split(' ').slice(1).join(' ')) + '</span>' +
+              return '<div class="sc-row"><span>' + U.esc(t('shortcut.act.' + k)) + '</span>' +
                 '<button class="mini-btn sc-key" data-sc="' + k + '">' + U.esc(CC.app.getShortcuts()[k] || '') + '</button></div>';
             }).join('') +
-            '<div class="sc-row"><span>' + U.esc(t('shortcut.nav').split(' ').slice(1).join(' ')) + '</span><kbd>' + U.esc(t('shortcut.fixed')) + '</kbd></div>' +
+            '<div class="sc-row"><span>' + U.esc(t('shortcut.act.nav')) + '</span><kbd>' + U.esc(t('shortcut.fixed')) + '</kbd></div>' +
           '</div>' +
           '<button class="btn ghost sm" id="sc-reset">' + U.esc(t('shortcut.resetAll')) + '</button>') +
 
@@ -208,6 +213,10 @@
       lmstudio: { base: 'http://127.0.0.1:1234/v1', model: '', local: true }
     };
     var preset = root.querySelector('#ai-preset');
+    if (preset) {
+      var curProfile = activeProfile();
+      if (curProfile && curProfile.preset) preset.value = curProfile.preset;
+    }
     if (preset) preset.onchange = function () {
       var p = PRESETS[preset.value];
       if (!p) return;
@@ -364,7 +373,7 @@
             U.confirm(t('settings.libraryDelete'), t('settings.libraryDeleteConfirm'), { danger: true }).then(function (ok) {
               if (!ok || !window.api.deleteLibrary) return;
               window.api.deleteLibrary({ id: id }).then(function (res) {
-                if (res && res.switched) { location.reload(); return; }
+                if (res && res.switched) { if (CC.app.suppressFlush) CC.app.suppressFlush(); location.reload(); return; }
                 renderLibraries();
               });
             });
@@ -397,6 +406,7 @@
         if (!token) { btn.textContent = old; return; }
         var conflict = null, sc = CC.app.getShortcuts();
         Object.keys(sc).forEach(function (a) { if (a !== action && sc[a] === token) conflict = a; });
+        if (/^[1-9]$/.test(token)) conflict = conflict || 'nav';
         if (conflict) { U.toast(t('shortcut.conflict'), 'bad'); btn.textContent = old; return; }
         CC.app.setShortcut(action, token);
         btn.textContent = token;
@@ -428,7 +438,10 @@
     var ifile = root.querySelector('#import-file');
     if (ifile) ifile.onclick = function () { CC.importer.open(); };
     var ec = root.querySelector('#export-corpus');
-    if (ec) ec.onclick = function () { exportCorpus(); };
+    if (ec) ec.onclick = function () {
+      var sel = root.querySelector('#export-corpus-format');
+      exportCorpus(sel ? sel.value : 'md');
+    };
 
     function renderBackups() {
       var host = root.querySelector('#ab-list');
@@ -453,6 +466,7 @@
               window.api.restoreBackup(name).then(function (res) {
                 if (res && res.ok) {
                   U.toast(t('settings.restored'), 'ok');
+                  if (CC.app.suppressFlush) CC.app.suppressFlush();
                   setTimeout(function () { location.reload(); }, 600);
                 } else {
                   U.toast(t('settings.backupInvalid'), 'bad');
@@ -478,28 +492,80 @@
     };
   }
 
-  /* Export the whole corpus as one readable Markdown document: every map in
-     order, then the cards that are not on any map. No settings or keys. */
-  function exportCorpus() {
+  /* Export the whole corpus as one readable file. Four formats share the
+     same grouping: every map in order, then cards not on any map. No settings
+     and no API key is ever written. */
+  function exportCorpus(fmt) {
+    fmt = fmt || 'md';
     var db = S.state();
-    var lines = ['# ' + t('app.name') + ' · ' + t('settings.exportCorpus'), '',
-      '> ' + t('settings.exportCorpusHint'), ''];
-    var used = {};
+    var used = {}, groups = [];
     (db.maps || []).forEach(function (m) {
       var cs = S.mapCards(m);
       if (!cs.length) return;
-      lines.push('## ' + m.name, '');
-      cs.forEach(function (c) { used[c.id] = 1; pushCorpusCard(lines, c); });
-      lines.push('');
+      cs.forEach(function (c) { used[c.id] = 1; });
+      groups.push({ name: m.name, cards: cs });
     });
     var rest = S.cards().filter(function (c) { return !used[c.id]; });
-    if (rest.length) {
-      lines.push('## ' + t('settings.exportCorpusOrphans'), '');
-      rest.forEach(function (c) { pushCorpusCard(lines, c); });
-      lines.push('');
+    if (rest.length) groups.push({ name: t('settings.exportCorpusOrphans'), cards: rest });
+
+    var text = '', suggested = 'corpus-all.' + fmt;
+    if (fmt === 'md') {
+      var lines = ['# ' + t('app.name') + ' · ' + t('settings.exportCorpus'), '',
+        '> ' + t('settings.exportCorpusHint'), ''];
+      groups.forEach(function (g) {
+        lines.push('## ' + g.name, '');
+        g.cards.forEach(function (c) { pushCorpusCard(lines, c); });
+        lines.push('');
+      });
+      text = lines.join('\n');
+    } else if (fmt === 'json') {
+      text = JSON.stringify({
+        app: 'Corpus Canvas',
+        exportedAt: new Date().toISOString(),
+        groups: groups.map(function (g) {
+          return {
+            name: g.name,
+            cards: g.cards.map(function (c) {
+              return {
+                id: c.id, title: c.title, body: c.body, summary: c.summary,
+                note: c.note, category: c.category, tags: c.tags || []
+              };
+            })
+          };
+        })
+      }, null, 2);
+    } else if (fmt === 'csv') {
+      function q(v) {
+        return '"' + String(v == null ? '' : v).replace(/"/g, '""').replace(/\r?\n/g, ' ') + '"';
+      }
+      var rows = [['group', 'title', 'body', 'summary', 'note', 'category', 'tags'].map(q).join(',')];
+      groups.forEach(function (g) {
+        g.cards.forEach(function (c) {
+          rows.push([g.name, c.title, c.body, c.summary, c.note, c.category, (c.tags || []).join(' ')].map(q).join(','));
+        });
+      });
+      text = '\ufeff' + rows.join('\r\n');   /* BOM: Excel reads Chinese correctly */
+    } else if (fmt === 'opml') {
+      function ex(s) {
+        return String(s == null ? '' : s)
+          .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+      }
+      var ol = ['<?xml version="1.0" encoding="UTF-8"?>',
+        '<opml version="2.0"><head><title>' + ex(t('app.name')) + '</title></head><body>'];
+      groups.forEach(function (g) {
+        ol.push('  <outline text="' + ex(g.name) + '">');
+        g.cards.forEach(function (c) {
+          var attrs = ' text="' + ex(c.title || t('common.untitled')) + '"';
+          if (c.note) attrs += ' _note="' + ex(String(c.note).replace(/\r?\n/g, ' ')) + '"';
+          ol.push('    <outline' + attrs + '/>');
+        });
+        ol.push('  </outline>');
+      });
+      ol.push('</body></opml>');
+      text = ol.join('\n');
     }
-    if (!window.api || !window.api.saveText) return;
-    window.api.saveText({ text: lines.join('\n'), suggested: 'corpus-all.md', ext: 'md' }).then(function (r) {
+    if (!text || !window.api || !window.api.saveText) return;
+    window.api.saveText({ text: text, suggested: suggested, ext: fmt }).then(function (r) {
       if (r && r.ok) U.toast(t('map.exportDone', { path: r.path }), 'ok');
       else if (r && !r.canceled && r.error) U.toast(t('map.exportFail', { msg: r.error }), 'bad');
     });
@@ -597,8 +663,10 @@
       var added = 0, updated = 0;
       S.commit('restore', t('settings.backupImport'), function () {
         var db = S.state();
-        /* backups carry language/theme/AI preferences (never the key) */
-        if (data.settings) {
+        /* backups carry language/theme/AI preferences (never the key).
+           Only a full replace applies them, so a merge cannot silently
+           override the current library's shortcuts and AI profiles. */
+        if (data.settings && mode === 'replace') {
           var set = S.settings();
           if (data.settings.lang) set.lang = data.settings.lang;
           if (data.settings.theme) set.theme = data.settings.theme;
@@ -645,7 +713,7 @@
         db.settings.lastMapId = db.maps[0] ? db.maps[0].id : null;
       });
       U.toast(t('settings.importDone', { added: added, updated: updated }), 'ok');
-      if (data.settings) {
+      if (data.settings && mode === 'replace') {
         if (data.settings.lang) { CC.i18n.setLang(data.settings.lang); CC.i18n.apply(document); }
         if (data.settings.theme && CC.app.setTheme) CC.app.setTheme(data.settings.theme);
       }

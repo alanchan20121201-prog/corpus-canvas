@@ -469,17 +469,7 @@
     st.tab = 'text';
   }
 
-  function mountAndFocus(root, focus) {
-    st._focusQ = !!focus;
-    mount(root);
-    if (focus) {
-      var q = root.querySelector('#q');
-      if (q) { q.focus(); q.select(); }
-    }
-  }
-
   CC.search = {
-    mount: mount, setQuery: setQuery, setTag: setTag, mountAndFocus: mountAndFocus,
-    resetSel: function () { st.sel = {}; }
+    mount: mount, setQuery: setQuery, setTag: setTag
   };
 })();

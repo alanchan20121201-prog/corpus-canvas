@@ -570,5 +570,20 @@
   "settings.aiProfileRename": "Rename profile",
   "settings.aiProfileDelete": "Delete profile",
   "settings.aiProfileDeleteConfirm": "Delete confirm",
-  "settings.aiProfileSharedKey": "Shared key"
+  "settings.aiProfileSharedKey": "Shared key",
+  "import.xmindExtras": "XMind extras",
+  "settings.subtitle": "Settings subtitle",
+  "shortcut.act.search": "Act search",
+  "shortcut.act.save": "Act save",
+  "shortcut.act.undo": "Act undo",
+  "shortcut.act.redo": "Act redo",
+  "shortcut.act.fullscreen": "Act fullscreen",
+  "shortcut.act.delete": "Act delete",
+  "shortcut.act.escape": "Act escape",
+  "shortcut.act.focus": "Act focus",
+  "shortcut.act.fit": "Act fit",
+  "shortcut.act.edit": "Act edit",
+  "shortcut.act.nav": "Act nav",
+  "map.showLabels": "Show labels",
+  "map.edgeLabel": "Edge label"
 }

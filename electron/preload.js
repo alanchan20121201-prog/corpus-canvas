@@ -18,6 +18,7 @@ contextBridge.exposeInMainWorld('api', {
   exportBackup: (payload) => ipcRenderer.invoke('backup:export', payload),
   importBackup: () => ipcRenderer.invoke('backup:import'),
   importDialog: () => ipcRenderer.invoke('file:import-dialog'),
+  extractXmindAttachments: (paths) => ipcRenderer.invoke('file:extract-xmind-attachments', paths),
   saveImage: (payload) => ipcRenderer.invoke('image:save', payload),
   parseXmind: (buffer) => ipcRenderer.invoke('file:parse-xmind', buffer),
   saveText: (payload) => ipcRenderer.invoke('file:save-text', payload),

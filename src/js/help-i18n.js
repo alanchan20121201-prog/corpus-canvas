@@ -1,4 +1,4 @@
-/* Detailed manual for the six non-Chinese UI languages (12 guide + 10 AI sections). */
+/* Detailed manual for the six non-Chinese UI languages (15 guide + 10 AI sections). */
 (function () {
   'use strict';
   var CC = window.CC = window.CC || {};
@@ -66,8 +66,10 @@
         '<p>Deleted cards go to Trash and can be restored; links are kept so a restore is lossless. “Delete forever” is irreversible.</p>' },
       { id: 'io', title: 'Import and backup', html:
         '<p>Import XMind, OPML or Markdown outlines; everything becomes the same corpus, with provenance recorded. The import report shows how many nodes were imported or skipped.</p>' +
+        '<p>XMind labels and markers become card tags, relationships become edges, and topic fill/shape, hyperlinks and attachments are preserved; summary topics become card summaries.</p>' +
         '<p>Backup writes one readable .wef JSON file. Restore can merge by id or replace everything. Keys never enter backups.</p>' +
-        '<p>You can also drop a .wef (or an auto-backup corpus-*.json) onto the window, or pick it in Import: it is detected by content and offered as a restore, never parsed as an outline. One auto-backup is kept at each start (last 10 kept).</p>' },
+        '<p>You can also drop a .wef (or an auto-backup corpus-*.json) onto the window, or pick it in Import: it is detected by content and offered as a restore, never parsed as an outline. One auto-backup is kept at each start (last 10 kept).</p>' +
+        '<p>Export the whole corpus at once as Markdown, JSON, CSV or OPML: maps first, unassigned cards last, never settings or keys.</p>' },
       { id: 'settings', title: 'Settings and privacy', html:
         '<p>Interface language and theme apply immediately. The data panel shows the file location and format version, and opens the folder.</p>' +
         '<p>There is no account, telemetry or cloud sync. Only an AI action sends the selected text to your endpoint; everything else is local.</p>' },
@@ -172,7 +174,8 @@
       { id: 'io', title: '読み込みとバックアップ', html:
         '<p>XMind・OPML・Markdown を取り込むと同じ正本になり、出典も記録されます。取り込みレポートに成功・スキップ数が出ます。</p>' +
         '<p>バックアップは読める .wef（JSON）1ファイルです。復元は ID で統合するか上書きするかを選べます。キーは含まれません。</p>' +
-        '<p>.wef（または自動バックアップの corpus-*.json）はウィンドウにドロップしても、「読み込み」で選んでも構いません。内容でバックアップと判定され、アウトラインとしては読み込まれず復元ダイアログが出ます。起動時に 1 部、最近 10 部を保持します。</p>' },
+        '<p>.wef（または自動バックアップの corpus-*.json）はウィンドウにドロップしても、「読み込み」で選んでも構いません。内容でバックアップと判定され、アウトラインとしては読み込まれず復元ダイアログが出ます。起動時に 1 部、最近 10 部を保持します。</p>' +
+        '<p>正本はまとめて Markdown・JSON・CSV・OPML のいずれかで書き出せます。図ごとにまとめ、最後に未配置のカードが来ます。設定やキーは含まれません。</p>' },
       { id: 'settings', title: '設定とプライバシー', html:
         '<p>言語とテーマはすぐ反映されます。データ欄には保存場所と形式バージョンが出て、フォルダーを開けます。</p>' +
         '<p>アカウント・テレメトリ・クラウド同期はありません。AI を実行したときだけ選択範囲が送られ、それ以外はローカルです。</p>' },
@@ -273,7 +276,8 @@
       { id: 'io', title: 'Importar y copias', html:
         '<p>Importa XMind, OPML o Markdown; todo pasa al mismo corpus y se registra la procedencia. El informe indica cuántos nodos entraron o se omitieron.</p>' +
         '<p>La copia es un .wef JSON legible; restaurar puede combinar por id o reemplazar. Las claves nunca entran en la copia.</p>' +
-        '<p>También puedes arrastrar un .wef (o un corpus-*.json de copia automática) a la ventana, o elegirlo en Importar: se detecta por contenido y se ofrece restaurar, nunca se analiza como esquema. Se guarda una copia en cada inicio (se conservan las 10 últimas).</p>' },
+        '<p>También puedes arrastrar un .wef (o un corpus-*.json de copia automática) a la ventana, o elegirlo en Importar: se detecta por contenido y se ofrece restaurar, nunca se analiza como esquema. Se guarda una copia en cada inicio (se conservan las 10 últimas).</p>' +
+        '<p>Exporta todo el corpus a la vez como Markdown, JSON, CSV u OPML: primero los mapas, al final las tarjetas sin asignar. Nunca incluye ajustes ni claves.</p>' },
       { id: 'settings', title: 'Ajustes y privacidad', html:
         '<p>Idioma y tema se aplican al instante. El panel de datos muestra ubicación y versión del formato, y abre la carpeta.</p>' +
         '<p>Sin cuenta, telemetría ni nube. Solo una acción de IA envía el texto seleccionado a tu servicio; el resto es local.</p>' },
@@ -373,7 +377,8 @@
       { id: 'io', title: 'Import et sauvegardes', html:
         '<p>Importez XMind, OPML ou Markdown ; tout rejoint le même corpus avec sa provenance. Le rapport indique les nœuds importés ou ignorés.</p>' +
         '<p>La sauvegarde est un .wef JSON lisible ; la restauration fusionne par id ou remplace. Les clés n’y entrent jamais.</p>' +
-        '<p>Vous pouvez aussi déposer un .wef (ou un corpus-*.json de sauvegarde auto) sur la fenêtre, ou le choisir dans Importer : il est reconnu par son contenu et proposé à la restauration, jamais analysé comme plan. Une sauvegarde est faite à chaque démarrage (10 dernières conservées).</p>' },
+        '<p>Vous pouvez aussi déposer un .wef (ou un corpus-*.json de sauvegarde auto) sur la fenêtre, ou le choisir dans Importer : il est reconnu par son contenu et proposé à la restauration, jamais analysé comme plan. Une sauvegarde est faite à chaque démarrage (10 dernières conservées).</p>' +
+        '<p>Exportez tout le corpus en une fois au format Markdown, JSON, CSV ou OPML : les plans d’abord, les cartes non classées à la fin, jamais les réglages ni les clés.</p>' },
       { id: 'settings', title: 'Réglages et confidentialité', html:
         '<p>Langue et thème s’appliquent aussitôt. Le panneau données indique l’emplacement et la version du format, et ouvre le dossier.</p>' +
         '<p>Sans compte, télémétrie ni cloud. Seule une action IA envoie le texte sélectionné à votre service ; le reste est local.</p>' },
@@ -473,7 +478,8 @@
       { id: 'io', title: '가져오기와 백업', html:
         '<p>XMind·OPML·Markdown을 가져오면 같은 원본이 되고 출처가 기록됩니다. 가져오기 보고서에 성공·건너뜀 수가 나옵니다.</p>' +
         '<p>백업은 읽을 수 있는 .wef(JSON) 한 파일입니다. 복원은 ID 병합 또는 덮어쓰기를 고릅니다. 키는 포함되지 않습니다.</p>' +
-        '<p>.wef(또는 자동 백업 corpus-*.json)를 창에 끌어다 놓거나 가져오기에서 선택해도 됩니다. 내용으로 백업을 판별해 복원 대화상자를 띄우며 개요로 읽어들이지 않습니다. 시작할 때마다 한 부, 최근 10부를 보관합니다.</p>' },
+        '<p>.wef(또는 자동 백업 corpus-*.json)를 창에 끌어다 놓거나 가져오기에서 선택해도 됩니다. 내용으로 백업을 판별해 복원 대화상자를 띄우며 개요로 읽어들이지 않습니다. 시작할 때마다 한 부, 최근 10부를 보관합니다.</p>' +
+        '<p>전체 원본을 Markdown·JSON·CSV·OPML 중 하나로 한 번에 내보낼 수 있습니다. 지도별로 묶고 마지막에 미배치 카드가 오며, 설정과 키는 포함되지 않습니다.</p>' },
       { id: 'settings', title: '설정과 개인정보', html:
         '<p>언어와 테마는 즉시 적용됩니다. 자료 패널에 저장 위치와 형식 버전이 나오고 폴더를 열 수 있습니다.</p>' +
         '<p>계정·텔레메트리·클라우드가 없습니다. AI를 실행할 때만 선택 범위가 전송되고 나머지는 로컬입니다.</p>' },

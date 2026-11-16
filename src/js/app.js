@@ -12,7 +12,7 @@
     window.api = {
       info: function () { return Promise.resolve({ version: '1.0.0-preview', userDir: '', corpusPath: 'localStorage', platform: 'web', encrypted: false, dev: true }); },
       loadCorpus: function () { try { return Promise.resolve(JSON.parse(ls.getItem('cc-corpus') || 'null')); } catch (e) { return Promise.resolve(null); } },
-      saveCorpus: function (d) { ls.setItem('cc-corpus', JSON.stringify(d)); return Promise.resolve({ ok: true }); },
+      saveCorpus: function (d) { ls.setItem('cc-corpus', JSON.stringify(d && d.data ? d.data : d)); return Promise.resolve({ ok: true }); },
       revealCorpus: function () { return Promise.resolve({ ok: true }); },
       getKey: function () { return Promise.resolve({ key: ls.getItem('cc-key') || '', encrypted: false }); },
       setKey: function (k) { ls.setItem('cc-key', k || ''); return Promise.resolve({ ok: true }); },
@@ -20,6 +20,7 @@
       exportBackup: function () { return Promise.resolve({ ok: false, canceled: true }); },
       importBackup: function () { return Promise.resolve({ ok: false, canceled: true }); },
       importDialog: function () { return Promise.resolve({ ok: false, canceled: true }); },
+      extractXmindAttachments: function () { return Promise.resolve({ ok: true, items: [] }); },
       saveImage: function () { return Promise.resolve({ ok: false, canceled: true }); },
       parseXmind: function () { return Promise.resolve({ ok: false, error: 'preview' }); },
       chat: function () { return Promise.resolve({ ok: false, error: 'preview mode' }); },
@@ -52,7 +53,7 @@
     };
   }
 
-  var st = { view: 'home', info: null, aiKey: '', lightTimer: null, ready: false };
+  var st = { view: 'home', info: null, aiKey: '', lightTimer: null, ready: false, suppressFlush: false };
 
   function viewRoot() { return document.getElementById('view'); }
 
@@ -202,6 +203,7 @@
     else if (view === 'settings') CC.settings.mount(root);
 
     if (view !== 'map' && view !== 'cards' && view !== 'outline') CC.inspector.close();
+    if (CC.ai && CC.ai.isDockOpen && CC.ai.isDockOpen()) CC.ai.closeDock();
     syncChrome();
   }
 
@@ -289,7 +291,7 @@
 
     window.addEventListener('keydown', onKey);
     bindDragDrop();
-    window.addEventListener('beforeunload', function () { S.flush(); });
+    window.addEventListener('beforeunload', function () { if (!st.suppressFlush) S.flush(); });
   }
 
   function syncChrome() {
@@ -742,7 +744,6 @@
     if (e.shiftKey) parts.push('Shift');
     var k = e.key;
     if (k === ' ') k = 'Space';
-    else if (k === 'Backspace') k = 'Delete';
     else if (k && k.length === 1) k = k.toUpperCase();
     parts.push(k);
     return parts.join('+');
@@ -753,7 +754,7 @@
     return S.flush().then(function () {
       return window.api.switchLibrary({ id: id });
     }).then(function (r) {
-      if (r && r.ok) { location.reload(); return true; }
+      if (r && r.ok) { st.suppressFlush = true; location.reload(); return true; }
       U.toast(t('settings.librarySwitchFail'), 'bad');
       return false;
     });
@@ -805,7 +806,7 @@
     /* Form fields keep the browser's own text editing; only an explicitly
        configured "save" combo is allowed to reach the app. */
     if (typing) {
-      if (token === sc.save) { e.preventDefault(); S.flush().then(function () { U.toast(t('common.saved'), 'ok'); }); return; }
+      if (token === sc.save && (e.ctrlKey || e.metaKey || e.altKey)) { e.preventDefault(); S.flush().then(function () { U.toast(t('common.saved'), 'ok'); }); return; }
       if (e.key === 'Escape' && e.target.blur) e.target.blur();
       return;
     }
@@ -948,6 +949,7 @@
     setLang: setLang, setTheme: setTheme, syncChrome: syncChrome, info: function () { return st.info; },
     getKey: function () { return st.aiKey; },
     setKey: function (k) { st.aiKey = k || ''; },
+    suppressFlush: function () { st.suppressFlush = true; },
     switchLibrary: switchLibrary,
     keyToken: keyToken,
     getShortcuts: function () { return shortcuts(); },
@@ -962,6 +964,7 @@
     refreshLight: refreshLight, refreshView: refreshView, refreshInspector: refreshInspector,
     ensureFirstNode: ensureFirstNode,
     onSelectionChange: function (sel) {
+      if (CC.ai && CC.ai.isDockOpen && CC.ai.isDockOpen()) return;
       if (sel && sel.length === 1) CC.inspector.open(sel[0]);
       else CC.inspector.close();
     },

@@ -111,6 +111,36 @@
   /* ------------------------------------------------------------------ */
 
   var state = null;
+  var dock = null;   /* { host, resolve, returnFocus } */
+
+  function isDockOpen() { return !!dock; }
+
+  function closeDock(result) {
+    if (!dock) return false;
+    var d = dock;
+    dock = null;                                  /* clear first to avoid re-entry */
+    if (state && state.busy && state.requestId && window.api.cancelChat) {
+      window.api.cancelChat(state.requestId);
+    }
+    state = null;
+    window.removeEventListener('keydown', onDockKey);
+    var host = d.host;
+    host.classList.remove('open');
+    document.body.classList.remove('with-ai-dock');
+    setTimeout(function () { if (!dock) host.hidden = true; }, 200);
+    if (d.resolve) d.resolve(result === undefined ? null : result);
+    if (d.returnFocus && document.contains(d.returnFocus)) d.returnFocus.focus();
+    return true;
+  }
+
+  function onDockKey(e) {
+    if (e.key !== 'Escape' || !dock) return;
+    if (document.querySelector('.overlay')) return;   /* child dialog wins */
+    if (CC.present && CC.present.isOpen()) return;
+    if (CC.inspector && CC.inspector.isOpen()) return;
+    e.stopPropagation();
+    closeDock();
+  }
 
   function open(kind) {
     if (!ready()) {
@@ -124,6 +154,7 @@
       }).then(function (r) { if (r === 'settings') CC.app.nav('settings'); });
       return;
     }
+    if (isDockOpen()) closeDock();
     state = {
       kind: kind || 'draft',
       scope: kind === 'draft' ? 'text' : (CC.graph.selection().length ? 'selection' : 'map'),
@@ -149,13 +180,39 @@
       '</div>' +
       '<div class="ai-body" id="ai-body"></div>';
 
-    U.openModal({
-      title: t('ai.title'),
-      wide: true,
-      body: body,
-      dismissable: true,
-      actions: [{ id: 'close', label: t('common.close'), ghost: true }]
-    }).then(function () { state = null; });
+    var host = document.getElementById('ai-dock');
+    if (host) {
+      dock = { host: host, resolve: null, returnFocus: document.activeElement };
+      var shell = document.createElement('div');
+      shell.innerHTML =
+        '<div class="ai-dock-head">' +
+          '<span class="dock-eyebrow">' + U.icon('sparkles', 14) + '<span>' + U.esc(t('ai.title')) + '</span></span>' +
+          '<button class="icon-btn sm" data-dock="close" title="' + U.esc(t('common.close')) + '">' + U.icon('close', 16) + '</button>' +
+        '</div><div class="ai-dock-body"></div>';
+      shell.querySelector('.ai-dock-body').appendChild(body);
+      host.innerHTML = '';
+      host.appendChild(shell);
+      shell.querySelector('[data-dock="close"]').onclick = function () { closeDock(); };
+      host.hidden = false;
+      host.classList.add('open');
+      document.body.classList.add('with-ai-dock');
+      if (CC.inspector) CC.inspector.close();   /* mutual exclusion: one side panel */
+      window.addEventListener('keydown', onDockKey);
+      setTimeout(function () {
+        var f = body.querySelector('[autofocus]') || body.querySelector('.ai-tab.active') || body.querySelector('#ai-text');
+        if (f) f.focus();
+      }, 40);
+      /* fall through: tabs and renderBody() below fill the panel */
+    } else {
+      /* fallback when the dock container is missing (e.g. stale preview build) */
+      U.openModal({
+        title: t('ai.title'),
+        wide: true,
+        body: body,
+        dismissable: true,
+        actions: [{ id: 'close', label: t('common.close'), ghost: true }]
+      }).then(function () { state = null; });
+    }
 
     body.querySelectorAll('.ai-tab').forEach(function (b) {
       b.onclick = function () {
@@ -368,6 +425,7 @@
       state.error = '';
       state.result = null;
       chat(messages, { temperature: 0.2, maxTokens: 3000 }).then(function (r) {
+        if (!state) return;   /* dock closed while the request was in flight */
         setBusy(false);
         state.elapsed = r.ms || 0;
         if (!r.ok) {
@@ -407,6 +465,7 @@
         if (state.kind === 'summarize') state.selected.summary = true;
         renderResult();
       }).catch(function (err) {
+        if (!state) return;
         setBusy(false);
         state.error = String((err && err.message) || err);
         state.errorCode = 'network';
@@ -546,7 +605,7 @@
       el.querySelectorAll('[data-jump]').forEach(function (b) {
         b.onclick = function () {
           var id = b.getAttribute('data-jump');
-          U.closeTopModal();
+          closeDock();
           CC.app.openCard(id);
         };
       });
@@ -627,7 +686,7 @@
           S.settings().lastMapId = map.id;
         }, { snapshot: true });
         U.toast(t('ai.applied', { n: written }), 'ok');
-        U.closeTopModal();
+        closeDock();
         CC.app.goMap(map.id);
         return;
       }
@@ -653,7 +712,7 @@
           });
         }, { snapshot: true });
         U.toast(t('ai.applied', { n: written }), 'ok');
-        U.closeTopModal();
+        closeDock();
         return;
       }
 
@@ -677,12 +736,12 @@
           S.state().reviews.unshift(review);
         }, { snapshot: true });
         U.toast(t('ai.applied', { n: written }), 'ok');
-        U.closeTopModal();
+        closeDock();
         return;
       }
 
       if (k === 'summarize') {
-        U.closeTopModal();
+        closeDock();
       }
     }
 
@@ -811,5 +870,8 @@
     });
   }
 
-  CC.ai = { open: open, ready: ready, chat: chat, openReviewPanel: openReviewPanel };
+  CC.ai = {
+    open: open, ready: ready, chat: chat, openReviewPanel: openReviewPanel,
+    closeDock: closeDock, isDockOpen: isDockOpen
+  };
 })();

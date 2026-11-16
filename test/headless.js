@@ -43,7 +43,7 @@ const chats = [];
 window.api = {
   info: () => Promise.resolve({ version: '1.0.0', locale: 'zh-CN', userDir: 'C:/tmp', corpusPath: 'C:/tmp/corpus.json', platform: 'win32', encrypted: true, dev: true }),
   loadCorpus: () => Promise.resolve(corpus),
-  saveCorpus: (d) => { corpus = d; return Promise.resolve({ ok: true }); },
+  saveCorpus: (d) => { corpus = (d && d.data) ? d.data : d; return Promise.resolve({ ok: true }); },
   revealCorpus: () => Promise.resolve({ ok: true }),
   getKey: () => Promise.resolve({ key: '', encrypted: true }),
   setKey: () => Promise.resolve({ ok: true }),
@@ -1280,6 +1280,74 @@ function step(name, fn) {
       keys.forEach((k) => { if (!CC.i18n.dicts[lang][k]) throw new Error(lang + ':' + k); });
     });
     return keys.length + ' keys x 7 langs';
+  });
+
+  await step('export-all-formats', () => {
+    const captured = [];
+    const orig = window.api.saveText;
+    window.api.saveText = function (p) { captured.push(p); return Promise.resolve({ ok: true }); };
+    CC.settings.mount(document.getElementById('view'));
+    const fmt = document.getElementById('export-corpus-format');
+    const btn = document.getElementById('export-corpus');
+    if (!fmt || !btn) throw new Error('export UI missing');
+    ['md', 'json', 'csv', 'opml'].forEach(function (f) { fmt.value = f; btn.click(); });
+    window.api.saveText = orig;
+    if (captured.length !== 4) throw new Error('captured=' + captured.length);
+    if (captured[0].ext !== 'md' || captured[0].text.indexOf('# ') < 0) throw new Error('md format');
+    const parsed = JSON.parse(captured[1].text);
+    if (!Array.isArray(parsed.groups)) throw new Error('json format');
+    if (captured[2].text.charCodeAt(0) !== 0xFEFF) throw new Error('csv BOM');
+    if (captured[3].text.indexOf('<opml') < 0) throw new Error('opml format');
+    return '4 formats';
+  });
+
+  await step('ai-dock-open-close', async () => {
+    S.settings().ai.model = 'test-model';
+    S.settings().ai.hasKey = true;
+    CC.app.setKey('test-key');
+    CC.ai.open('draft');
+    if (!CC.ai.isDockOpen()) throw new Error('dock not open');
+    const dock = document.getElementById('ai-dock');
+    if (!dock || dock.hidden || !dock.classList.contains('open')) throw new Error('dock dom');
+    if (!dock.querySelector('.ai-panel')) throw new Error('ai panel missing');
+    CC.ai.closeDock();
+    if (CC.ai.isDockOpen()) throw new Error('dock not closed');
+    await sleep(230);
+    if (!dock.hidden) throw new Error('dock not hidden after animation');
+    return 'dock ok';
+  });
+
+  await step('xmind-extras-mapping', () => {
+    const before = S.cards().length;
+    const tree = {
+      title: 'XMind 测试',
+      children: [
+        { title: 'A', labels: ['proj'], markers: ['priority-1'], fill: '#ff0000', shape: 'pill', link: 'https://example.com', children: [] },
+        { title: 'B', note: 'b', children: [] }
+      ],
+      relations: [{ fromTitle: 'A', toTitle: 'B', label: 'rel' }]
+    };
+    const res = CC.importer.importTree(tree, { mode: 'map', name: 'xm', mapName: 'xm' });
+    if (res.created !== 3) throw new Error('created=' + res.created);
+    if (res.linked !== 1) throw new Error('linked=' + res.linked);
+    const a = S.cards().slice(before).find((c) => c.title === 'A');
+    if (!a) throw new Error('card A missing');
+    if (a.tags.indexOf('proj') < 0 || a.tags.indexOf('marker:priority-1') < 0) throw new Error('labels/markers lost: ' + a.tags);
+    if (a.style.fill !== '#ff0000' || a.style.shape !== 'pill') throw new Error('style lost');
+    if (a.link !== 'https://example.com') throw new Error('link lost');
+    return 'tags/style/link/relations ok';
+  });
+
+  await step('flush-carries-library-id', async () => {
+    let captured = null;
+    const orig = window.api.saveCorpus;
+    window.api.saveCorpus = function (p) { captured = p; return Promise.resolve({ ok: true }); };
+    S.saveSoon();
+    await sleep(360);
+    window.api.saveCorpus = orig;
+    if (!captured) throw new Error('flush not called');
+    if (!('libraryId' in captured) || !captured.data) throw new Error('payload not wrapped');
+    return 'wrapped with libraryId';
   });
 
   await step('no-uncaught', () => {

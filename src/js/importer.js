@@ -89,21 +89,68 @@
     var data;
     try { data = JSON.parse(text); } catch (e) { return null; }
     var sheets = Array.isArray(data) ? data : [data];
-    var skipped = 0, missing = 0;
-    function conv(topic) {
+    var skipped = 0, missing = 0, relations = [], attachments = [];
+    function styleOf(topic) {
+      var out = {};
+      var props = (topic.style && topic.style.properties) || {};
+      if (props['svg:fill'] && !/^none$/i.test(props['svg:fill'])) out.fill = props['svg:fill'];
+      if (props['fo:color']) out.color = props['fo:color'];
+      if (props['shape-class']) {
+        var sc = String(props['shape-class']);
+        if (/rounded/i.test(sc)) out.shape = 'rounded';
+        else if (/rect/i.test(sc)) out.shape = 'rect';
+        else if (/pill|ellipse|circle/i.test(sc)) out.shape = 'pill';
+      }
+      return out;
+    }
+    function attachOf(topic) {
+      var out = [];
+      (topic.attachments || []).forEach(function (a) {
+        if (a && a.path) out.push({ path: String(a.path), name: String(a.name || a.path.split('/').pop()) });
+      });
+      if (typeof topic.href === 'string' && /^file:/i.test(topic.href)) {
+        out.push({ path: decodeURIComponent(String(topic.href).replace(/^file:\/*/, '')), name: '' });
+      }
+      return out;
+    }
+    function conv(topic, isSummary) {
       if (!topic) return null;
       var title = String(topic.title || '').trim();
-      if (!title && !(topic.children && (topic.children.attached || topic.children.detached))) { skipped++; return null; }
+      if (!title && !(topic.children && (topic.children.attached || topic.children.detached || topic.children.summary))) { skipped++; return null; }
       var note = '';
       if (topic.notes) {
         if (topic.notes.plain && topic.notes.plain.content) note = topic.notes.plain.content;
         else if (topic.notes.realHTML && topic.notes.realHTML.content) note = String(topic.notes.realHTML.content).replace(/<[^>]+>/g, ' ').trim();
       }
       if (!note) missing++;
-      var node = { title: title || '', note: note, children: [] };
-      var kids = (topic.children && (topic.children.attached || [])) || [];
+      var node = {
+        title: title || '', note: note, children: [],
+        labels: (topic.labels || []).map(function (l) { return String(l); }),
+        markers: (topic.markers || []).map(function (m) { return String(m.markerId || m.id || m); })
+      };
+      var st = styleOf(topic);
+      if (st.fill) node.fill = st.fill;
+      if (st.color) node.color = st.color;
+      if (st.shape) node.shape = st.shape;
+      if (typeof topic.href === 'string' && !/^file:/i.test(topic.href)) node.link = topic.href;
+      var at = attachOf(topic);
+      if (at.length) { node.attachments = at; attachments = attachments.concat(at.map(function (a) { return a.path; })); }
+      if (isSummary) node.summaryOf = true;
+      var kids = (topic.children && topic.children.attached) || [];
       kids.forEach(function (k) {
-        var c = conv(k);
+        var c = conv(k, false);
+        if (c) node.children.push(c);
+      });
+      /* detached topics still become cards, attached at root level */
+      var detached = (topic.children && topic.children.detached) || [];
+      detached.forEach(function (k) {
+        var c = conv(k, false);
+        if (c) { c.detached = true; node.children.push(c); }
+      });
+      /* summary topics carry the summaryOf flag */
+      var summaries = (topic.children && topic.children.summary) || [];
+      summaries.forEach(function (k) {
+        var c = conv(k, true);
         if (c) node.children.push(c);
       });
       return node;
@@ -112,35 +159,91 @@
     sheets.forEach(function (sheet) {
       var rootTopic = sheet.rootTopic || (sheet.topic && sheet.topic.rootTopic);
       if (!rootTopic) return;
-      var n = conv(rootTopic);
+      /* relationships live at sheet level, keyed by topic id */
+      var idMap = {};
+      (function indexIds(t, map) {
+        if (!t || !t.id) return;
+        map[t.id] = t.title || '';
+        var ch = (t.children && (t.children.attached || t.children.detached || t.children.summary)) || [];
+        ch.forEach(function (c) { indexIds(c, map); });
+      })(rootTopic, idMap);
+      (sheet.relationships || []).forEach(function (rel) {
+        var s = idMap[rel.sourceId] || rel.sourceTitle;
+        var e = idMap[rel.targetId] || rel.targetTitle;
+        if (s && e) relations.push({ fromTitle: s, toTitle: e, label: String(rel.title || '') });
+      });
+      var n = conv(rootTopic, false);
       if (n) { n.title = n.title || sheet.title || ''; trees.push(n); }
     });
-    if (!trees.length) return null;
-    return { tree: trees.length === 1 ? trees[0] : { title: '', children: trees, note: '' }, skipped: skipped, missing: missing };
+    var root = trees.length === 1 ? trees[0] : { title: '', children: trees, note: '' };
+    root.relations = relations;
+    root.xmindAttachments = attachments;
+    return { tree: root, skipped: skipped, missing: missing, relations: relations, attachments: attachments };
   }
 
   function parseXmindXml(text) {
     var doc = new DOMParser().parseFromString(text, 'text/xml');
+    if (doc.querySelector('parsererror')) return null;
     var rootTopic = doc.querySelector('sheet > topic') || doc.querySelector('topic');
     if (!rootTopic) return null;
-    var skipped = 0, missing = 0;
-    function conv(el) {
+    var skipped = 0, missing = 0, relations = [], attachments = [];
+    function fillOf(el) {
+      var props = el.querySelector(':scope > style > properties');
+      if (!props) return {};
+      var out = {};
+      var fill = props.getAttribute('svg:fill');
+      var color = props.getAttribute('fo:color');
+      var shape = props.getAttribute('shape-class');
+      if (fill && !/^none$/i.test(fill)) out.fill = fill;
+      if (color) out.color = color;
+      if (shape) {
+        if (/rounded/i.test(shape)) out.shape = 'rounded';
+        else if (/rect/i.test(shape)) out.shape = 'rect';
+        else if (/pill|ellipse|circle/i.test(shape)) out.shape = 'pill';
+      }
+      return out;
+    }
+    function conv(el, isSummary) {
       var titleEl = el.querySelector(':scope > title');
       var title = titleEl ? titleEl.textContent.trim() : '';
       var noteEl = el.querySelector(':scope > notes > plain');
       var note = noteEl ? noteEl.textContent.trim() : '';
       if (!title && !el.querySelector(':scope > children')) { skipped++; return null; }
       if (!note) missing++;
-      var node = { title: title, note: note, children: [] };
+      var node = { title: title, note: note, children: [], labels: [], markers: [] };
+      el.querySelectorAll(':scope > label').forEach(function (x) { node.labels.push(x.textContent.trim()); });
+      el.querySelectorAll(':scope > marker').forEach(function (x) {
+        var m = x.getAttribute('markerId') || x.textContent.trim();
+        if (m) node.markers.push(m);
+      });
+      var st = fillOf(el);
+      if (st.fill) node.fill = st.fill;
+      if (st.color) node.color = st.color;
+      if (st.shape) node.shape = st.shape;
+      var href = el.getAttribute('href') || el.getAttribute('xlink:href');
+      if (href && !/^file:/i.test(href)) node.link = href;
+      var attEl = el.querySelector(':scope > attachment');
+      if (attEl) {
+        var p = attEl.getAttribute('path') || attEl.textContent.trim();
+        if (p) { node.attachments = [{ path: p, name: p.split('/').pop() }]; attachments.push(p); }
+      }
+      if (isSummary) node.summaryOf = true;
       el.querySelectorAll(':scope > children > topics > topic').forEach(function (k) {
-        var c = conv(k);
+        var c = conv(k, false);
         if (c) node.children.push(c);
       });
       return node;
     }
-    var tree = conv(rootTopic);
+    var tree = conv(rootTopic, false);
     if (!tree) return null;
-    return { tree: tree, skipped: skipped, missing: missing };
+    doc.querySelectorAll('sheet > relationships > relationship').forEach(function (r) {
+      var s = r.getAttribute('source-id') || r.getAttribute('sourceTitle');
+      var e = r.getAttribute('target-id') || r.getAttribute('targetTitle');
+      if (s && e) relations.push({ fromTitle: s, toTitle: e, label: (r.querySelector(':scope > title') || {}).textContent || '' });
+    });
+    tree.relations = relations;
+    tree.xmindAttachments = attachments;
+    return { tree: tree, skipped: skipped, missing: missing, relations: relations, attachments: attachments };
   }
 
   /* ---------------- conversion ---------------- */
@@ -170,7 +273,7 @@
       else if ((tree.children || []).length > 1) tree = { title: (opts.mapName || fileName), children: tree.children, note: tree.note || '' };
     }
     var flat = flatten(tree);
-    var created = 0, skipped = 0;
+    var created = 0, skipped = 0, linked = 0, attached = 0;
     var map = null;
     var positions = {};
 
@@ -179,22 +282,40 @@
         map = S.newMap(opts.mapName || fileName, { silent: true });
       }
       var idOf = new Map();
+      var titleOf = {};
       var depth = new Map();
       flat.forEach(function (item, idx) {
-        var title = item.node.title || t('common.untitled');
-        if (!item.node.title) skipped++;
+        var node = item.node;
+        var title = node.title || t('common.untitled');
+        if (!node.title) skipped++;
+        var tags = (node.labels || []).slice();
+        (node.markers || []).forEach(function (m) { tags.push('marker:' + m); });
+        var style = {};
+        if (node.fill) style.fill = node.fill;
+        if (node.shape) style.shape = node.shape;
         var c = S.newCard({
           title: title,
-          body: item.node.body || '',
-          note: item.node.note || '',
+          body: node.body || '',
+          note: node.note || '',
+          tags: tags,
+          color: node.color || '',
+          style: style,
+          link: node.link || '',
+          summary: node.summaryOf ? (node.note || '') : (node.summary || ''),
           sources: [{ kind: 'import', ref: fileName, at: Date.now() }]
         }, true);
-        idOf.set(item.node, c.id);
-        depth.set(item.node, item.parent ? (depth.get(item.parent) || 0) + 1 : 0);
+        /* attachments: bytes are written by the main-process IPC; keep metadata */
+        (node.attachments || []).forEach(function (a) {
+          c.attachments.push({ id: a.aid || a.path, name: a.name || a.path, ext: a.ext || '', mime: a.mime || '', size: a.size || 0 });
+          attached++;
+        });
+        idOf.set(node, c.id);
+        titleOf[title] = c.id;
+        depth.set(node, item.parent ? (depth.get(item.parent) || 0) + 1 : 0);
         created++;
         if (map) {
-          var d = depth.get(item.node);
-          var sibIndex = item.parent ? item.parent.children.indexOf(item.node) : 0;
+          var d = depth.get(node);
+          var sibIndex = item.parent ? item.parent.children.indexOf(node) : 0;
           var parentPos = item.parent ? positions[idOf.get(item.parent)] : null;
           positions[c.id] = { x: d * 260, y: (parentPos ? parentPos.y : 0) + sibIndex * 90 };
           map.positions[c.id] = positions[c.id];
@@ -206,7 +327,14 @@
         if (!from || !to) return;
         map.edges.push({ id: U.uid('e'), from: from, to: to, type: 'hierarchy', color: '', label: '', uncertain: false });
       });
+      /* XMind relationships -> relation edges */
       if (map) {
+        (tree.relations || []).forEach(function (rel) {
+          var from = titleOf[rel.fromTitle], to = titleOf[rel.toTitle];
+          if (!from || !to || from === to) return;
+          map.edges.push({ id: U.uid('e'), from: from, to: to, type: 'custom', color: '', label: rel.label || '', uncertain: false });
+          linked++;
+        });
         map.updatedAt = Date.now();
         S.settings().lastMapId = map.id;
       }
@@ -217,7 +345,9 @@
       skipped: skipped,
       missing: opts.missing || 0,
       mapId: map ? map.id : null,
-      nodes: flat.length
+      nodes: flat.length,
+      linked: linked,
+      attached: attached
     };
   }
 
@@ -299,7 +429,23 @@
       else parsed = parseMarkdown(r.text);
 
       if (!parsed) { U.toast(t('import.error', { msg: 'parse' }), 'bad'); return; }
-      pending = { tree: parsed.tree, skipped: parsed.skipped, missing: parsed.missing || 0, name: r.name || 'import' };
+      pending = {
+        tree: parsed.tree, skipped: parsed.skipped, missing: parsed.missing || 0,
+        name: r.name || 'import', relations: parsed.relations || [], attachments: parsed.attachments || []
+      };
+      if (window.api && window.api.extractXmindAttachments && (parsed.attachments || []).length) {
+        window.api.extractXmindAttachments(parsed.attachments).then(function (res) {
+          if (!res || !res.ok || !res.items) return;
+          (function walk(n) {
+            if (!n) return;
+            (n.attachments || []).forEach(function (a) {
+              var hit = res.items.find(function (x) { return x.path === a.path; });
+              if (hit) { a.aid = hit.id; a.ext = hit.ext; a.mime = hit.mime; a.size = hit.size; }
+            });
+            (n.children || []).forEach(walk);
+          })(parsed.tree);
+        });
+      }
       var n = countNodes(parsed.tree);
       var prev = wrap.querySelector('#prev');
       prev.innerHTML =
@@ -389,9 +535,32 @@
   }
 
   function finish(parsed, name) {
-    var res = importTree(parsed.tree, { mode: 'map', name: name, mapName: name, missing: parsed.missing });
-    U.toast(t('import.done') + ' · ' + t('import.ok') + ' ' + res.created, 'ok');
-    CC.app.nav('map');
+    var report = function (res) {
+      var extra = (res.linked || res.attached) ?
+        ' · ' + t('import.xmindExtras', { l: (res.created ? '' : '0'), r: res.linked || 0, a: res.attached || 0 }) : '';
+      U.toast(t('import.done') + ' · ' + t('import.ok') + ' ' + res.created + extra, 'ok');
+      CC.app.nav('map');
+    };
+    var doImport = function () {
+      return importTree(parsed.tree, { mode: 'map', name: name, mapName: name, missing: parsed.missing });
+    };
+    if ((parsed.attachments || []).length && window.api && window.api.extractXmindAttachments) {
+      window.api.extractXmindAttachments(parsed.attachments).then(function (r) {
+        if (r && r.ok && r.items) {
+          (function walk(n) {
+            if (!n) return;
+            (n.attachments || []).forEach(function (a) {
+              var hit = r.items.find(function (x) { return x.path === a.path; });
+              if (hit) { a.aid = hit.id; a.ext = hit.ext; a.mime = hit.mime; a.size = hit.size; }
+            });
+            (n.children || []).forEach(walk);
+          })(parsed.tree);
+        }
+        report(doImport());
+      });
+      return;
+    }
+    report(doImport());
   }
 
   CC.importer = { open: open, importFileObject: importFileObject, importTree: importTree, parseMarkdown: parseMarkdown };

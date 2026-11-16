@@ -25,9 +25,7 @@
         theme: 'light',
         lastView: 'home',
         lastMapId: null,
-        lastCardId: null,
         onboarded: false,
-        showEdgeLabels: true,
         ai: {
           baseUrl: 'https://api.openai.com/v1',
           model: 'gpt-4o-mini',
@@ -66,6 +64,15 @@
         local: out.settings.ai.local, preset: ''
       }];
     }
+    out.settings.aiProfiles.forEach(function (p) {
+      if (!p || typeof p !== 'object') return;
+      p.id = p.id || 'default';
+      p.name = p.name || 'Default';
+      p.baseUrl = typeof p.baseUrl === 'string' ? p.baseUrl : out.settings.ai.baseUrl;
+      p.model = typeof p.model === 'string' ? p.model : out.settings.ai.model;
+      p.local = !!p.local;
+      p.preset = typeof p.preset === 'string' ? p.preset : '';
+    });
     if (!out.settings.aiActiveId || !out.settings.aiProfiles.some(function (p) { return p.id === out.settings.aiActiveId; })) {
       out.settings.aiActiveId = out.settings.aiProfiles[0].id;
     }
@@ -157,7 +164,8 @@
     db.updatedAt = now();
     var payload;
     try { payload = JSON.parse(JSON.stringify(db)); } catch (e) { return Promise.resolve(); }
-    return window.api.saveCorpus(payload).catch(function (err) { console.error('save failed', err); });
+    var view = (info && info.libraryId) || '';
+    return window.api.saveCorpus({ libraryId: view, data: payload }).catch(function (err) { console.error('save failed', err); });
   }
 
   /* ------------- history / undo ------------- */

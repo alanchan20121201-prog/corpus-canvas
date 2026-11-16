@@ -45,7 +45,14 @@ function readLibraries() {
   let m = null;
   try { m = JSON.parse(fs.readFileSync(librariesPath, 'utf8')); } catch (e) { /* fresh install */ }
   if (!m || !Array.isArray(m.libraries) || !m.libraries.length) {
-    m = { version: 1, activeId: 'default', libraries: [{ id: 'default', name: 'Default', createdAt: Date.now() }] };
+    try { if (fs.existsSync(librariesPath)) fs.copyFileSync(librariesPath, librariesPath + '.bak'); } catch (e) { /* ignore */ }
+    const found = [];
+    try {
+      for (const d of fs.readdirSync(path.join(userDir, 'libraries'), { withFileTypes: true })) {
+        if (d.isDirectory() && /^lib-/.test(d.name)) found.push({ id: d.name, name: d.name, createdAt: Date.now() });
+      }
+    } catch (e) { /* ignore */ }
+    m = { version: 1, activeId: 'default', libraries: [{ id: 'default', name: 'Default', createdAt: Date.now() }].concat(found) };
     try {
       fs.mkdirSync(userDir, { recursive: true });
       fs.writeFileSync(librariesPath, JSON.stringify(m, null, 2), 'utf8');
@@ -125,6 +132,8 @@ function saveWindowState() {
 /* minimal zip reader (for .xmind)                                     */
 /* ------------------------------------------------------------------ */
 
+const MAX_UNCOMPRESSED = 64 * 1024 * 1024;   /* 64 MB: zip-bomb guard */
+
 function zipEntries(buf) {
   let eocd = -1;
   const stop = Math.max(0, buf.length - 66000);
@@ -143,10 +152,13 @@ function zipEntries(buf) {
     const extraLen = buf.readUInt16LE(off + 30);
     const commentLen = buf.readUInt16LE(off + 32);
     const localOff = buf.readUInt32LE(off + 42);
+    if (off + 46 + nameLen > buf.length) break;
     const name = buf.toString('utf8', off + 46, off + 46 + nameLen);
+    if (compSize > MAX_UNCOMPRESSED || localOff + 30 > buf.length) continue;
     const lnameLen = buf.readUInt16LE(localOff + 26);
     const lextraLen = buf.readUInt16LE(localOff + 28);
     const dataStart = localOff + 30 + lnameLen + lextraLen;
+    if (dataStart + compSize > buf.length) continue;
     out[name] = { method, data: buf.subarray(dataStart, dataStart + compSize) };
     off += 46 + nameLen + extraLen + commentLen;
   }
@@ -155,7 +167,9 @@ function zipEntries(buf) {
 
 function zipRead(entry) {
   if (!entry) return null;
-  return entry.method === 0 ? entry.data : zlib.inflateRawSync(entry.data);
+  if (entry.method === 0) return entry.data.length <= MAX_UNCOMPRESSED ? entry.data : null;
+  const out = zlib.inflateRawSync(entry.data, { maxOutputLength: MAX_UNCOMPRESSED });
+  return out.length <= MAX_UNCOMPRESSED ? out : null;
 }
 
 /* ------------------------------------------------------------------ */
@@ -328,7 +342,15 @@ ipcMain.handle('backup:restore', async (_e, name) => {
   } catch (e) { return { ok: false, error: String(e.message || e) }; }
 });
 
-ipcMain.handle('corpus:save', async (_e, data) => corpusStore.save(userDir, active.corpusPath, data));
+ipcMain.handle('corpus:save', async (_e, payload) => {
+  /* renderer may be mid-reload with a stale in-memory db; never let it write
+     one library's data into another library's path */
+  if (payload && payload.libraryId && String(payload.libraryId) !== String(active.id)) {
+    return { ok: false, error: 'library-changed' };
+  }
+  const data = payload && payload.data ? payload.data : payload;
+  return corpusStore.save(userDir, active.corpusPath, data);
+});
 
 ipcMain.handle('corpus:stats', async () => {
   const sharded = await corpusStore.isSharded(active.corpusPath);
@@ -382,6 +404,7 @@ ipcMain.handle('library:switch', async (_e, payload) => {
   await saveLibraries();
   active = pathsFor(id);
   corpusStore.forget(oldPath);
+  for (const hit of activeChats.values()) { try { hit.ctrl.abort(); } catch (e) { /* ignore */ } }
   return { ok: true, activeId: id };
 });
 
@@ -405,7 +428,8 @@ ipcMain.handle('library:delete', async (_e, payload) => {
     /* keep a recoverable copy instead of a hard delete */
     const trash = path.join(userDir, '.trash', id + '-' + Date.now());
     await fsp.mkdir(path.dirname(trash), { recursive: true });
-    await fsp.rename(p.root, trash).catch(() => {});
+    try { await fsp.rename(p.root, trash); }
+    catch (e) { return { ok: false, error: 'busy' }; }
     corpusStore.forget(p.corpusPath);
     libManifest.libraries.splice(idx, 1);
     if (libManifest.activeId === id) {
@@ -450,6 +474,31 @@ ipcMain.handle('backup:import', async () => {
   }
 });
 
+const xmindBuffers = new Map();   /* temp buffer store for attachment extraction */
+
+ipcMain.handle('file:extract-xmind-attachments', async (_e, paths) => {
+  const list = Array.isArray(paths) ? paths : [];
+  if (!list.length) return { ok: true, items: [] };
+  const buf = xmindBuffers.get('last');
+  if (!buf) return { ok: false, error: 'no xmind buffer' };
+  const z = zipEntries(buf);
+  await fsp.mkdir(active.attachDir, { recursive: true });
+  const items = [];
+  for (const p of list) {
+    const key = Object.keys(z).find((k) => k === p || k.endsWith('/' + p) || p.endsWith(k));
+    const entry = key ? z[key] : null;
+    if (!entry) continue;
+    const data = zipRead(entry);
+    if (!data || data.length > ATTACH_MAX) continue;
+    const ext = path.extname(p).toLowerCase();
+    const id = 'a' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+    await fsp.writeFile(path.join(active.attachDir, id + ext), data);
+    items.push({ path: p, id, ext, mime: MIME_BY_EXT[ext] || 'application/octet-stream', size: data.length });
+  }
+  xmindBuffers.delete('last');
+  return { ok: true, items: items };
+});
+
 ipcMain.handle('file:import-dialog', async () => {
   const res = await dialog.showOpenDialog(win, {
     title: 'Import',
@@ -465,6 +514,7 @@ ipcMain.handle('file:import-dialog', async () => {
   try {
     if (ext === '.xmind') {
       const buf = await fsp.readFile(file);
+      xmindBuffers.set('last', buf);
       const z = zipEntries(buf);
       const jsonEntry = zipRead(z['content.json']);
       const xmlEntry = zipRead(z['content.xml']);
@@ -475,6 +525,9 @@ ipcMain.handle('file:import-dialog', async () => {
         json: jsonEntry ? jsonEntry.toString('utf8') : null,
         xml: !jsonEntry && xmlEntry ? xmlEntry.toString('utf8') : null
       };
+    }
+    if (['.opml', '.md', '.markdown', '.txt'].indexOf(ext) < 0) {
+      return { ok: false, error: 'unsupported file type' };
     }
     const text = await fsp.readFile(file, 'utf8');
     return {
@@ -609,6 +662,7 @@ ipcMain.handle('file:save-text', async (_e, { text, suggested, ext }) => {
 ipcMain.handle('file:parse-xmind', async (_e, buffer) => {
   try {
     const buf = Buffer.from(buffer);
+    xmindBuffers.set('last', buf);
     const z = zipEntries(buf);
     const jsonEntry = zipRead(z['content.json']);
     const xmlEntry = zipRead(z['content.xml']);
@@ -654,7 +708,7 @@ ipcMain.handle('ai:models', async (_e, payload) => {
 
 /* Active requests, keyed by the renderer-supplied id, so the UI can
    really cancel a request instead of just ignoring the result. */
-const activeChats = new Map();
+var activeChats = new Map();
 const LEDGER_MAX = 300;
 let ledgerQueue = Promise.resolve();
 

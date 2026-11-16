@@ -1,4 +1,4 @@
-/* 32 interface languages (top languages by speakers, Traditional Chinese included, no Cantonese).
+/* 7 interface languages (top languages by speakers, Traditional Chinese included, no Cantonese).
    Full dictionaries live in i18n.js for zh-CN / zh-TW / en / ja.
    Packs below are hand-written core UI translations; anything missing falls back to English. */
 (function () {
