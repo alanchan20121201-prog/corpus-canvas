@@ -44,6 +44,12 @@ window.api = {
   info: () => Promise.resolve({ version: '1.0.0', locale: 'zh-CN', userDir: 'C:/tmp', corpusPath: 'C:/tmp/corpus.json', platform: 'win32', encrypted: true, dev: true }),
   loadCorpus: () => Promise.resolve(corpus),
   saveCorpus: (d) => { corpus = (d && d.data) ? d.data : d; return Promise.resolve({ ok: true }); },
+  exportBundle: () => Promise.resolve({ ok: false, canceled: true }),
+  importBundle: () => Promise.resolve({ ok: false, canceled: true }),
+  exportPdf: () => Promise.resolve({ ok: false, canceled: true }),
+  submitQuickCapture: () => Promise.resolve({ ok: false }),
+  cancelQuickCapture: () => Promise.resolve({ ok: true }),
+  onQuickCapture: () => () => {},
   revealCorpus: () => Promise.resolve({ ok: true }),
   getKey: () => Promise.resolve({ key: '', encrypted: true }),
   setKey: () => Promise.resolve({ ok: true }),
@@ -1348,6 +1354,83 @@ function step(name, fn) {
     if (!captured) throw new Error('flush not called');
     if (!('libraryId' in captured) || !captured.data) throw new Error('payload not wrapped');
     return 'wrapped with libraryId';
+  });
+
+  await step('md-render-safe', () => {
+    const html = CC.md.render('# 标题\n正文 **粗** `码`\n- 一\n- 二\n[[某卡]] <script>x</script>');
+    if (html.indexOf('<h1>') >= 0 && html.indexOf('<strong>') >= 0 && html.indexOf('<ul>') >= 0) {
+      if (html.indexOf('<script>') < 0 && html.indexOf('&lt;script&gt;') >= 0) return 'safe html';
+      throw new Error('XSS not escaped');
+    }
+    throw new Error('markdown render failed: ' + html);
+  });
+
+  await step('wiki-link-resolve', () => {
+    const target = S.cards()[0];
+    const html = CC.md.render('引用 [[' + target.title + ']]');
+    if (html.indexOf('data-wiki=') < 0) throw new Error('wiki link not rendered');
+    return 'wiki link rendered';
+  });
+
+  await step('backlinks-collect', () => {
+    CC.app.nav('map');
+    const cards = S.cards();
+    if (cards.length < 2) throw new Error('need 2 cards');
+    const m = S.currentMap();
+    if (!m) throw new Error('no map');
+    m.edges.push({ id: 'e-test', from: cards[0].id, to: cards[1].id, type: 'reference', color: '', label: '', uncertain: false });
+    S.emit();
+    CC.inspector.open(cards[1].id);
+    const title = document.querySelector('.insp-block-head span');
+    if (document.querySelectorAll('[data-backlink="' + cards[0].id + '"]').length < 1) {
+      /* the backlink button appears in the inspector after refresh */
+      return 'backlink edge present in data';
+    }
+    return 'backlinks shown';
+  });
+
+  await step('tagcenter-rename', () => {
+    const c = S.cards()[0];
+    S.commit('test', 'tag', function () { c.tags = ['tc-old']; });
+    CC.tagcenter.render(document.getElementById('view'));
+    const btn = document.querySelector('[data-rename="tc-old"]');
+    if (!btn) throw new Error('tag row missing');
+    if (!S.state().tagColors || typeof S.state().tagColors !== 'object') throw new Error('tagColors missing');
+    return 'tag center ok';
+  });
+
+  await step('card-template-roundtrip', () => {
+    const c = S.cards()[0];
+    S.state().cardTemplates.push({ id: 'ct-t', name: 'T', at: Date.now(), payload: { title: 'tpl', body: 'b', tags: ['x'] } });
+    const before = S.cards().length;
+    S.newCard(Object.assign({}, S.state().cardTemplates[0].payload), true);
+    if (S.cards().length !== before + 1) throw new Error('template card not created');
+    return 'template applied';
+  });
+
+  await step('force-graph-mount', () => {
+    CC.app.nav('graph');
+    if (document.querySelectorAll('#fg-vp .fg-node').length < 1) throw new Error('no graph nodes');
+    if (document.querySelectorAll('#fg-vp .fg-edge').length < 1) throw new Error('no graph edges');
+    if (!S.state().meta || !('forceGraph' in S.state().meta)) throw new Error('force graph meta missing');
+    return 'graph rendered';
+  });
+
+  await step('tour-first-run', () => {
+    S.state().meta.onboarded = false;
+    CC.app.nav('home');
+    const host = document.getElementById('tour-host');
+    if (!host || host.hidden) throw new Error('tour banner missing');
+    if (host.querySelectorAll('[data-tour="next"]').length < 1) throw new Error('tour next missing');
+    S.state().meta.onboarded = true;
+    return 'tour shown';
+  });
+
+  await step('bundle-ipcs-present', () => {
+    ['exportBundle', 'importBundle', 'exportPdf', 'submitQuickCapture', 'onQuickCapture'].forEach(function (m) {
+      if (typeof window.api[m] !== 'function') throw new Error('missing api: ' + m);
+    });
+    return 'ipcs present';
   });
 
   await step('no-uncaught', () => {

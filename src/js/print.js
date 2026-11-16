@@ -128,5 +128,25 @@
     }, 60);
   }
 
-  CC.print = { print: print, close: close, isOpen: function () { return !!host; } };
+  function exportPdf() {
+    if (!build()) { U.toast(t('print.noMap'), 'bad'); return; }
+    var css = '@page{size:A4 landscape;margin:0}' +
+      'html,body{margin:0;padding:0;background:#fff}' +
+      '.print-page{page-break-after:always;break-after:page;position:relative;overflow:hidden;box-sizing:border-box;padding:0}' +
+      '.print-page:last-child{page-break-after:auto;break-after:auto}' +
+      '.print-page svg{display:block}' +
+      '.print-footer{position:absolute;bottom:4mm;right:8mm;font:9px sans-serif;color:#888}';
+    var html = '<!DOCTYPE html><html><head><meta charset="utf-8"><style>' + css + '</style></head><body>' +
+      host.innerHTML + '</body></html>';
+    var suggested = (document.querySelector('.print-footer') ? '' : '') + 'map.pdf';
+    if (window.api && window.api.exportPdf) {
+      window.api.exportPdf({ html: html, suggested: suggested }).then(function (r) {
+        if (r && r.ok) U.toast(t('map.exportDone', { path: r.path }), 'ok');
+        else if (r && r.error) U.toast(t('map.exportFail', { msg: r.error }), 'bad');
+      });
+    }
+    close();
+  }
+
+  CC.print = { print: print, close: close, exportPdf: exportPdf, isOpen: function () { return !!host; } };
 })();

@@ -1,12 +1,13 @@
 'use strict';
 
-const { app, BrowserWindow, ipcMain, dialog, shell, safeStorage, net } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell, safeStorage, net, globalShortcut } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs');
 const fsp = require('node:fs/promises');
 const zlib = require('node:zlib');
 const aiClient = require('./ai-client');
 const corpusStore = require('./corpus-store');
+const { writeZip } = require('./zip-writer');
 
 const SMOKE = process.argv.includes('--smoke');
 const dbgFile = path.join(require('node:os').tmpdir(), 'corpus-canvas-debug.log');
@@ -91,6 +92,7 @@ async function autoBackup() {
   } catch (e) { /* ignore */ }
 }
 const statePath = path.join(userDir, 'window.json');
+let quickWin = null;
 
 /* ------------------------------------------------------------------ */
 /* helpers                                                            */
@@ -242,7 +244,10 @@ function createWindow() {
   win.webContents.on('did-finish-load', () => dbg('did-finish-load'));
   dbg('window created');
   win.on('close', saveWindowState);
-  win.on('closed', () => { win = null; });
+  win.on('closed', () => {
+    win = null;
+    if (quickWin) { try { quickWin.destroy(); } catch (e) { /* ignore */ } quickWin = null; }
+  });
 
   win.webContents.setWindowOpenHandler(({ url }) => {
     if (/^https?:/.test(url)) shell.openExternal(url);
@@ -256,6 +261,28 @@ function createWindow() {
   }
 }
 
+function createQuickWindow() {
+  if (quickWin && !quickWin.isDestroyed()) { quickWin.show(); quickWin.focus(); return; }
+  quickWin = new BrowserWindow({
+    width: 420, height: 210,
+    frame: false, resizable: false, alwaysOnTop: true, skipTaskbar: true,
+    show: false, backgroundColor: '#f6f4ef',
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true, nodeIntegration: false, sandbox: false
+    }
+  });
+  quickWin.setMenu(null);
+  quickWin.loadFile(path.join(__dirname, '..', 'src', 'quick.html'));
+  quickWin.once('ready-to-show', function () { if (quickWin) { quickWin.show(); quickWin.focus(); } });
+  quickWin.on('blur', function () { if (quickWin && !quickWin.isDestroyed()) quickWin.hide(); });
+}
+
+function showQuickCapture() {
+  if (!win || win.isDestroyed()) return;
+  createQuickWindow();
+}
+
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) {
   app.quit();
@@ -263,9 +290,15 @@ if (!gotLock) {
   app.on('second-instance', () => {
     if (win) { if (win.isMinimized()) win.restore(); win.focus(); }
   });
-  app.whenReady().then(async () => { await autoBackup(); createWindow(); });
+  app.whenReady().then(async () => {
+    await autoBackup();
+    createWindow();
+    const ok = globalShortcut.register('Ctrl+Shift+Space', showQuickCapture);
+    if (!ok) dbg('global shortcut Ctrl+Shift+Space unavailable');
+  });
 }
 
+app.on('will-quit', () => { globalShortcut.unregisterAll(); });
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
 app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
 
@@ -457,6 +490,59 @@ ipcMain.handle('backup:export', async (_e, payload) => {
   if (res.canceled || !res.filePath) return { ok: false, canceled: true };
   await fsp.writeFile(res.filePath, JSON.stringify(payload, null, 2), 'utf8');
   return { ok: true, path: res.filePath };
+});
+
+ipcMain.handle('backup:export-bundle', async (_e, payload) => {
+  const stamp = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+  const res = await dialog.showSaveDialog(win, {
+    title: 'Export bundle',
+    defaultPath: path.join(app.getPath('documents'), `corpus-canvas-${stamp}.wefz`),
+    filters: [{ name: 'Corpus Canvas bundle', extensions: ['wefz'] }]
+  });
+  if (res.canceled || !res.filePath) return { ok: false, canceled: true };
+  try {
+    const entries = [{ name: 'corpus.json', data: Buffer.from(JSON.stringify(payload, null, 2), 'utf8') }];
+    const cards = (payload && payload.data && payload.data.cards) || [];
+    const seen = {};
+    for (const c of cards) {
+      for (const a of (c.attachments || [])) {
+        if (!a || !a.id || seen[a.id]) continue;
+        seen[a.id] = 1;
+        const file = await attachFile(a.id);
+        if (file) entries.push({ name: 'attachments/' + path.basename(file), data: await fsp.readFile(file) });
+      }
+    }
+    await fsp.writeFile(res.filePath, writeZip(entries));
+    return { ok: true, path: res.filePath, attachments: Object.keys(seen).length };
+  } catch (e) { return { ok: false, error: String(e.message || e) }; }
+});
+
+ipcMain.handle('backup:import-bundle', async () => {
+  const res = await dialog.showOpenDialog(win, {
+    title: 'Import bundle',
+    properties: ['openFile'],
+    filters: [{ name: 'Corpus Canvas bundle', extensions: ['wefz'] }]
+  });
+  if (res.canceled || !res.filePaths[0]) return { ok: false, canceled: true };
+  try {
+    const buf = await fsp.readFile(res.filePaths[0]);
+    const z = zipEntries(buf);
+    const corpusEntry = zipRead(z['corpus.json']);
+    if (!corpusEntry) return { ok: false, error: 'invalid bundle' };
+    const payload = JSON.parse(corpusEntry.toString('utf8'));
+    const names = Object.keys(z).filter((k) => k.indexOf('attachments/') === 0 && /\.[a-zA-Z0-9]+$/.test(k));
+    await fsp.mkdir(active.attachDir, { recursive: true });
+    let restored = 0;
+    for (const name of names) {
+      const base = path.basename(name);
+      if (!/^[a-zA-Z0-9_-]+\.[a-zA-Z0-9]+$/.test(base)) continue;   /* path traversal guard */
+      const data = zipRead(z[name]);
+      if (!data || data.length > ATTACH_MAX) continue;
+      await fsp.writeFile(path.join(active.attachDir, base), data);
+      restored++;
+    }
+    return { ok: true, data: payload, attachments: restored, name: path.basename(res.filePaths[0]) };
+  } catch (e) { return { ok: false, error: String(e.message || e) }; }
 });
 
 ipcMain.handle('backup:import', async () => {
@@ -777,6 +863,46 @@ ipcMain.handle('win:toggle-full', async () => {
   if (!win) return { ok: false };
   win.setFullScreen(!win.isFullScreen());
   return { ok: true, fullscreen: win.isFullScreen() };
+});
+
+ipcMain.handle('quick:submit', async (_e, payload) => {
+  const text = String((payload && payload.text) || '').trim();
+  if (text && win && !win.isDestroyed()) {
+    win.webContents.send('quick-capture:save', { text: text, tags: (payload && payload.tags) || [] });
+  }
+  if (quickWin && !quickWin.isDestroyed()) quickWin.hide();
+  return { ok: !!text };
+});
+
+ipcMain.handle('quick:cancel', async () => {
+  if (quickWin && !quickWin.isDestroyed()) quickWin.hide();
+  return { ok: true };
+});
+
+ipcMain.handle('export:pdf', async (_e, { html, suggested }) => {
+  let pdfWin = null;
+  try {
+    pdfWin = new BrowserWindow({
+      show: false, offscreen: true, width: 1260, height: 890,
+      webPreferences: { offscreen: true, contextIsolation: true, nodeIntegration: false }
+    });
+    await pdfWin.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(String(html || '')));
+    const pdf = await pdfWin.webContents.printToPDF({
+      landscape: true, printBackground: true, marginsType: 1, pageSize: 'A4'
+    });
+    const res = await dialog.showSaveDialog(win, {
+      title: 'Export PDF',
+      defaultPath: path.join(app.getPath('documents'), suggested || 'map.pdf'),
+      filters: [{ name: 'PDF', extensions: ['pdf'] }]
+    });
+    if (res.canceled || !res.filePath) return { ok: false, canceled: true };
+    await fsp.writeFile(res.filePath, pdf);
+    return { ok: true, path: res.filePath };
+  } catch (e) {
+    return { ok: false, error: String(e.message || e) };
+  } finally {
+    if (pdfWin && !pdfWin.isDestroyed()) pdfWin.destroy();
+  }
 });
 
 ipcMain.handle('app:quit', async () => { app.quit(); });

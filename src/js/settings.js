@@ -130,8 +130,11 @@
           '<div class="backup-row">' +
             '<button class="btn" id="backup-export">' + U.icon('download', 15) + '<span>' + U.esc(t('settings.backupExport')) + '</span></button>' +
             '<button class="btn" id="backup-import">' + U.icon('upload', 15) + '<span>' + U.esc(t('settings.backupImport')) + '</span></button>' +
+            '<button class="btn" id="bundle-export">' + U.icon('download', 15) + '<span>' + U.esc(t('settings.bundleExport')) + '</span></button>' +
+            '<button class="btn" id="bundle-import">' + U.icon('upload', 15) + '<span>' + U.esc(t('settings.bundleImport')) + '</span></button>' +
             '<button class="btn ghost" id="import-file">' + U.icon('upload', 15) + '<span>' + U.esc(t('import.title')) + '</span></button>' +
           '</div>' +
+          '<p class="set-hint small">' + U.esc(t('settings.bundleHint')) + '</p>' +
           '<div class="export-corpus-row">' +
             '<select class="input" id="export-corpus-format">' +
               ['md', 'json', 'csv', 'opml'].map(function (f) {
@@ -150,6 +153,10 @@
           '</div>' +
           '<div class="danger-zone"><div><strong>' + U.esc(t('settings.danger')) + '</strong><p>' + U.esc(t('settings.clearAllConfirm')) + '</p></div>' +
             '<button class="btn danger sm" id="clear-all">' + U.esc(t('settings.clearAll')) + '</button></div>') +
+
+        section('set-tags', 'tag', t('tagcenter.title'),
+          '<p class="set-hint">' + U.esc(t('tagcenter.hint')) + '</p>' +
+          '<div class="tc-list" id="tc-list">' + U.esc(t('common.loading')) + '</div>') +
 
         section('set-keys', 'keyboard', t('settings.shortcuts'),
           '<p class="set-hint">' + U.esc(t('shortcut.customTitle')) + '</p>' +
@@ -435,6 +442,10 @@
     if (be) be.onclick = function () { exportBackup(); };
     var bi = root.querySelector('#backup-import');
     if (bi) bi.onclick = function () { importBackup(); };
+    var bxe = root.querySelector('#bundle-export');
+    if (bxe) bxe.onclick = function () { exportBundle(); };
+    var bxi = root.querySelector('#bundle-import');
+    if (bxi) bxi.onclick = function () { importBundle(); };
     var ifile = root.querySelector('#import-file');
     if (ifile) ifile.onclick = function () { CC.importer.open(); };
     var ec = root.querySelector('#export-corpus');
@@ -442,6 +453,12 @@
       var sel = root.querySelector('#export-corpus-format');
       exportCorpus(sel ? sel.value : 'md');
     };
+
+    function renderTagCenter() {
+      var host = root.querySelector('#tc-list');
+      if (host && CC.tagcenter) CC.tagcenter.render(host);
+    }
+    renderTagCenter();
 
     function renderBackups() {
       var host = root.querySelector('#ab-list');
@@ -480,6 +497,7 @@
     renderBackups();
     var abRefresh = root.querySelector('#ab-refresh');
     if (abRefresh) abRefresh.onclick = renderBackups;
+    S.onChange(function () { if (document.body.contains(root)) renderTagCenter(); });
 
     var ca = root.querySelector('#clear-all');
     if (ca) ca.onclick = function () {
@@ -580,9 +598,9 @@
     if ((c.tags || []).length) lines.push('    ' + c.tags.map(function (x) { return '#' + x; }).join(' '));
   }
 
-  function exportBackup() {
+  function buildBackupPayload() {
     var st = S.state();
-    var payload = {
+    return {
       format: 'corpus-canvas',
       formatVersion: S.FORMAT_VERSION,
       exportedAt: new Date().toISOString(),
@@ -604,9 +622,35 @@
         }
       }
     };
-    window.api.exportBackup(payload).then(function (r) {
+  }
+
+  function exportBackup() {
+    window.api.exportBackup(buildBackupPayload()).then(function (r) {
       if (r && r.ok) U.toast(t('settings.backupDone', { path: r.path }), 'ok');
       else if (r && r.error) U.toast(t('settings.backupFail', { msg: r.error }), 'bad');
+    });
+  }
+
+  /* Self-contained bundle: corpus + attachment bytes in one .wefz file. */
+  function exportBundle() {
+    if (!window.api || !window.api.exportBundle) return;
+    window.api.exportBundle(buildBackupPayload()).then(function (r) {
+      if (r && r.ok) U.toast(t('settings.bundleDone', { path: r.path, n: r.attachments || 0 }), 'ok');
+      else if (r && r.error) U.toast(t('settings.backupFail', { msg: r.error }), 'bad');
+    });
+  }
+
+  function importBundle() {
+    if (!window.api || !window.api.importBundle) return;
+    window.api.importBundle().then(function (r) {
+      if (!r || !r.ok) {
+        if (r && r.error) U.toast(t('settings.backupFail', { msg: r.error }), 'bad');
+        return;
+      }
+      importBackupData(r.data);
+      /* refresh attachment thumbnail cache after bytes were restored */
+      if (CC.attach && CC.attach.clear) CC.attach.clear();
+      if (r.attachments) U.toast(t('settings.bundleRestored', { n: r.attachments }), 'ok');
     });
   }
 

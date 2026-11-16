@@ -44,8 +44,10 @@
       savedQueries: [],
       aiActions: [],
       templates: [],
+      cardTemplates: [],
+      tagColors: {},
       dismissed: [],
-      meta: { sample: false }
+      meta: { sample: false, forceGraph: null }
     };
   }
 
@@ -77,9 +79,11 @@
       out.settings.aiActiveId = out.settings.aiProfiles[0].id;
     }
     out.formatVersion = FORMAT_VERSION;
-    ['cards', 'maps', 'history', 'snapshots', 'reviews', 'savedQueries', 'aiActions', 'templates', 'dismissed'].forEach(function (k) {
+    ['cards', 'maps', 'history', 'snapshots', 'reviews', 'savedQueries', 'aiActions', 'templates', 'cardTemplates', 'dismissed'].forEach(function (k) {
       if (!Array.isArray(out[k])) out[k] = [];
     });
+    if (!out.tagColors || typeof out.tagColors !== 'object' || Array.isArray(out.tagColors)) out.tagColors = {};
+    if (!out.meta || typeof out.meta !== 'object') out.meta = {};
     out.cards.forEach(function (c) {
       if (!Array.isArray(c.tags)) c.tags = [];
       if (!Array.isArray(c.langs)) c.langs = [];

@@ -60,6 +60,8 @@
 
   var TAGS = ['#8a9a5b', '#c08552', '#7d8fa9', '#a9738f', '#6f9c8f', '#b08a5a', '#8b84b8', '#a67c6b'];
   function tagColor(tag) {
+    var custom = S.state().tagColors && S.state().tagColors[tag];
+    if (custom) return custom;
     var h = 0, s = String(tag || '');
     for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 997;
     var palette = TAGS;
@@ -1713,6 +1715,7 @@
       { sep: true },
       { label: t('present.start'), icon: '▶', onClick: function () { CC.present.start(); } },
       { label: t('print.title') + ' · ' + t('print.a4'), icon: '⎙', onClick: function () { CC.print.print(); } },
+      { label: t('print.exportPdf'), icon: '⎙', onClick: function () { CC.print.exportPdf(); } },
       { sep: true },
       { label: t('map.delete'), icon: '🗑', danger: true, onClick: function () { CC.app.deleteMapFlow(m); } }
     ];

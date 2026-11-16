@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <title>Corpus Canvas · Quick Capture</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; font-family: -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif; }
+    body {
+      background: #f6f4ef; color: #23201b; padding: 14px 16px;
+      display: flex; flex-direction: column; gap: 10px;
+      border: 1px solid #ded9cc; border-radius: 12px;
+    }
+    .q-head { display: flex; align-items: center; justify-content: space-between; font-size: 11px; letter-spacing: .6px; text-transform: uppercase; color: #8a8377; }
+    .q-head b { color: #6b5a3e; font-weight: 700; }
+    .q-input {
+      width: 100%; flex: 1; min-height: 62px; resize: none;
+      border: 1px solid #ded9cc; border-radius: 9px; background: #fff;
+      padding: 10px 12px; font: 14px/1.5 inherit; color: #23201b; outline: none;
+    }
+    .q-input:focus { border-color: #8a6f4e; }
+    .q-foot { display: flex; align-items: center; gap: 8px; font-size: 11px; color: #8a8377; }
+    .q-tags { flex: 1; border: 1px solid #ded9cc; border-radius: 8px; padding: 6px 9px; font: 12px inherit; background: #fff; outline: none; }
+    .q-btn { border: 0; border-radius: 8px; padding: 7px 14px; font: 12px inherit; font-weight: 600; cursor: pointer; background: #8a6f4e; color: #fff; }
+    .q-btn.ghost { background: transparent; color: #8a8377; }
+    body.dark { background: #1e1c19; color: #e8e4db; border-color: #3a352e; }
+    body.dark .q-input, body.dark .q-tags { background: #26231f; color: #e8e4db; border-color: #3a352e; }
+  </style>
+</head>
+<body>
+  <div class="q-head"><b>◈ Corpus Canvas</b><span class="q-hint"></span></div>
+  <textarea class="q-input" id="q-text" autofocus></textarea>
+  <div class="q-foot">
+    <input class="q-tags" id="q-tags" placeholder="">
+    <button class="q-btn ghost" id="q-cancel"></button>
+    <button class="q-btn" id="q-save"></button>
+  </div>
+  <script src="js/s2t.js"></script>
+  <script src="js/langpacks.js"></script>
+  <script src="js/lang-es.js"></script>
+  <script src="js/lang-fr.js"></script>
+  <script src="js/lang-ko.js"></script>
+  <script src="js/i18n.js"></script>
+  <script src="js/quick.js"></script>
+</body>
+</html>

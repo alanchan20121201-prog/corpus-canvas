@@ -113,9 +113,11 @@
     return (n / 1024 / 1024).toFixed(1) + ' MB';
   }
 
+  function clear() { cache = {}; emit(); }
+
   CC.attach = {
     dataUrl: dataUrl, firstPicture: firstPicture, isImage: isImage,
     load: load, pick: pick, remove: remove, open: open, reveal: reveal,
-    block: block, onChange: onChange, fmtSize: fmtSize
+    block: block, onChange: onChange, fmtSize: fmtSize, clear: clear
   };
 })();

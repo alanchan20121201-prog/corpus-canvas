@@ -8,6 +8,53 @@
   var host = null;
   var currentId = null;
   var noteOpen = false;
+  var bodyPreview = false;
+
+  /* Collect edges pointing TO a card from every map (who references me). */
+  function backlinksOf(cardId) {
+    var out = [], seen = {}, k;
+    S.maps().forEach(function (m) {
+      (m.edges || []).forEach(function (e) {
+        if (e.to !== cardId || e.from === e.to) return;
+        var src = S.card(e.from);
+        if (!src) return;
+        k = m.id + '|' + e.from + '|' + (e.type || '');
+        if (seen[k]) return;
+        seen[k] = 1;
+        out.push({ from: src, type: e.type || 'custom', map: m.name, uncertain: !!e.uncertain });
+      });
+    });
+    return out;
+  }
+
+  /* Title -> card ids index for [[wiki links]]; duplicates get a menu. */
+  function titleIndex() {
+    var idx = {};
+    S.cards().forEach(function (c) {
+      var key = (c.title || t('common.untitled')).trim();
+      (idx[key] = idx[key] || []).push(c.id);
+    });
+    return idx;
+  }
+
+  function gotoWiki(title) {
+    var ids = titleIndex()[String(title).trim()] || [];
+    if (!ids.length) { U.toast(t('cards.wikiMissing'), 'bad'); return; }
+    if (ids.length === 1) { open(ids[0]); return; }
+    U.showMenu(document.body.clientWidth / 2 - 120, 140, ids.map(function (id) {
+      var c = S.card(id);
+      return { label: (c && c.title) || t('common.untitled'), onClick: function () { open(id); } };
+    }));
+  }
+
+  function fillBodyPreview(c) {
+    var el = host.querySelector('#insp-body-preview');
+    if (!el) return;
+    el.innerHTML = CC.md ? CC.md.render(c.body || '') : U.esc(c.body || '');
+    el.querySelectorAll('[data-wiki]').forEach(function (a) {
+      a.onclick = function () { gotoWiki(a.getAttribute('data-wiki')); };
+    });
+  }
 
   function root() { return document.getElementById('inspector'); }
 
@@ -55,6 +102,7 @@
     var cur = S.currentMap();
     var edges = cur ? S.edgesFor(cur, c.id) : [];
     var dups = S.similarTo(c);
+    var backs = backlinksOf(c.id);
     var typeName = function (k) { return t('edge.' + (k || 'custom')); };
 
     /* host.innerHTML below destroys the focused field; capture it first so
@@ -75,6 +123,8 @@
           '<span class="insp-eyebrow">' + U.icon('cards', 14) + '<span>' + U.esc(t('cards.props')) + '</span></span>' +
         '</div>' +
         '<div class="insp-head-actions">' +
+          '<button class="icon-btn sm" data-act="save-card-tpl" title="' + U.esc(t('template.cardSave')) + '">' + U.icon('plus', 16) + '</button>' +
+          '<button class="icon-btn sm" data-act="apply-card-tpl" title="' + U.esc(t('template.cardApply')) + '">' + U.icon('layout', 16) + '</button>' +
           '<button class="icon-btn sm" data-act="delete" title="' + U.esc(t('cards.delete')) + '">' + U.icon('trash', 16) + '</button>' +
           '<button class="icon-btn sm" data-act="close" title="' + U.esc(t('common.close')) + '">' + U.icon('close', 16) + '</button>' +
         '</div>' +
@@ -93,8 +143,10 @@
         styleBlock(c) +
 
         '<div class="insp-section">' +
-          '<div class="insp-label">' + U.esc(t('cards.body')) + '</div>' +
-          '<textarea class="insp-textarea" id="insp-body" rows="4" placeholder="' + U.esc(t('cards.bodyPlaceholder')) + '">' + U.esc(c.body) + '</textarea>' +
+          '<div class="insp-label">' + U.esc(t('cards.body')) +
+            '<button class="mini-btn insp-md-toggle" data-act="body-preview">' + U.esc(bodyPreview ? t('cards.mdEdit') : t('cards.mdPreview')) + '</button></div>' +
+          '<textarea class="insp-textarea" id="insp-body" rows="4"' + (bodyPreview ? ' hidden' : '') + ' placeholder="' + U.esc(t('cards.bodyPlaceholder')) + '">' + U.esc(c.body) + '</textarea>' +
+          '<div class="insp-md-preview" id="insp-body-preview"' + (bodyPreview ? '' : ' hidden') + '></div>' +
         '</div>' +
 
         summaryBlock(c) +
@@ -148,6 +200,18 @@
         '</div>' +
 
         '<div class="insp-block">' +
+          '<div class="insp-block-head"><span>' + U.esc(t('cards.backlinks')) + '</span></div>' +
+          (backs.length ? '<div class="link-list">' + backs.map(function (b) {
+            return '<button class="link-row" data-backlink="' + U.esc(b.from.id) + '">' +
+              '<span class="lk-type" data-type="' + U.esc(b.type) + '">' + U.esc(typeName(b.type)) + '</span>' +
+              '<span class="lk-dir">←</span>' +
+              '<span class="lk-name">' + U.esc(b.from.title || t('common.untitled')) + '</span>' +
+              (b.uncertain ? '<span class="lk-doubt">?</span>' : '') +
+              '</button>';
+          }).join('') + '</div>' : '<div class="mini-empty">' + U.esc(t('cards.backlinkNone')) + '</div>') +
+        '</div>' +
+
+        '<div class="insp-block">' +
           '<div class="insp-block-head"><span>' + U.esc(t('cards.reverse')) + '</span></div>' +
           (maps.length ? '<div class="map-ref-list">' + maps.map(function (m) {
             return '<button class="map-ref" data-map="' + m.id + '">' + U.icon('map', 14) + '<span>' + U.esc(m.name) + '</span>' +
@@ -173,6 +237,7 @@
       '</div>';
 
     bind(c, opts);
+    if (bodyPreview) fillBodyPreview(c);
     autogrow(host.querySelector('#insp-body'));
     autogrow(host.querySelector('#insp-note'));
     autogrow(host.querySelector('#insp-summary'));
@@ -287,6 +352,45 @@
     var id = c.id;
 
     host.querySelector('[data-act="close"]').onclick = close;
+
+    var saveTpl = host.querySelector('[data-act="save-card-tpl"]');
+    if (saveTpl) saveTpl.onclick = function () {
+      var card = S.card(id);
+      if (!card) return;
+      U.prompt(t('template.cardSave'), card.title || '').then(function (name) {
+        if (!name) return;
+        S.commit('template', t('template.cardSave'), function () {
+          S.state().cardTemplates.push({
+            id: U.uid('ct'), name: String(name).trim(), at: Date.now(),
+            payload: {
+              title: card.title, body: card.body, note: card.note,
+              tags: (card.tags || []).slice(), category: card.category || '',
+              color: card.color || '', style: Object.assign({}, card.style || {})
+            }
+          });
+        });
+        U.toast(t('template.cardSaved'), 'ok');
+      });
+    };
+
+    var applyTpl = host.querySelector('[data-act="apply-card-tpl"]');
+    if (applyTpl) applyTpl.onclick = function () {
+      var list = S.state().cardTemplates || [];
+      if (!list.length) { U.toast(t('template.cardEmpty'), 'bad'); return; }
+      var r = applyTpl.getBoundingClientRect();
+      U.showMenu(r.left - 160, r.bottom + 6, list.map(function (tpl) {
+        return {
+          label: tpl.name,
+          onClick: function () {
+            var p = Object.assign({}, tpl.payload);
+            p.title = p.title ? p.title + ' · ' + t('common.untitled') : t('common.untitled');
+            var nc = S.newCard(p, true);
+            open(nc.id);
+            U.toast(t('template.cardApplied'), 'ok');
+          }
+        };
+      }));
+    };
     host.querySelector('[data-act="delete"]').onclick = function () { CC.app.deleteCardFlow(id); };
 
     var locate = host.querySelector('[data-act="locate"]');
@@ -371,6 +475,19 @@
     host.querySelectorAll('[data-edge]').forEach(function (b) {
       b.onclick = function () { CC.graph.editEdge(b.getAttribute('data-edge')); };
     });
+    host.querySelectorAll('[data-backlink]').forEach(function (b) {
+      b.onclick = function () { open(b.getAttribute('data-backlink')); };
+    });
+    var mdToggle = host.querySelector('[data-act="body-preview"]');
+    if (mdToggle) mdToggle.onclick = function () {
+      bodyPreview = !bodyPreview;
+      var ta = host.querySelector('#insp-body');
+      var pv = host.querySelector('#insp-body-preview');
+      var card = S.card(id);
+      mdToggle.textContent = t(bodyPreview ? 'cards.mdEdit' : 'cards.mdPreview');
+      if (ta) ta.hidden = bodyPreview;
+      if (pv) { pv.hidden = !bodyPreview; if (bodyPreview && card) fillBodyPreview(card); }
+    };
     host.querySelectorAll('.map-ref').forEach(function (b) {
       b.onclick = function () { CC.app.goMap(b.getAttribute('data-map'), id); };
     });

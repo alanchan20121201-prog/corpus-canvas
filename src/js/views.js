@@ -120,8 +120,11 @@
           '</section>' +
         '</div>' +
 
+        '<div class="tour-host" id="tour-host" hidden></div>' +
         '<p class="home-foot">' + U.icon('info', 13) + '<span>' + U.esc(t('home.resumeHint')) + '</span></p>' +
       '</div>';
+
+    if (CC.tour) CC.tour.mount(root.querySelector('#tour-host'));
 
     root.querySelectorAll('[data-act="new-map"]').forEach(function (b) { b.onclick = function () { CC.app.newMapFlow(); }; });
     root.querySelectorAll('[data-act="import"]').forEach(function (b) { b.onclick = function () { CC.importer.open(); }; });

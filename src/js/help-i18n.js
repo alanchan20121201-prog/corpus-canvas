@@ -73,6 +73,8 @@
       { id: 'settings', title: 'Settings and privacy', html:
         '<p>Interface language and theme apply immediately. The data panel shows the file location and format version, and opens the folder.</p>' +
         '<p>There is no account, telemetry or cloud sync. Only an AI action sends the selected text to your endpoint; everything else is local.</p>' },
+      { id: 'whatsnew', title: 'What is new', html:
+        '<p><b>Quick capture</b>: press Ctrl+Shift+Space anywhere for a note box; Enter saves a card. <b>Relation graph</b>: the Relations view draws all cards and links as a force-directed network. <b>Backlinks &amp; [[links]]</b>: see who points to a card and write [[titles]] in the body. <b>Markdown preview</b>: toggle Preview on the body field. <b>Bundle</b>: export corpus + attachments as one .wefz. <b>PDF</b>: export the map directly from its More menu. <b>Tag manager</b>: rename, merge and colour tags. <b>Card templates</b> and a 3-step first-run tour are also included.</p>' },
       { id: 'keys', title: 'Keyboard', html:
         '<p><kbd>Ctrl</kbd>+<kbd>K</kbd> search · <kbd>Ctrl</kbd>+<kbd>S</kbd> save · <kbd>Ctrl</kbd>+<kbd>Z</kbd> undo · <kbd>F</kbd> focus · <kbd>G</kbd> fit · <kbd>F11</kbd> full screen · <kbd>1</kbd>-<kbd>9</kbd> views.</p>' +
         '<p>In Settings you can re-record any shortcut or reset them all, keep several AI profiles that share one API key, and create independent libraries (switching reloads the window; existing data stays in place).</p>' }
@@ -179,6 +181,8 @@
       { id: 'settings', title: '設定とプライバシー', html:
         '<p>言語とテーマはすぐ反映されます。データ欄には保存場所と形式バージョンが出て、フォルダーを開けます。</p>' +
         '<p>アカウント・テレメトリ・クラウド同期はありません。AI を実行したときだけ選択範囲が送られ、それ以外はローカルです。</p>' },
+      { id: 'whatsnew', title: '新機能', html:
+        '<p><b>クイック入力</b>: どこでも Ctrl+Shift+Space で入力ボックス、Enter でカード保存。<b>関係図</b>: 全カードと関係を力指向ネットワークで表示。<b>バックリンクと [[リンク]]</b>: 参照元を表示し本文に [[タイトル]] を書ける。<b>Markdown プレビュー</b>: 本文で切替。<b>バンドル</b>: 資料と添付を .wefz 一括書き出し。<b>PDF</b>: マップの「その他」から直接出力。<b>タグ管理</b>、<b>カードテンプレート</b>、初回3ステップ案内も追加。</p>' },
       { id: 'keys', title: 'キーボード', html:
         '<p><kbd>Ctrl</kbd>+<kbd>K</kbd> 検索 · <kbd>Ctrl</kbd>+<kbd>S</kbd> 保存 · <kbd>Ctrl</kbd>+<kbd>Z</kbd> 元に戻す · <kbd>F</kbd> フォーカス · <kbd>G</kbd> 全体表示 · <kbd>F11</kbd> 全画面 · <kbd>1</kbd>-<kbd>9</kbd> 画面切替。</p>' +
         '<p>設定ではショートカットの再記録と一括リセット、1 つの API キーを共有する複数の AI プロファイル、独立したライブラリの作成ができます。切り替えると画面が再読み込みされ、既存データはそのまま残ります。</p>' }
@@ -281,6 +285,8 @@
       { id: 'settings', title: 'Ajustes y privacidad', html:
         '<p>Idioma y tema se aplican al instante. El panel de datos muestra ubicación y versión del formato, y abre la carpeta.</p>' +
         '<p>Sin cuenta, telemetría ni nube. Solo una acción de IA envía el texto seleccionado a tu servicio; el resto es local.</p>' },
+      { id: 'whatsnew', title: 'Novedades', html:
+        '<p><b>Captura rápida</b>: Ctrl+Shift+Space en cualquier lugar abre una nota; Enter guarda una tarjeta. <b>Grafo de relaciones</b>: la vista Relaciones dibuja todas las tarjetas y enlaces como red. <b>Referencias y [[enlaces]]</b>: ve quién apunta a una tarjeta y escribe [[títulos]]. <b>Vista Markdown</b>: alterna en el cuerpo. <b>Paquete</b>: exporta corpus y adjuntos en un .wefz. <b>PDF</b>: desde Más del mapa. También hay <b>gestor de etiquetas</b>, <b>plantillas de tarjeta</b> y una guía inicial de 3 pasos.</p>' },
       { id: 'keys', title: 'Teclado', html:
         '<p><kbd>Ctrl</kbd>+<kbd>K</kbd> buscar · <kbd>Ctrl</kbd>+<kbd>S</kbd> guardar · <kbd>Ctrl</kbd>+<kbd>Z</kbd> deshacer · <kbd>F</kbd> enfoque · <kbd>G</kbd> ajustar · <kbd>F11</kbd> pantalla completa · <kbd>1</kbd>-<kbd>9</kbd> vistas.</p>' +
         '<p>En Ajustes puedes regrabar atajos o restablecerlos, guardar varios perfiles de IA que comparten una clave, y crear bibliotecas independientes (al cambiar se recarga la ventana y los datos existentes permanecen).</p>' }
@@ -382,6 +388,8 @@
       { id: 'settings', title: 'Réglages et confidentialité', html:
         '<p>Langue et thème s’appliquent aussitôt. Le panneau données indique l’emplacement et la version du format, et ouvre le dossier.</p>' +
         '<p>Sans compte, télémétrie ni cloud. Seule une action IA envoie le texte sélectionné à votre service ; le reste est local.</p>' },
+      { id: 'whatsnew', title: 'Nouveautés', html:
+        '<p><b>Capture rapide</b> : Ctrl+Shift+Space partout ouvre une note ; Entrée enregistre une fiche. <b>Graphe de relations</b> : la vue Relations dessine toutes les fiches et liens en réseau. <b>Liens entrants et [[liens]]</b> : voyez qui pointe vers une fiche et écrivez [[titres]]. <b>Aperçu Markdown</b> : basculez dans le corps. <b>Bundle</b> : exportez corpus et pièces en un .wefz. <b>PDF</b> : depuis « Plus » de la carte. Également <b>gestionnaire d’étiquettes</b>, <b>modèles de fiche</b> et une visite guidée en 3 étapes.</p>' },
       { id: 'keys', title: 'Clavier', html:
         '<p><kbd>Ctrl</kbd>+<kbd>K</kbd> rechercher · <kbd>Ctrl</kbd>+<kbd>S</kbd> enregistrer · <kbd>Ctrl</kbd>+<kbd>Z</kbd> annuler · <kbd>F</kbd> focus · <kbd>G</kbd> ajuster · <kbd>F11</kbd> plein écran · <kbd>1</kbd>-<kbd>9</kbd> vues.</p>' +
         '<p>Dans les Réglages vous pouvez réenregistrer les raccourcis ou les réinitialiser, conserver plusieurs profils IA partageant une clé, et créer des bibliothèques indépendantes (changer recharge la fenêtre, les données existantes restent en place).</p>' }
@@ -483,6 +491,8 @@
       { id: 'settings', title: '설정과 개인정보', html:
         '<p>언어와 테마는 즉시 적용됩니다. 자료 패널에 저장 위치와 형식 버전이 나오고 폴더를 열 수 있습니다.</p>' +
         '<p>계정·텔레메트리·클라우드가 없습니다. AI를 실행할 때만 선택 범위가 전송되고 나머지는 로컬입니다.</p>' },
+      { id: 'whatsnew', title: '새 기능', html:
+        '<p><b>빠른 캡처</b>: 어디서든 Ctrl+Shift+Space로 메모 창, Enter로 카드 저장. <b>관계 그래프</b>: 관계도에서 전체 카드와 링크를 힘 방향 네트워크로 표시. <b>역링크와 [[링크]]</b>: 나를 가리키는 카드를 보고 본문에 [[제목]] 작성. <b>Markdown 미리보기</b>: 본문에서 전환. <b>번들</b>: 원본과 첨부를 .wefz 하나로 내보내기. <b>PDF</b>: 맵의 더보기에서 직접 출력. <b>태그 관리</b>, <b>카드 템플릿</b>, 첫 실행 3단계 안내도 추가되었습니다.</p>' },
       { id: 'keys', title: '키보드', html:
         '<p><kbd>Ctrl</kbd>+<kbd>K</kbd> 검색 · <kbd>Ctrl</kbd>+<kbd>S</kbd> 저장 · <kbd>Ctrl</kbd>+<kbd>Z</kbd> 실행 취소 · <kbd>F</kbd> 포커스 · <kbd>G</kbd> 화면 맞춤 · <kbd>F11</kbd> 전체 화면 · <kbd>1</kbd>-<kbd>9</kbd> 화면 전환.</p>' +
         '<p>설정에서 단축키를 다시 기록하거나 초기화하고, 하나의 API 키를 공유하는 여러 AI 프로필을 저장하며, 독립적인 라이브러리를 만들 수 있습니다. 전환하면 창이 다시 로드되고 기존 데이터는 그대로 유지됩니다.</p>' }

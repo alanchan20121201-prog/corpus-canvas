@@ -19,6 +19,8 @@
       clearKey: function () { ls.removeItem('cc-key'); return Promise.resolve({ ok: true }); },
       exportBackup: function () { return Promise.resolve({ ok: false, canceled: true }); },
       importBackup: function () { return Promise.resolve({ ok: false, canceled: true }); },
+      exportBundle: function () { return Promise.resolve({ ok: false, canceled: true }); },
+      importBundle: function () { return Promise.resolve({ ok: false, canceled: true }); },
       importDialog: function () { return Promise.resolve({ ok: false, canceled: true }); },
       extractXmindAttachments: function () { return Promise.resolve({ ok: true, items: [] }); },
       saveImage: function () { return Promise.resolve({ ok: false, canceled: true }); },
@@ -41,6 +43,7 @@
       listBackups: function () { return Promise.resolve({ ok: true, items: [] }); },
       restoreBackup: function () { return Promise.resolve({ ok: false }); },
       saveText: function () { return Promise.resolve({ ok: false, canceled: true }); },
+      exportPdf: function () { return Promise.resolve({ ok: false, canceled: true }); },
       openExternal: function () { },
       listModels: function () { return Promise.resolve({ ok: false, models: [] }); },
       listLibraries: function () { return Promise.resolve({ ok: true, activeId: 'default', items: [{ id: 'default', name: 'Default', cards: 0, corpusPath: 'localStorage' }] }); },
@@ -49,6 +52,9 @@
       renameLibrary: function () { return Promise.resolve({ ok: false, error: 'preview' }); },
       deleteLibrary: function () { return Promise.resolve({ ok: false, error: 'preview' }); },
       toggleFullScreen: function () { },
+      submitQuickCapture: function () { return Promise.resolve({ ok: false }); },
+      cancelQuickCapture: function () { return Promise.resolve({ ok: true }); },
+      onQuickCapture: function () { return function () {}; },
       quit: function () { }
     };
   }
@@ -80,6 +86,15 @@
       CC.i18n.apply(document);
       bindChrome();
       S.onChange(onStoreChange);
+      if (window.api.onQuickCapture) {
+        window.api.onQuickCapture(function (data) {
+          if (!data || !data.text) return;
+          S.commit('create', t('app.name'), function () {
+            S.newCard({ title: data.text, tags: data.tags || [] }, true);
+          });
+          U.toast(t('quick.saved'), 'ok');
+        });
+      }
       st.ready = true;
       var bootQ = new URLSearchParams(location.search);
       var firstId = (bootQ.get('nofirst') === '1' || bootQ.get('demo') === '1') ? null : ensureFirstNode();
@@ -173,7 +188,7 @@
   /* routing                                                            */
   /* ------------------------------------------------------------------ */
 
-  var VIEWS = ['home', 'map', 'outline', 'cards', 'search', 'health', 'history', 'trash', 'help', 'settings'];
+  var VIEWS = ['home', 'map', 'graph', 'outline', 'cards', 'search', 'health', 'history', 'trash', 'help', 'settings'];
 
   function nav(view, opts) {
     opts = opts || {};
@@ -185,6 +200,7 @@
       S.saveSoon();
     }
     if (prev === 'map' && view !== 'map') CC.graph.unmount();
+    if (prev === 'graph' && view !== 'graph' && CC.forceGraph) CC.forceGraph.unmount();
     if (prev === 'outline' && view !== 'outline') CC.graph.resetState();
 
     var root = viewRoot();
@@ -193,6 +209,7 @@
 
     if (view === 'home') CC.views.home(root);
     else if (view === 'map') { CC.graph.resetState(); CC.graph.mount(root); }
+    else if (view === 'graph') CC.forceGraph.mount(root);
     else if (view === 'outline') CC.views.outline(root);
     else if (view === 'cards') CC.views.cards(root);
     else if (view === 'search') CC.search.mount(root);
@@ -212,6 +229,7 @@
   function refreshLight() {
     if (!st.ready) return;
     if (st.view === 'map') { CC.graph.refresh(); return; }
+    if (st.view === 'graph') { CC.forceGraph.refresh(); return; }
     /* Only skip the redraw while the user is actually typing. Buttons keep
        focus after a click, so the old "focus anywhere in the view" guard made
        outline expand/collapse and similar actions look like they did nothing. */
@@ -457,7 +475,7 @@
   /* ------------------------------------------------------------------ */
 
   function openCard(id, opts) {
-    if (st.view !== 'map' && st.view !== 'cards' && st.view !== 'outline') {
+    if (st.view !== 'map' && st.view !== 'cards' && st.view !== 'outline' && st.view !== 'graph') {
       nav('cards');
     }
     if (st.view === 'map') CC.graph.selectCard(id);

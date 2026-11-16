@@ -17,11 +17,14 @@ contextBridge.exposeInMainWorld('api', {
   clearKey: () => ipcRenderer.invoke('key:clear'),
   exportBackup: (payload) => ipcRenderer.invoke('backup:export', payload),
   importBackup: () => ipcRenderer.invoke('backup:import'),
+  exportBundle: (payload) => ipcRenderer.invoke('backup:export-bundle', payload),
+  importBundle: () => ipcRenderer.invoke('backup:import-bundle'),
   importDialog: () => ipcRenderer.invoke('file:import-dialog'),
   extractXmindAttachments: (paths) => ipcRenderer.invoke('file:extract-xmind-attachments', paths),
   saveImage: (payload) => ipcRenderer.invoke('image:save', payload),
   parseXmind: (buffer) => ipcRenderer.invoke('file:parse-xmind', buffer),
   saveText: (payload) => ipcRenderer.invoke('file:save-text', payload),
+  exportPdf: (payload) => ipcRenderer.invoke('export:pdf', payload),
   openExternal: (url) => ipcRenderer.invoke('shell:open', url),
   pickAttachments: (kind) => ipcRenderer.invoke('file:pick-attachments', kind),
   readAttachment: (id) => ipcRenderer.invoke('file:read-attachment', id),
@@ -46,5 +49,12 @@ contextBridge.exposeInMainWorld('api', {
   listModels: (payload) => ipcRenderer.invoke('ai:models', payload),
   quit: () => ipcRenderer.invoke('app:quit'),
   toggleFullScreen: () => ipcRenderer.invoke('win:toggle-full'),
-  smokeDone: (payload) => ipcRenderer.invoke('smoke:done', payload)
+  smokeDone: (payload) => ipcRenderer.invoke('smoke:done', payload),
+  submitQuickCapture: (payload) => ipcRenderer.invoke('quick:submit', payload),
+  cancelQuickCapture: () => ipcRenderer.invoke('quick:cancel'),
+  onQuickCapture: (fn) => {
+    const h = (_e, data) => { try { fn(data); } catch (err) { console.error(err); } };
+    ipcRenderer.on('quick-capture:save', h);
+    return () => ipcRenderer.removeListener('quick-capture:save', h);
+  }
 });
