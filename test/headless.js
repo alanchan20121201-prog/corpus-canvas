@@ -52,6 +52,15 @@ window.api = {
   onQuickCapture: () => () => {},
   snapshotBackup: () => Promise.resolve({ ok: true, name: 'test-snapshot' }),
   checkAttachments: () => Promise.resolve({ ok: true, missing: [] }),
+  dataPaths: () => Promise.resolve({ ok: true, paths: [
+    { key: 'corpus', label: 'corpus', path: 'C:/tmp/corpus.json' },
+    { key: 'attach', label: 'attachments', path: 'C:/tmp/attachments' }
+  ] }),
+  openDir: () => Promise.resolve({ ok: true }),
+  listTrashLibraries: () => Promise.resolve({ ok: true, items: [
+    { trashName: 'lib-old-1700000000000', id: 'lib-old', at: 1700000000000 }
+  ] }),
+  restoreTrashLibrary: () => Promise.resolve({ ok: true, id: 'lib-old' }),
   revealCorpus: () => Promise.resolve({ ok: true }),
   getKey: () => Promise.resolve({ key: '', encrypted: true }),
   setKey: () => Promise.resolve({ ok: true }),
@@ -1674,6 +1683,38 @@ function step(name, fn) {
     if (code.indexOf('var sameCard = !!(opts && opts.keepFocus)') < 0) throw new Error('no sameCard guard');
     if (code.indexOf('if (body2) body2.scrollTop = savedScroll') < 0) throw new Error('no scroll restore');
     return 'scroll restore wired';
+  });
+
+  await step('data-paths-and-trash', () => {
+    return Promise.all([window.api.dataPaths(), window.api.listTrashLibraries()]).then(function (r) {
+      if (!r[0] || !r[0].paths || !r[0].paths.length) throw new Error('no data paths');
+      if (!r[1] || !r[1].items || !r[1].items.length) throw new Error('no trash items');
+      return 'paths + trash ok';
+    });
+  });
+
+  await step('node-source-dot', () => {
+    var m = S.newMap('dot-probe', { silent: true });
+    var c = S.newCard({ title: 'with-source' }, true);
+    var o = S.newCard({ title: 'plain' }, true);
+    S.commit('test', 'dot', function () {
+      m.edges.push({ id: 'ed-dot', from: c.id, to: o.id, type: 'hierarchy' });
+      c.sources = [{ kind: 'manual', ref: 'x', at: Date.now() }];
+    });
+    S.settings().lastMapId = m.id;
+    CC.app.nav('map');
+    var dots = document.querySelectorAll('.node-source');
+    if (!dots.length) throw new Error('no provenance dot');
+    return 'dot rendered';
+  });
+
+  await step('backup-cards-in-list', () => {
+    var code = fs.readFileSync(path.join(root, '..', 'electron', 'main.js'), 'utf8');
+    if (code.indexOf('cards: cards') < 0) throw new Error('backup:list has no card count');
+    if (code.indexOf("library:list-trash") < 0) throw new Error('no trash listing');
+    if (code.indexOf("library:restore-trash") < 0) throw new Error('no trash restore');
+    if (code.indexOf("app:open-dir") < 0) throw new Error('no open-dir');
+    return 'ipc present';
   });
 
   await step('no-uncaught', () => {

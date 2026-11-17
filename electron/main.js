@@ -353,7 +353,13 @@ ipcMain.handle('backup:list', async () => {
     const out = [];
     for (const f of files.slice(0, 10)) {
       const st = await fsp.stat(path.join(active.backupDir, f));
-      out.push({ name: f, at: st.mtimeMs, size: st.size });
+      let cards = 0;
+      try {
+        const raw = JSON.parse(await fsp.readFile(path.join(active.backupDir, f), 'utf8'));
+        cards = raw && raw.__shards ? raw.__shards.reduce((a, x) => a + (x.count || 0), 0)
+          : (raw && Array.isArray(raw.cards) ? raw.cards.length : 0);
+      } catch (e) { /* unreadable backup: leave 0 */ }
+      out.push({ name: f, at: st.mtimeMs, size: st.size, cards: cards });
     }
     return { ok: true, items: out };
   } catch (e) { return { ok: true, items: [] }; }
@@ -404,6 +410,75 @@ ipcMain.handle('corpus:stats', async () => {
   const sharded = await corpusStore.isSharded(active.corpusPath);
   const raw = await readJson(active.corpusPath);
   return { ok: true, sharded: sharded, shards: sharded && raw && raw.__shards ? raw.__shards.length : 0, cards: raw && raw.__shards ? raw.__shards.reduce((a, x) => a + x.count, 0) : (raw && raw.cards ? raw.cards.length : 0) };
+});
+
+ipcMain.handle('app:data-paths', async () => ({
+  ok: true,
+  paths: [
+    { key: 'corpus', label: 'corpus', path: active.corpusPath },
+    { key: 'attach', label: 'attachments', path: active.attachDir },
+    { key: 'backup', label: 'backups', path: active.backupDir },
+    { key: 'layout', label: 'layout-cache', path: active.layoutDir },
+    { key: 'libs', label: 'libraries.json', path: librariesPath },
+    { key: 'keys', label: 'secure.json', path: securePath },
+    { key: 'ledger', label: 'ai-ledger.json', path: aiLedgerPath },
+    { key: 'trash', label: 'trash', path: path.join(userDir, '.trash') },
+    { key: 'data', label: 'data', path: userDir }
+  ]
+}));
+
+ipcMain.handle('app:open-dir', async (_e, key) => {
+  /* only the known data locations can be opened, never a caller path */
+  const map = {
+    corpus: active.corpusPath, attach: active.attachDir, backup: active.backupDir,
+    layout: active.layoutDir, libs: librariesPath, keys: securePath,
+    ledger: aiLedgerPath, trash: path.join(userDir, '.trash'), data: userDir
+  };
+  const target = map[String(key)];
+  if (!target) return { ok: false, error: 'unknown' };
+  try {
+    const dir = /\.[a-z0-9]+$/i.test(target) ? path.dirname(target) : target;
+    await fsp.mkdir(dir, { recursive: true });
+    const err = await shell.openPath(dir);
+    return err ? { ok: false, error: err } : { ok: true };
+  } catch (e) { return { ok: false, error: String(e.message || e) }; }
+});
+
+ipcMain.handle('library:list-trash', async () => {
+  try {
+    const dir = path.join(userDir, '.trash');
+    let names = [];
+    try { names = await fsp.readdir(dir); } catch (e) { names = []; }
+    const out = [];
+    for (const n of names) {
+      const m = /^(.+)-(\d{10,})$/.exec(n);
+      if (!m) continue;
+      try {
+        const st = await fsp.stat(path.join(dir, n));
+        if (!st.isDirectory()) continue;
+        out.push({ trashName: n, id: m[1], at: Number(m[2]) || st.mtimeMs });
+      } catch (e) { /* skip */ }
+    }
+    out.sort((a, b) => b.at - a.at);
+    return { ok: true, items: out };
+  } catch (e) { return { ok: true, items: [] }; }
+});
+
+ipcMain.handle('library:restore-trash', async (_e, trashName) => {
+  const name = String(trashName || '');
+  const m = /^(.+)-(\d{10,})$/.exec(name);
+  if (!m) return { ok: false, error: 'bad name' };
+  const id = m[1];
+  if (libManifest.libraries.some((l) => l.id === id)) return { ok: false, error: 'exists' };
+  const from = path.join(userDir, '.trash', name);
+  const to = path.join(userDir, 'libraries', id);
+  try {
+    await fsp.mkdir(path.dirname(to), { recursive: true });
+    await fsp.rename(from, to);
+    libManifest.libraries.push({ id: id, name: id, createdAt: Date.now() });
+    await saveLibraries();
+    return { ok: true, id: id };
+  } catch (e) { return { ok: false, error: String(e.message || e) }; }
 });
 
 ipcMain.handle('corpus:reveal', async () => {

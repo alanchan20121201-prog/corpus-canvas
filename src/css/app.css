@@ -2300,6 +2300,11 @@ body.presenting { overflow: hidden; }
 .shortcut-grid.sc-edit-grid .sc-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .shortcut-grid .sc-key { min-width: 120px; text-align: center; font: 12px ui-monospace, Consolas, monospace; }
 .shortcut-grid .sc-key.recording { border-color: var(--accent, #8a6f4e); color: var(--accent, #8a6f4e); }
+/* provenance dot on nodes */
+.node-source circle:first-child { fill: var(--accent, #8a6f4e); opacity: .9; }
+.node-source circle:last-child { fill: #fff; }
+.node-source { pointer-events: none; }
+
 /* provenance: clickable source rows */
 .source-link { width: 100%; text-align: left; background: transparent; border: 0; cursor: pointer; }
 .source-link:hover .src-ref { text-decoration: underline; color: var(--accent, #8a6f4e); }
@@ -2321,6 +2326,15 @@ body.presenting { overflow: hidden; }
 .tour-n { font-size: 10.5px; letter-spacing: .6px; color: var(--accent, #8a6f4e); font-weight: 700; }
 .tour-step p { margin: 6px 0 10px; font-size: 13px; line-height: 1.6; }
 .tour-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* data paths + library trash */
+.data-paths, .lib-trash { border-top: 1px solid var(--border, #ece7db); margin-top: 12px; padding-top: 10px; }
+.path-list, .lib-trash-list { display: flex; flex-direction: column; gap: 4px; }
+.path-row { display: flex; align-items: center; gap: 8px; padding: 5px 0; }
+.path-label { flex: none; width: 96px; font-size: 12px; color: var(--muted, #8a8377); }
+.path-val { flex: 1; font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ab-cards { font-size: 11px; color: var(--muted, #8a8377); min-width: 64px; text-align: right; }
+.lib-trash .ab-head { display: flex; align-items: center; justify-content: space-between; }
 
 /* tag center */
 .tc-list { display: flex; flex-direction: column; gap: 4px; max-height: 320px; overflow: auto; }

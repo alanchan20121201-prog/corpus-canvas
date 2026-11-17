@@ -117,7 +117,11 @@
         section('set-library', 'cards', t('settings.library'),
           '<p class="set-hint">' + U.esc(t('settings.libraryHint')) + '</p>' +
           '<div class="lib-list" id="lib-list">' + U.esc(t('common.loading')) + '</div>' +
-          '<div class="backup-row"><button class="btn" id="lib-new"><span>' + U.esc(t('settings.libraryNew')) + '</span></button></div>') +
+          '<div class="backup-row"><button class="btn" id="lib-new"><span>' + U.esc(t('settings.libraryNew')) + '</span></button></div>' +
+          '<div class="lib-trash"><div class="ab-head"><strong>' + U.esc(t('settings.libTrash')) + '</strong>' +
+            '<button class="mini-btn" id="lib-trash-refresh">' + U.esc(t('common.refresh')) + '</button></div>' +
+            '<p class="set-hint small">' + U.esc(t('settings.libTrashHint')) + '</p>' +
+            '<div class="lib-trash-list" id="lib-trash-list"></div></div>') +
 
         section('set-data', 'folder', t('settings.data'),
           '<div class="kv-row"><span class="kv-key">' + U.esc(t('settings.dataPath')) + '</span>' +
@@ -151,6 +155,9 @@
             '<p class="set-hint small">' + U.esc(t('settings.autoBackupHint')) + '</p>' +
             '<div class="ab-list" id="ab-list"></div>' +
           '</div>' +
+          '<div class="data-paths"><div class="ab-head"><strong>' + U.esc(t('settings.dataWhere')) + '</strong></div>' +
+            '<p class="set-hint small">' + U.esc(t('settings.dataWhereHint')) + '</p>' +
+            '<div class="path-list" id="path-list">' + U.esc(t('common.loading')) + '</div></div>' +
           '<div class="danger-zone"><div><strong>' + U.esc(t('settings.danger')) + '</strong><p>' + U.esc(t('settings.clearAllConfirm')) + '</p></div>' +
             '<button class="btn danger sm" id="clear-all">' + U.esc(t('settings.clearAll')) + '</button></div>') +
 
@@ -460,6 +467,56 @@
     }
     renderTagCenter();
 
+    function renderDataPaths() {
+      var host = root.querySelector('#path-list');
+      if (!host || !window.api || !window.api.dataPaths) return;
+      window.api.dataPaths().then(function (r) {
+        var list = (r && r.paths) || [];
+        if (!list.length) { host.innerHTML = '<div class="mini-empty">' + U.esc(t('common.empty')) + '</div>'; return; }
+        host.innerHTML = list.map(function (p) {
+          return '<div class="path-row"><span class="path-label">' + U.esc(t('settings.path.' + p.key) || p.label) + '</span>' +
+            '<code class="path-val">' + U.esc(p.path || '') + '</code>' +
+            '<button class="mini-btn" data-open-dir="' + U.esc(p.key) + '">' + U.icon('external', 12) + U.esc(t('settings.openFolder')) + '</button></div>';
+        }).join('');
+        host.querySelectorAll('[data-open-dir]').forEach(function (b) {
+          b.onclick = function () {
+            var key = b.getAttribute('data-open-dir');
+            window.api.openDir(key).then(function (res) {
+              if (res && res.ok === false) U.toast(t('settings.openFail'), 'bad');
+            });
+          };
+        });
+      });
+    }
+    renderDataPaths();
+
+    function renderLibTrash() {
+      var host = root.querySelector('#lib-trash-list');
+      if (!host || !window.api || !window.api.listTrashLibraries) return;
+      window.api.listTrashLibraries().then(function (r) {
+        var items = (r && r.items) || [];
+        if (!items.length) { host.innerHTML = '<div class="mini-empty">' + U.esc(t('settings.libTrashEmpty')) + '</div>'; return; }
+        host.innerHTML = items.map(function (it) {
+          return '<div class="lib-row"><div class="lib-main"><strong>' + U.esc(it.id) + '</strong>' +
+            '<span class="lib-count">' + U.esc(U.fmtDate(it.at, true)) + '</span></div>' +
+            '<button class="mini-btn" data-trash-restore="' + U.esc(it.trashName) + '">' + U.esc(t('settings.libRestore')) + '</button></div>';
+        }).join('');
+        host.querySelectorAll('[data-trash-restore]').forEach(function (b) {
+          b.onclick = function () {
+            var name = b.getAttribute('data-trash-restore');
+            window.api.restoreTrashLibrary(name).then(function (res) {
+              if (res && res.ok) { U.toast(t('settings.libRestored'), 'ok'); renderLibTrash(); renderLibraries(); }
+              else if (res && res.error === 'exists') U.toast(t('settings.libExists'), 'bad');
+              else U.toast(t('settings.libRestoreFail'), 'bad');
+            });
+          };
+        });
+      });
+    }
+    renderLibTrash();
+    var ltr = root.querySelector('#lib-trash-refresh');
+    if (ltr) ltr.onclick = renderLibTrash;
+
     function renderBackups() {
       var host = root.querySelector('#ab-list');
       if (!host || !window.api || !window.api.listBackups) return;
@@ -472,6 +529,7 @@
           return '<div class="ab-row">' +
             '<span class="ab-time">' + U.esc(U.fmtDate(b.at, true)) + '</span>' +
             '<span class="ab-size">' + Math.max(1, Math.round(b.size / 1024)) + ' KB</span>' +
+            '<span class="ab-cards">' + U.esc(t('settings.backupCards', { n: b.cards || 0 })) + '</span>' +
             '<button class="mini-btn" data-restore="' + U.esc(b.name) + '">' + U.esc(t('settings.restore')) + '</button>' +
             '</div>';
         }).join('');

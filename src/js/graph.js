@@ -465,6 +465,14 @@
         html += '<text class="node-more" x="' + mx + '" y="' + (metaY + 2) + '">+' + (c.tags.length - 2) + '</text>';
       }
       if (c.note) html += '<circle class="note-dot" cx="' + (n.w - 14) + '" cy="' + (metaY - 2) + '" r="3.4"/>';
+      /* a tiny mark means the card carries a source/provenance, so
+         traceability is visible without opening the panel */
+      if (c.sources && c.sources.length) {
+        html += '<g class="node-source" data-source-dot="' + n.id + '">' +
+          '<title>' + U.esc(t('cards.hasSource')) + '</title>' +
+          '<circle cx="' + (n.w - 9) + '" cy="9" r="4"/>' +
+          '<circle cx="' + (n.w - 9) + '" cy="9" r="1.5"/></g>';
+      }
     }
 
     /* the first picture of the card, drawn as a thumbnail at the bottom */
