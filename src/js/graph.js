@@ -1810,7 +1810,9 @@
         id: id, x: n.x, y: n.y, w: n.w, h: n.h,
         title: c.title || '', lines: n.lines || [], fs: n.fs, lineH: n.lineH, titleY: n.titleY,
         fill: s.fill || '#ffffff', shape: s.shape || 'rounded',
-        summary: c.summary || ''
+        summary: c.summary || '',
+        picH: n.picH || 0, picY: n.picY || 0,
+        picSrc: (n.pic && CC.attach) ? CC.attach.dataUrl(n.pic.id) : ''
       });
       minX = Math.min(minX, n.x - n.w / 2); maxX = Math.max(maxX, n.x + n.w / 2);
       minY = Math.min(minY, n.y - n.h / 2); maxY = Math.max(maxY, n.y + n.h / 2);

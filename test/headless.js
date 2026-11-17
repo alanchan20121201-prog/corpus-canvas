@@ -1561,6 +1561,68 @@ function step(name, fn) {
     return 'accent inset + summary aligned';
   });
 
+  await step('deep-structures-no-overlap', () => {
+    var m = S.maps()[0];
+    if (!m) throw new Error('no map');
+    /* build a 4-level chain in a fresh map so depth 3 exists */
+    var base = S.cards().length;
+    var ids = [];
+    for (var i = 0; i < 4; i++) ids.push(S.newCard({ title: 'L' + i }, true).id);
+    S.commit('test', 'deep', function () {
+      m.edges.push({ id: 'ed0', from: ids[0], to: ids[1], type: 'hierarchy' });
+      m.edges.push({ id: 'ed1', from: ids[1], to: ids[2], type: 'hierarchy' });
+      m.edges.push({ id: 'ed2', from: ids[2], to: ids[3], type: 'hierarchy' });
+    });
+    ['fishbone', 'timeline', 'radial', 'matrix'].forEach(function (st) {
+      m.structure = st;
+      var model = CC.layout.get(m);
+      var deep = model.nodes[ids[3]];
+      if (!deep) return;
+      if (Math.abs(deep.x) < 1 && Math.abs(deep.y) < 1) {
+        throw new Error(st + ': depth-3 node still at origin');
+      }
+    });
+    m.structure = 'tree';
+    return 'depth-3 placed in all four structures';
+  });
+
+  await step('matrix-many-children-no-overlap', () => {
+    /* build the map object directly so the store/map cache cannot interfere */
+    var cards = [];
+    var edges = [];
+    var root = S.newCard({ title: 'MR' }, true).id;
+    var kids = [];
+    for (var i = 0; i < 6; i++) {
+      var k = S.newCard({ title: 'K' + i }, true).id;
+      kids.push(k);
+      edges.push({ id: 'mk' + i, from: root, to: k, type: 'hierarchy' });
+    }
+    var fakeMap = { id: 'probe-matrix', rev: 1, structure: 'matrix', edges: edges,
+      positions: {}, offsets: {}, collapsed: [], style: {} };
+    var model = CC.layout.compute(fakeMap);
+    var seen = {};
+    var placed = 0;
+    kids.forEach(function (id) {
+      var n = model.nodes[id];
+      if (!n) return;
+      placed++;
+      var key = Math.round(n.x) + ',' + Math.round(n.y);
+      if (seen[key]) throw new Error('matrix overlap at ' + key + ' (' + placed + ' placed)');
+      seen[key] = 1;
+    });
+    if (placed < 6) throw new Error('only ' + placed + '/6 kids placed');
+    return '6 matrix children all distinct';
+  });
+
+  await step('print-scene-carries-picture', () => {
+    var code = fs.readFileSync(path.join(root, 'js', 'graph.js'), 'utf8');
+    if (code.indexOf('picSrc: (n.pic && CC.attach)') < 0) throw new Error('scene has no picSrc');
+    var pcode = fs.readFileSync(path.join(root, 'js', 'print.js'), 'utf8');
+    if (pcode.indexOf('<image x=') < 0) throw new Error('print.js does not render image');
+    if (pcode.indexOf("lastSceneName || 'map'") < 0) throw new Error('pdf name not from scene');
+    return 'print scene has pictures + real name';
+  });
+
   await step('no-uncaught', () => {
     if (errors.length) throw new Error(errors.slice(0, 3).join(' | '));
     return 'clean';

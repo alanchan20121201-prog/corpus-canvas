@@ -13,6 +13,7 @@
   var MAX_PAGES = 24;      /* a hard stop so a huge map cannot hang the printer */
 
   var host = null;
+  var lastSceneName = '';
 
   /* 1mm expressed in the SVG user unit we print with */
   var UNIT = 4;            /* 4 user units per mm -> 1188 units wide */
@@ -32,6 +33,7 @@
       return false;
     }
 
+    lastSceneName = scene.mapName || '';
     var nodes = scene.nodes;
     var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     nodes.forEach(function (n) {
@@ -112,6 +114,12 @@
       if (n.summary) {
         out.push('<text x="15" y="' + (ty + 12) + '" style="font-size:10.5px;fill:#6b655c">' + U.esc(String(n.summary).slice(0, 60)) + '</text>');
       }
+      if (n.picSrc && n.picH) {
+        var pw = n.w - 28, phh = Math.min(n.picH, n.h - 12);
+        var py = Math.min(n.picY || (n.h - phh - 8), n.h - phh - 8);
+        out.push('<image x="14" y="' + py + '" width="' + pw + '" height="' + phh +
+          '" preserveAspectRatio="xMidYMid slice" xlink:href="' + U.esc(n.picSrc) + '" href="' + U.esc(n.picSrc) + '"/>');
+      }
       out.push('</g>');
     });
     return out.join('');
@@ -138,7 +146,8 @@
       '.print-footer{position:absolute;bottom:4mm;right:8mm;font:9px sans-serif;color:#888}';
     var html = '<!DOCTYPE html><html><head><meta charset="utf-8"><style>' + css + '</style></head><body>' +
       host.innerHTML + '</body></html>';
-    var suggested = (document.querySelector('.print-footer') ? '' : '') + 'map.pdf';
+    var baseName = (lastSceneName || 'map').replace(/[\\/:*?"<>|]/g, '_');
+    var suggested = baseName + '.pdf';
     if (window.api && window.api.exportPdf) {
       window.api.exportPdf({ html: html, suggested: suggested }).then(function (r) {
         if (r && r.ok) U.toast(t('map.exportDone', { path: r.path }), 'ok');

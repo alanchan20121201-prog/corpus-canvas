@@ -11,7 +11,7 @@
         '<li>Drag a node: the whole branch moves and its links follow live.</li>' +
         '<li>Zoom at the bottom right; <kbd>G</kbd> fits the map, <kbd>F</kbd> isolates the selection.</li></ul>' },
       { id: 'map', title: 'Maps and views', html:
-        '<p>Each tab is a separate view over the same corpus. Switch structure between tree, org chart and free links; auto arrange clears manual offsets.</p>' +
+        '<p>Each tab is a separate view over the same corpus. Pick one of seven structures: tree, org chart, fishbone, timeline, radial, matrix and free links; auto arrange clears manual offsets.</p>' +
         '<p>Focus shows the selected node and its neighbours only. Templates copy structure and card content into a new map. Export the current map as PNG, SVG or Markdown from the “…” menu.</p>' },
       { id: 'node', title: 'Nodes and cards', html:
         '<p>The right panel edits the selected card: title, body, optional note, tags, category and style (shape, fill, icon, size, bold, hyperlink).</p>' +
@@ -122,7 +122,7 @@
         '<li>ノードをドラッグすると枝ごと動き、線もリアルタイムで追従します。</li>' +
         '<li>右下で拡大縮小、<kbd>G</kbd> で全体表示、<kbd>F</kbd> で選択だけを表示します。</li></ul>' },
       { id: 'map', title: 'マップと表示', html:
-        '<p>タブごとに同じ資料を別の見方で表示します。構造はツリー・組織図・自由リンクから選べ、自動整列は手動配置を戻します。</p>' +
+        '<p>タブごとに同じ正本を見る別のビューです。ツリー・組織図・フィッシュボーン・タイムライン・放射図・マトリクス・自由リンクの 7 種類を切り替えられます。自動整列は手動オフセットを消します。</p>' +
         '<p>フォーカスは選択ノードと隣接だけを表示します。テンプレートは構造とカード内容を新しいマップに複製します。PNG・SVG・Markdown へは「…」から書き出します。</p>' },
       { id: 'node', title: 'ノードとカード', html:
         '<p>右パネルでタイトル、本文、任意の注記、タグ、分類、スタイル（形・塗り・アイコン・文字サイズ・太字・リンク）を編集します。</p>' +
@@ -228,7 +228,7 @@
         '<li>Al arrastrar un nodo se mueve toda la rama y sus enlaces siguen en vivo.</li>' +
         '<li>Zoom abajo a la derecha; <kbd>G</kbd> ajusta el mapa y <kbd>F</kbd> aísla la selección.</li></ul>' },
       { id: 'map', title: 'Mapas y vistas', html:
-        '<p>Cada pestaña es una vista del mismo corpus. Cambia entre árbol, organigrama y enlaces libres; ordenar borra los desplazamientos manuales.</p>' +
+        '<p>Cada pestaña es una vista distinta del mismo corpus. Elige entre siete estructuras: árbol, organigrama, espina de pescado, línea de tiempo, radial, matriz y enlaces libres; la auto-organización borra los desplazamientos manuales.</p>' +
         '<p>El enfoque muestra solo el nodo y sus vecinos. Las plantillas copian estructura y contenido; exporta PNG, SVG o Markdown desde «…».</p>' },
       { id: 'node', title: 'Nodos y tarjetas', html:
         '<p>El panel derecho edita título, cuerpo, nota opcional, etiquetas, categoría y estilo (forma, relleno, icono, tamaño, negrita, enlace).</p>' +
@@ -333,7 +333,7 @@
         '<li>Glisser un nœud déplace toute la branche, liens compris, en direct.</li>' +
         '<li>Zoom en bas à droite ; <kbd>G</kbd> ajuste la carte et <kbd>F</kbd> isole la sélection.</li></ul>' },
       { id: 'map', title: 'Cartes et vues', html:
-        '<p>Chaque onglet est une vue du même corpus. Passez d’un arbre à un organigramme ou à des liens libres ; la disposition auto efface les décalages manuels.</p>' +
+        '<p>Chaque onglet est une vue distincte du même corpus. Choisissez parmi sept structures : arbre, organigramme, arrête de poisson, chronologie, radial, matrice et liens libres ; l’agencement automatique efface les décalages manuels.</p>' +
         '<p>Le focus n’affiche que le nœud et ses voisins. Les modèles copient structure et contenu ; exportez en PNG, SVG ou Markdown via « … ».</p>' },
       { id: 'node', title: 'Nœuds et fiches', html:
         '<p>Le panneau de droite modifie titre, corps, note facultative, étiquettes, catégorie et style (forme, remplissage, icône, taille, gras, lien).</p>' +
@@ -438,7 +438,7 @@
         '<li>노드를 끌면 가지 전체가 움직이고 연결선도 실시간으로 따라옵니다.</li>' +
         '<li>오른쪽 아래에서 확대/축소, <kbd>G</kbd>로 맞춤, <kbd>F</kbd>로 선택만 표시합니다.</li></ul>' },
       { id: 'map', title: '맵과 보기', html:
-        '<p>탭마다 같은 자료를 다른 방식으로 봅니다. 구조는 트리·조직도·자유 연결 중에서 고르고, 자동 정렬은 수동 배치를 지웁니다.</p>' +
+        '<p>각 탭은 같은 원본을 보는 별도의 뷰입니다. 트리·조직도·피쉬본·타임라인·방사형·매트릭스·자유 연결의 7가지 구조를 전환하며, 자동 정렬은 수동 오프셋을 지웁니다.</p>' +
         '<p>포커스는 선택 노드와 이웃만 보여 줍니다. 템플릿은 구조와 카드 내용을 새 맵으로 복사하고, PNG·SVG·Markdown은 「…」에서 내보냅니다.</p>' },
       { id: 'node', title: '노드와 카드', html:
         '<p>오른쪽 패널에서 제목, 본문, 선택 메모, 태그, 분류, 스타일(모양·채우기·아이콘·크기·굵게·링크)을 편집합니다.</p>' +

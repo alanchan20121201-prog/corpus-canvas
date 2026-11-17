@@ -478,8 +478,25 @@
           var kn = nodes[k];
           kn.x = bx + 150 + j * 20;
           kn.y = by + side * (95 + j * 70);
+          placeDeeper(nodes, childMap, k, kn.x, kn.y, 1);
         });
       });
+    });
+  }
+
+  /* Recursively place every node deeper than the two levels a structure has
+     already laid out, so deeper nodes never pile up on the origin. */
+  function placeDeeper(nodes, childMap, id, px, py, level) {
+    var kids = childMap[id] || [];
+    if (!kids.length) return;
+    var gap = 150, rowH = 92;
+    kids.forEach(function (k, j) {
+      var kn = nodes[k];
+      if (!kn) return;
+      kn.x = px + (j - (kids.length - 1) / 2) * gap;
+      kn.y = py + rowH * level;
+      kn.depth = (nodes[id].depth || 0) + 1;
+      placeDeeper(nodes, childMap, k, kn.x, kn.y, level + 1);
     });
   }
 
@@ -497,6 +514,7 @@
         var kn = nodes[k];
         kn.x = cursor + (j - ((childMap[b] || []).length - 1) / 2) * 150;
         kn.y = 120;
+        placeDeeper(nodes, childMap, k, kn.x, kn.y, 1);
       });
       cursor += 210;
     });
@@ -523,6 +541,7 @@
         var kn = nodes[k];
         kn.x = Math.cos(a2) * r2;
         kn.y = Math.sin(a2) * r2;
+        placeDeeper(nodes, childMap, k, kn.x, kn.y, 1);
       });
     });
     roots.slice(1).forEach(function (r, i) {
@@ -536,15 +555,25 @@
     var root = nodes[roots[0]];
     if (root) { root.x = 0; root.y = 0; }
     var items = childMap[roots[0]] || [];
-    var quadrants = [[-260, -180], [260, -180], [-260, 180], [260, 180]];
+    var quadrants = [[-300, -220], [300, -220], [-300, 220], [300, 220]];
+    /* inside each quadrant fan items on a small grid, so the 5th item
+       does not land on top of the 1st */
+    var perQuad = {};
     items.forEach(function (b, i) {
-      var q = quadrants[i % 4];
+      var qi = i % 4;
+      var slot = perQuad[qi] = (perQuad[qi] || 0) + 1;
+      var ring = Math.floor((slot - 1) / 3);
+      var col = (slot - 1) % 3;
+      var q = quadrants[qi];
+      var dir = q[0] < 0 ? 1 : -1;
       var bn = nodes[b];
-      bn.x = q[0]; bn.y = q[1];
+      bn.x = q[0] + dir * col * 190;
+      bn.y = q[1] + ring * 130;
       (childMap[b] || []).forEach(function (k, j) {
         var kn = nodes[k];
-        kn.x = q[0] + (j % 2 ? 150 : -150);
-        kn.y = q[1] + (j < 2 ? -80 : 80);
+        kn.x = bn.x + (j - ((childMap[b] || []).length - 1) / 2) * 150;
+        kn.y = bn.y + 110;
+        placeDeeper(nodes, childMap, k, kn.x, kn.y, 1);
       });
     });
     roots.slice(1).forEach(function (r, i) { nodes[r].x = -260 + i * 520; nodes[r].y = 360; });
