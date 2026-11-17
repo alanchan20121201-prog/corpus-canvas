@@ -122,7 +122,7 @@
     if (alpha > 0) {
       stepPhysics();
       alpha *= 0.985;
-      if (alpha < 0.02) { alpha = 0; settle++; if (settle === 1) persist(); }
+      if (alpha < 0.02) { alpha = 0; settle++; if (settle === 1) { fitView(); persist(); } }
     }
     paint();
     if (alpha > 0) raf = requestAnimationFrame(tick);
@@ -131,6 +131,25 @@
   function kick() { alpha = Math.max(alpha, 0.9); settle = 0; if (!raf) raf = requestAnimationFrame(tick); }
 
   function applyView() { if (vp) vp.setAttribute('transform', 'translate(' + view.x + ',' + view.y + ') scale(' + view.k + ')'); }
+
+  /* Centre the whole cloud inside the canvas. Without this the graph drew
+     around world origin (0,0), which is the canvas top-left corner, so the
+     nodes ended up off-screen and the view looked empty. */
+  function fitView() {
+    if (!svg) return;
+    var w = svg.clientWidth || 900, h = svg.clientHeight || 600;
+    if (!nodes.length) { view.k = 1; view.x = w / 2; view.y = h / 2; applyView(); return; }
+    var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    nodes.forEach(function (n) {
+      minX = Math.min(minX, n.x - 90); maxX = Math.max(maxX, n.x + 90);
+      minY = Math.min(minY, n.y - 44); maxY = Math.max(maxY, n.y + 44);
+    });
+    var cw = Math.max(1, maxX - minX), ch = Math.max(1, maxY - minY);
+    view.k = Math.min(1.6, Math.max(0.2, Math.min(w / cw, h / ch)));
+    view.x = w / 2 - ((minX + maxX) / 2) * view.k;
+    view.y = h / 2 - ((minY + maxY) / 2) * view.k;
+    applyView();
+  }
   function toWorld(e) { return { x: (e.clientX - rectLeft()) / view.k - view.x / view.k, y: (e.clientY - rectTop()) / view.k - view.y / view.k }; }
   function rectLeft() { return svg ? svg.getBoundingClientRect().left : 0; }
   function rectTop() { return svg ? svg.getBoundingClientRect().top : 0; }
@@ -199,7 +218,7 @@
       kick();
     };
     var fit = root.querySelector('[data-fg="fit"]');
-    if (fit) fit.onclick = function () { view = { x: 0, y: 0, k: 1 }; applyView(); persist(); };
+    if (fit) fit.onclick = function () { fitView(); persist(); };
   }
 
   function mount(host) {
@@ -220,6 +239,7 @@
     svg = root.querySelector('#fg-svg');
     vp = root.querySelector('#fg-vp');
     bind();
+    fitView();
     paint();
     kick();
   }

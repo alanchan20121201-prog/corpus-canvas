@@ -1717,6 +1717,15 @@ function step(name, fn) {
     return 'ipc present';
   });
 
+  await step('force-graph-fitted', () => {
+    CC.app.nav('graph');
+    var vp = document.querySelector('#fg-vp');
+    if (!vp) throw new Error('no fg-vp');
+    var tf = vp.getAttribute('transform') || '';
+    if (!tf || /^translate\(0,\s*0\)/.test(tf)) throw new Error('graph not centred: ' + tf);
+    return 'centred: ' + tf;
+  });
+
   await step('no-uncaught', () => {
     if (errors.length) throw new Error(errors.slice(0, 3).join(' | '));
     return 'clean';
