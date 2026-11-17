@@ -207,6 +207,8 @@
     'settings.path.ledger': 'Journal d’usage',
     'settings.path.trash': 'Corbeille',
     'settings.path.data': 'Dossier de données',
+    'settings.dataPathsFail': 'Impossible de lire les chemins ; vérifiez les droits ou relancez.',
+    'settings.previewBuild': 'Aperçu navigateur',
     'cards.citeCard': 'Citer une fiche',
     'cards.citeCardPlaceholder': 'Titre exact de la fiche citée',
     'cards.citeNotFound': 'Fiche introuvable',

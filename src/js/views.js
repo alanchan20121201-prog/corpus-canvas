@@ -186,7 +186,13 @@
     if (!ids.length) return '<div class="tile-empty"></div>';
     var b = model.bounds;
     var pad = 10;
-    var vb = (b.minX - pad) + ' ' + (b.minY - pad) + ' ' + Math.max(b.w + pad * 2, 40) + ' ' + Math.max(b.h + pad * 2, 30);
+    /* a single small node must not fill the whole thumbnail; keep a floor
+       on the viewBox so it reads as a map preview, not a blank tile */
+    var vw = Math.max(b.w + pad * 2, 260);
+    var vh = Math.max(b.h + pad * 2, 150);
+    var vx = (b.minX + b.maxX) / 2 - vw / 2;
+    var vy = (b.minY + b.maxY) / 2 - vh / 2;
+    var vb = vx + ' ' + vy + ' ' + vw + ' ' + vh;
     var html = '<svg viewBox="' + vb + '" preserveAspectRatio="xMidYMid meet">';
     model.edges.slice(0, 40).forEach(function (e) {
       var a = model.nodes[e.from], c = model.nodes[e.to];

@@ -659,5 +659,7 @@
   "settings.path.keys": "Path keys",
   "settings.path.ledger": "Path ledger",
   "settings.path.trash": "Path trash",
-  "settings.path.data": "Path data"
+  "settings.path.data": "Path data",
+  "settings.dataPathsFail": "Data paths fail",
+  "settings.previewBuild": "Preview build"
 }

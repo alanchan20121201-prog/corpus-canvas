@@ -207,6 +207,8 @@
     'settings.path.ledger': 'Registro de uso',
     'settings.path.trash': 'Papelera',
     'settings.path.data': 'Carpeta de datos',
+    'settings.dataPathsFail': 'No se pudieron leer las rutas; revisa permisos o reinicia.',
+    'settings.previewBuild': 'Vista previa del navegador',
     'cards.citeCard': 'Citar tarjeta',
     'cards.citeCardPlaceholder': 'Título exacto de la tarjeta citada',
     'cards.citeNotFound': 'Tarjeta no encontrada',

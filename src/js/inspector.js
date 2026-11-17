@@ -625,7 +625,8 @@
     var el = host.querySelector(sel);
     if (!el) return;
     var before = null;
-    el.addEventListener('focus', function () { before = S.snapshotState(); });
+    var origVal = null;
+    el.addEventListener('focus', function () { before = S.snapshotState(); origVal = el.value; });
     el.addEventListener('input', function () {
       var c = S.card(currentId);
       if (!c) return;
@@ -640,13 +641,16 @@
       if (CC.app) CC.app.refreshLight();
     });
     el.addEventListener('blur', function () {
-      if (before) {
+      /* only record an edit when the value really changed, otherwise mere
+         focus/blur cycles fill the history with duplicate entries */
+      if (before && el.value !== origVal) {
         var c = S.card(currentId);
         if (c) S.touchCard(c.id);
         S.emit();
         S.markEdit('edit', label + (c ? ' · ' + (c.title || t('common.untitled')) : ''), before);
-        before = null;
       }
+      before = null;
+      origVal = null;
     });
   }
 

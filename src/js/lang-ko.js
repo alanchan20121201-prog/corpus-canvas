@@ -207,6 +207,8 @@
     'settings.path.ledger': '사용 기록',
     'settings.path.trash': '휴지통',
     'settings.path.data': '데이터 폴더',
+    'settings.dataPathsFail': '데이터 경로를 읽을 수 없습니다. 권한을 확인하거나 다시 실행하세요.',
+    'settings.previewBuild': '브라우저 미리보기',
     'cards.citeCard': '카드 인용',
     'cards.citeCardPlaceholder': '인용할 카드의 정확한 제목',
     'cards.citeNotFound': '카드를 찾을 수 없습니다',

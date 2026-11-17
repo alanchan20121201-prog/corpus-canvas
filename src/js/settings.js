@@ -179,7 +179,7 @@
         section('set-about', 'info', t('settings.about'),
           '<p class="set-hint">' + U.esc(t('settings.aboutBody')) + '</p>' +
           '<div class="about-row"><span class="about-mark">◈</span><div><strong>' + U.esc(t('app.name')) + '</strong>' +
-          '<p>' + U.esc(t('app.tagline')) + ' · ' + U.esc(t('settings.version', { v: info.version || '' })) + '</p></div></div>') +
+          '<p>' + U.esc(t('app.tagline')) + ' · ' + (info.version ? U.esc(t('settings.version', { v: info.version })) : U.esc(t('settings.previewBuild'))) + '</p></div></div>') +
       '</div>';
 
     bind(root);
@@ -471,7 +471,11 @@
       var host = root.querySelector('#path-list');
       if (!host || !window.api || !window.api.dataPaths) return;
       window.api.dataPaths().then(function (r) {
-        var list = (r && r.paths) || [];
+        if (!r || r.ok === false) {
+          host.innerHTML = '<div class="mini-empty">' + U.esc(t('settings.dataPathsFail')) + '</div>';
+          return;
+        }
+        var list = r.paths || [];
         if (!list.length) { host.innerHTML = '<div class="mini-empty">' + U.esc(t('common.empty')) + '</div>'; return; }
         host.innerHTML = list.map(function (p) {
           return '<div class="path-row"><span class="path-label">' + U.esc(t('settings.path.' + p.key) || p.label) + '</span>' +
@@ -486,6 +490,8 @@
             });
           };
         });
+      }).catch(function () {
+        host.innerHTML = '<div class="mini-empty">' + U.esc(t('settings.dataPathsFail')) + '</div>';
       });
     }
     renderDataPaths();

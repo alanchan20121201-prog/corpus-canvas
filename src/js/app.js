@@ -10,7 +10,7 @@
   if (PREVIEW) {
     var ls = window.localStorage;
     window.api = {
-      info: function () { return Promise.resolve({ version: '1.0.0-preview', userDir: '', corpusPath: 'localStorage', platform: 'web', encrypted: false, dev: true }); },
+      info: function () { return Promise.resolve({ version: '', userDir: '', corpusPath: 'localStorage', platform: 'web', encrypted: false, dev: true }); },
       loadCorpus: function () { try { return Promise.resolve(JSON.parse(ls.getItem('cc-corpus') || 'null')); } catch (e) { return Promise.resolve(null); } },
       saveCorpus: function (d) { ls.setItem('cc-corpus', JSON.stringify(d && d.data ? d.data : d)); return Promise.resolve({ ok: true }); },
       revealCorpus: function () { return Promise.resolve({ ok: true }); },

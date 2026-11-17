@@ -1892,7 +1892,8 @@ code.kv-val { font-family: var(--font-mono); font-size: 11px; }
   color: var(--text-2);
   white-space: nowrap;
 }
-.topnav { display: flex; align-items: center; gap: 1px; min-width: 0; overflow: hidden; }
+.topnav { display: flex; align-items: center; gap: 1px; min-width: 0; overflow: hidden; flex-wrap: nowrap; }
+.topnav .rail-btn, .tb-right .rail-btn, .map-bar .tool-btn, .map-bar .struct-btn { white-space: nowrap; }
 .topnav .rail-btn, .tb-right .rail-btn {
   width: auto; height: 38px;
   flex-direction: row;
@@ -1990,6 +1991,10 @@ code.kv-val { font-family: var(--font-mono); font-size: 11px; }
 @media (max-width: 1100px) {
   .tb-right .search-pill { display: none; }
   .tb-right .rail-label { display: none; }
+}
+@media (max-width: 900px) {
+  .topnav .rail-btn { padding: 0 5px; }
+  .map-bar .tool-btn .tool-label { display: none; }
 }
 
 

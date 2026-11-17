@@ -1726,6 +1726,34 @@ function step(name, fn) {
     return 'centred: ' + tf;
   });
 
+  await step('ui-1.5.7-fixes', () => {
+    var v = fs.readFileSync(path.join(root, 'js', 'views.js'), 'utf8');
+    if (v.indexOf('Math.max(b.w + pad * 2, 260)') < 0) throw new Error('thumbnail min viewBox missing');
+    var g = fs.readFileSync(path.join(root, 'js', 'graph.js'), 'utf8');
+    if (g.indexOf('if (needFit) setTimeout(zoomFit, 0)') < 0) throw new Error('mount auto-fit missing');
+    var ins = fs.readFileSync(path.join(root, 'js', 'inspector.js'), 'utf8');
+    if (ins.indexOf('el.value !== origVal') < 0) throw new Error('no-change history guard missing');
+    var set = fs.readFileSync(path.join(root, 'js', 'settings.js'), 'utf8');
+    if (set.indexOf('dataPathsFail') < 0) throw new Error('data paths error branch missing');
+    var app = fs.readFileSync(path.join(root, 'js', 'app.js'), 'utf8');
+    if (app.indexOf("version: '1.0.0-preview'") >= 0) throw new Error('fake preview version still present');
+    return 'six fixes present';
+  });
+
+  await step('no-change-edit-keeps-history', () => {
+    var c = S.cards()[0];
+    if (!c) throw new Error('no card');
+    CC.inspector.open(c.id);
+    var before = S.state().history.length;
+    var el = document.querySelector('#inspector #insp-title');
+    if (!el) throw new Error('no title input');
+    el.focus();
+    el.blur();
+    var after = S.state().history.length;
+    if (after !== before) throw new Error('focus/blur added history: ' + before + '->' + after);
+    return 'no spurious entry';
+  });
+
   await step('no-uncaught', () => {
     if (errors.length) throw new Error(errors.slice(0, 3).join(' | '));
     return 'clean';

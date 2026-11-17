@@ -178,9 +178,14 @@
     }
     empty.hidden = true;
 
+    var needFit = false;
     if (m.view && !st._viewApplied) {
       view = { x: m.view.x, y: m.view.y, k: m.view.k };
       st._viewApplied = true;
+      /* a stored (0,0) means "never positioned"; fit instead */
+      if (!m.view.x && !m.view.y) needFit = true;
+    } else if (!m.view) {
+      needFit = true;
     }
     if (st.focus && !S.card(st.focus)) st.focus = null;
 
@@ -189,6 +194,7 @@
     applyView();
     paint();
     scheduleWarm();
+    if (needFit) setTimeout(zoomFit, 0);
 
     host.querySelector('#zoom-val').textContent = Math.round(view.k * 100) + '%';
     var structNames = {
