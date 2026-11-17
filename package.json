@@ -1,7 +1,7 @@
 {
   "name": "corpus-canvas",
   "productName": "CorpusCanvas",
-  "version": "1.5.2",
+  "version": "1.5.3",
   "description": "Corpus Canvas - one corpus, many maps",
   "main": "electron/main.js",
   "author": "CorpusCanvas",

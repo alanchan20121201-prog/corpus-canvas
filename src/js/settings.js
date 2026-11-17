@@ -755,12 +755,21 @@
         } else {
           (data.cards || []).forEach(function (c) {
             var ex = db.cards.find(function (x) { return x.id === c.id; });
-            if (ex) { Object.assign(ex, c); updated++; }
+            if (ex) {
+              /* keep the newer side: only overwrite when the imported card
+                 is newer, so an older backup cannot clobber local edits */
+              var localAt = Number(ex.updatedAt || ex.createdAt || 0);
+              var incomingAt = Number(c.updatedAt || c.createdAt || 0);
+              if (incomingAt >= localAt) { Object.assign(ex, c); updated++; }
+            }
             else { db.cards.push(c); added++; }
           });
           (data.maps || []).forEach(function (m) {
             var ex = db.maps.find(function (x) { return x.id === m.id; });
-            if (ex) Object.assign(ex, m);
+            if (ex) {
+              var lm = Number(ex.updatedAt || 0), im = Number(m.updatedAt || 0);
+              if (im >= lm) Object.assign(ex, m);
+            }
             else db.maps.push(m);
           });
           db.reviews = mergeUnique(db.reviews, data.reviews);

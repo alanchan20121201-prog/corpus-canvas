@@ -54,9 +54,14 @@
   function migrate(raw) {
     var base = blank();
     if (!raw || typeof raw !== 'object') return base;
-    var out = Object.assign(base, raw);
-    out.settings = Object.assign(base.settings, raw.settings || {});
-    out.settings.ai = Object.assign(base.settings.ai, (raw.settings && raw.settings.ai) || {});
+    /* Build a clean result instead of Object.assign(base, raw): mutating
+       base replaced its default settings with raw.settings, so the
+       defaults were lost and a null/missing settings block crashed. */
+    var out = Object.assign({}, base, raw);
+    var rawSet = (raw.settings && typeof raw.settings === 'object') ? raw.settings : {};
+    out.settings = Object.assign({}, base.settings, rawSet);
+    var rawAi = (rawSet.ai && typeof rawSet.ai === 'object') ? rawSet.ai : {};
+    out.settings.ai = Object.assign({}, base.settings.ai, rawAi);
     if (out.settings.langAuto == null) out.settings.langAuto = true;
     if (!out.settings.shortcuts || typeof out.settings.shortcuts !== 'object' || Array.isArray(out.settings.shortcuts)) out.settings.shortcuts = {};
     if (!Array.isArray(out.settings.aiProfiles) || !out.settings.aiProfiles.length) {
@@ -659,6 +664,10 @@
 
   function resetAll() {
     db = blank();
+    /* clearing the corpus must also clear history, otherwise Ctrl+Z
+       would resurrect the data the user just asked to delete */
+    undoStack.length = 0;
+    redoStack.length = 0;
     rebuildIndex();
     saveSoon(); emit();
   }
@@ -670,7 +679,7 @@
 
   CC.store = {
     FORMAT_VERSION: FORMAT_VERSION,
-    init: init, state: state, settings: settings, info: function () { return info; },
+    init: init, state: state, settings: settings, info: function () { return info; }, migrate: migrate,
     saveState: saveState, onSaveState: onSaveState, retrySave: retrySave,
     cards: cards, card: card, maps: maps, map: map, currentMap: currentMap,
     cardsRev: cardsRevNo, bumpCardsRev: bumpCards,

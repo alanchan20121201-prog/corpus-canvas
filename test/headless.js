@@ -1623,6 +1623,36 @@ function step(name, fn) {
     return 'print scene has pictures + real name';
   });
 
+  await step('reset-all-clears-undo', () => {
+    var before = S.cards().length;
+    if (!before) throw new Error('no cards to clear');
+    S.resetAll();
+    if (S.cards().length !== 0) throw new Error('cards not cleared');
+    if (S.canUndo && S.canUndo()) throw new Error('undo stack survived resetAll');
+    S.newCard({ title: 'after-reset' }, true);
+    return 'resetAll cleared undo';
+  });
+
+  await step('migrate-tolerant', () => {
+    /* missing settings / ai / null must not throw, and defaults survive */
+    var a = S.migrate({ settings: { lang: 'en' } });
+    if (!a || !a.settings || !a.settings.ai) throw new Error('migrate lost ai defaults');
+    if (a.settings.lang !== 'en') throw new Error('migrate dropped provided lang');
+    if (!a.settings.aiProfiles || !a.settings.aiProfiles.length) throw new Error('no aiProfiles default');
+    S.migrate({ settings: null });
+    S.migrate({});
+    var code = fs.readFileSync(path.join(root, 'js', 'store.js'), 'utf8');
+    if (code.indexOf('var out = Object.assign({}, base, raw)') < 0) throw new Error('unsafe migrate still present');
+    return 'migrate tolerant';
+  });
+
+  await step('merge-keeps-newer', () => {
+    var code = fs.readFileSync(path.join(root, 'js', 'settings.js'), 'utf8');
+    if (code.indexOf('incomingAt >= localAt') < 0) throw new Error('merge not time-aware');
+    if (code.indexOf('if (im >= lm) Object.assign(ex, m)') < 0) throw new Error('map merge not time-aware');
+    return 'merge keeps newer';
+  });
+
   await step('no-uncaught', () => {
     if (errors.length) throw new Error(errors.slice(0, 3).join(' | '));
     return 'clean';
