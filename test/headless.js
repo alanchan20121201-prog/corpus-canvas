@@ -1571,27 +1571,24 @@ function step(name, fn) {
   });
 
   await step('deep-structures-no-overlap', () => {
-    var m = S.maps()[0];
-    if (!m) throw new Error('no map');
-    /* build a 4-level chain in a fresh map so depth 3 exists */
-    var base = S.cards().length;
+    /* use an isolated map object so the global card order cannot change roots */
     var ids = [];
     for (var i = 0; i < 4; i++) ids.push(S.newCard({ title: 'L' + i }, true).id);
-    S.commit('test', 'deep', function () {
-      m.edges.push({ id: 'ed0', from: ids[0], to: ids[1], type: 'hierarchy' });
-      m.edges.push({ id: 'ed1', from: ids[1], to: ids[2], type: 'hierarchy' });
-      m.edges.push({ id: 'ed2', from: ids[2], to: ids[3], type: 'hierarchy' });
-    });
+    var edges = [
+      { id: 'ed0', from: ids[0], to: ids[1], type: 'hierarchy' },
+      { id: 'ed1', from: ids[1], to: ids[2], type: 'hierarchy' },
+      { id: 'ed2', from: ids[2], to: ids[3], type: 'hierarchy' }
+    ];
     ['fishbone', 'timeline', 'radial', 'matrix'].forEach(function (st) {
-      m.structure = st;
-      var model = CC.layout.get(m);
+      var fake = { id: 'probe-deep-' + st, rev: 1, structure: st, edges: edges,
+        positions: {}, offsets: {}, collapsed: [], style: {} };
+      var model = CC.layout.compute(fake);
       var deep = model.nodes[ids[3]];
-      if (!deep) return;
+      if (!deep) throw new Error(st + ': node missing');
       if (Math.abs(deep.x) < 1 && Math.abs(deep.y) < 1) {
         throw new Error(st + ': depth-3 node still at origin');
       }
     });
-    m.structure = 'tree';
     return 'depth-3 placed in all four structures';
   });
 
@@ -1752,6 +1749,41 @@ function step(name, fn) {
     var after = S.state().history.length;
     if (after !== before) throw new Error('focus/blur added history: ' + before + '->' + after);
     return 'no spurious entry';
+  });
+
+  await step('fishbone-multi-root-side-by-side', () => {
+    var cards = [];
+    var edges = [];
+    for (var r = 0; r < 2; r++) {
+      var root = S.newCard({ title: '根' + r }, true).id;
+      var k = S.newCard({ title: '枝' + r }, true).id;
+      edges.push({ id: 'fb' + r, from: root, to: k, type: 'hierarchy' });
+    }
+    var fake = { id: 'probe-fish', rev: 1, structure: 'fishbone', edges: edges,
+      positions: {}, offsets: {}, collapsed: [], style: {} };
+    var model = CC.layout.compute(fake);
+    var roots = model.roots.map(function (id) { return model.nodes[id]; }).filter(Boolean);
+    if (roots.length !== 2) throw new Error('roots=' + roots.length);
+    if (Math.abs(roots[0].y - roots[1].y) > 40) throw new Error('roots not on same band');
+    if (Math.abs(roots[0].x - roots[1].x) < 200) throw new Error('roots not side by side');
+    return 'two roots share band, x apart';
+  });
+
+  await step('layout-cache-key-has-structure', () => {
+    var code = fs.readFileSync(path.join(root, 'js', 'layout.js'), 'utf8');
+    if (code.indexOf("map.structure || 'tree'].join('|')") < 0) throw new Error('keyOf lacks structure');
+    var a = S.newCard({ title: 'k1' }, true).id;
+    var b = S.newCard({ title: 'k2' }, true).id;
+    var fake = { id: 'probe-key', rev: 5, structure: 'tree', edges: [{ id: 'kk', from: a, to: b, type: 'hierarchy' }],
+      positions: {}, offsets: {}, collapsed: [], style: {} };
+    var m1 = CC.layout.compute(fake);
+    fake.structure = 'radial';
+    var m2 = CC.layout.compute(fake);
+    var p1 = m1.nodes[b], p2 = m2.nodes[b];
+    if (Math.round(p1.x) === Math.round(p2.x) && Math.round(p1.y) === Math.round(p2.y)) {
+      throw new Error('structure change reused cached model');
+    }
+    return 'structure invalidates cache';
   });
 
   await step('no-uncaught', () => {

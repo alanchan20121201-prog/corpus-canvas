@@ -136,7 +136,9 @@
   /* ---------------- build ---------------- */
 
   function keyOf(map) {
-    return [map.id, map.rev || 0, S.cardsRev(), S.state().cards.length].join('|');
+    /* structure is part of the layout identity: a switch without bumping rev
+       must still invalidate the cached model */
+    return [map.id, map.rev || 0, S.cardsRev(), S.state().cards.length, map.structure || 'tree'].join('|');
   }
 
   /* persistent cache signature: survives restarts, unlike cardsRev */
@@ -462,15 +464,19 @@
   /* Fishbone (Ishikawa): root at left, a horizontal spine, first-level
      branches alternating above/below, second-level hanging off them. */
   function layoutFishbone(nodes, childMap, roots) {
-    var spineY = 0, x0 = 220, step = 240;
+    var x0 = 220, step = 240, gap = 180;
+    /* lay each root's spine side by side on the same horizontal band, so
+       several disconnected roots do not stack into a very tall canvas */
+    var cursorX = 0;
     roots.forEach(function (r, ri) {
-      var ry = spineY + ri * 420;
       var root = nodes[r];
-      root.x = 0; root.y = ry;
       var bones = childMap[r] || [];
+      var span = Math.max(420, 260 + Math.ceil(bones.length / 2) * step + 200);
+      root.x = cursorX; root.y = 0;
+      var ry = 0;
       bones.forEach(function (b, i) {
         var side = i % 2 === 0 ? -1 : 1;
-        var bx = x0 + Math.floor(i / 2) * step;
+        var bx = cursorX + x0 + Math.floor(i / 2) * step;
         var by = ry + side * 130;
         var bn = nodes[b];
         bn.x = bx; bn.y = by;
@@ -481,6 +487,7 @@
           placeDeeper(nodes, childMap, k, kn.x, kn.y, 1);
         });
       });
+      cursorX += span + gap;
     });
   }
 
