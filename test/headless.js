@@ -1514,7 +1514,15 @@ function step(name, fn) {
     const html = fs.readFileSync(path.join(root, '..', 'electron', 'main.js'), 'utf8');
     if (html.indexOf("corpus-\\d{8}-\\d{6}(?:-\\d{3})?") < 0) throw new Error('regex not ms-aware');
     if (html.indexOf('getMilliseconds()') < 0) throw new Error('autoBackup not ms');
-    return 'ms backup names';
+    /* all three sites (rotation / list / restore) must accept ms, otherwise
+       old backups accumulate forever because the rotation regex silently
+       fails to match the new filenames */
+    const old = /corpus-\\d\{8\}-\\d\{6\}\\\.json/g;
+    const stale = html.match(old);
+    if (stale && stale.length) throw new Error('stale second-only regex x' + stale.length);
+    const msAware = html.match(/corpus-\\d\{8\}-\\d\{6\}\(\?:-\\d\{3\}\)\?\\\.json/g);
+    if (!msAware || msAware.length < 3) throw new Error('expected 3 ms-aware regexes, got ' + (msAware ? msAware.length : 0));
+    return 'ms backup names (3/3 sites)';
   });
 
   await step('new-structures-layout', () => {

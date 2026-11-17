@@ -87,7 +87,7 @@ async function autoBackup() {
     const pad = (n) => String(n).padStart(2, '0');
     const name = 'corpus-' + d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate()) + '-' + pad(d.getHours()) + pad(d.getMinutes()) + pad(d.getSeconds()) + '-' + pad(d.getMilliseconds()) + '.json';
     await fsp.writeFile(path.join(active.backupDir, name), JSON.stringify(data), 'utf8');
-    const files = (await fsp.readdir(active.backupDir)).filter((f) => /^corpus-\d{8}-\d{6}\.json$/.test(f)).sort();
+    const files = (await fsp.readdir(active.backupDir)).filter((f) => /^corpus-\d{8}-\d{6}(?:-\d{3})?\.json$/.test(f)).sort();
     while (files.length > 10) await fsp.rm(path.join(active.backupDir, files.shift()), { force: true });
   } catch (e) { /* ignore */ }
 }
