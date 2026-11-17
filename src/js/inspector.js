@@ -133,15 +133,19 @@
     var backs = backlinksOf(c.id);
     var typeName = function (k) { return t('edge.' + (k || 'custom')); };
 
-    /* host.innerHTML below destroys the focused field; capture it first so
-       a background refresh while typing does not lose the caret/scroll. */
+    /* host.innerHTML below destroys the scroll position and the focused
+       field. Capture both first: the scroll must be restored even when the
+       focus is not on an input (e.g. after adding a picture, link or tag),
+       otherwise the panel jumps back to the top after every such action. */
     var focusState = null;
-    if (opts && opts.keepFocus) {
+    var savedScroll = 0;
+    var sameCard = !!(opts && opts.keepFocus);
+    if (sameCard) {
+      var bodyEl = host.querySelector('.insp-body');
+      if (bodyEl) savedScroll = bodyEl.scrollTop;
       var ae = document.activeElement;
       if (ae && ae.id && host.contains(ae)) {
-        var bodyEl = host.querySelector('.insp-body');
-        focusState = { id: ae.id, start: ae.selectionStart, end: ae.selectionEnd,
-          scroll: bodyEl ? bodyEl.scrollTop : 0 };
+        focusState = { id: ae.id, start: ae.selectionStart, end: ae.selectionEnd };
       }
     }
 
@@ -281,8 +285,10 @@
           try { el2.setSelectionRange(focusState.start, focusState.end); } catch (e) { /* ignore */ }
         }
       }
+    }
+    if (sameCard) {
       var body2 = host.querySelector('.insp-body');
-      if (body2) body2.scrollTop = focusState.scroll;
+      if (body2) body2.scrollTop = savedScroll;
     }
   }
 

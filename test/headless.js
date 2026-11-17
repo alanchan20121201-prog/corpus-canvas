@@ -1653,6 +1653,29 @@ function step(name, fn) {
     return 'merge keeps newer';
   });
 
+  await step('inspector-scroll-preserved', () => {
+    var c = S.cards()[0];
+    if (!c) throw new Error('no card');
+    CC.inspector.open(c.id);
+    var body = document.querySelector('#inspector .insp-body');
+    if (!body) throw new Error('insp-body missing');
+    body.scrollTop = 180;
+    if (body.scrollTop !== 180) return 'jsdom cannot scroll; source check only';
+    /* force an in-place refresh (keepFocus) like adding a tag/picture does */
+    CC.inspector.refresh();
+    var body2 = document.querySelector('#inspector .insp-body');
+    if (!body2) throw new Error('insp-body missing after refresh');
+    if (body2.scrollTop !== 180) throw new Error('scroll lost: ' + body2.scrollTop);
+    return 'scroll kept at ' + body2.scrollTop;
+  });
+
+  await step('inspector-scroll-source', () => {
+    var code = fs.readFileSync(path.join(root, 'js', 'inspector.js'), 'utf8');
+    if (code.indexOf('var sameCard = !!(opts && opts.keepFocus)') < 0) throw new Error('no sameCard guard');
+    if (code.indexOf('if (body2) body2.scrollTop = savedScroll') < 0) throw new Error('no scroll restore');
+    return 'scroll restore wired';
+  });
+
   await step('no-uncaught', () => {
     if (errors.length) throw new Error(errors.slice(0, 3).join(' | '));
     return 'clean';
